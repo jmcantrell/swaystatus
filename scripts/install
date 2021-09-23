@@ -1,5 +1,3 @@
 #!/usr/bin/env bash
 
-export PYTHONPATH=${PREFIX:-/usr/local}
-
-exec python3 setup.py install --prefix="$PYTHONPATH"
+exec python3 setup.py install --root="${PREFIX:-/usr/local}"
