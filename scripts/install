@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-exec python3 setup.py install --root="${PREFIX:-/usr/local}"
