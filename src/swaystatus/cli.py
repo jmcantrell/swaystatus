@@ -63,7 +63,10 @@ def main():
     config_file = args.config_file or (config_dir / "config.toml")
 
     config = Config(config_file)
-    modules = Modules((args.include or []) + config.include)
+
+    modules = Modules(
+        (args.include or []) + [config_dir / "modules"] + config.include
+    )
 
     elements = []
 
