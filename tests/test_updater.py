@@ -2,8 +2,8 @@ import os
 import json
 import random
 import pytest
-from swaystatus.element import Element
-from swaystatus.updater import Updater, header, body_start, body_item
+from swaystatus.element import BaseElement
+from swaystatus.updater import Updater
 
 zero = 0.00001
 
@@ -28,7 +28,7 @@ def updater_count(monkeypatch):
 
 
 def test_updater_run(capfd, updater_count):
-    class Foo(Element):
+    class Foo(BaseElement):
         def on_update(self, output):
             output.append(self.create_block("foo"))
 
@@ -50,7 +50,7 @@ def test_updater_run(capfd, updater_count):
 
 
 def test_updater_no_blocks(capfd):
-    class NoBlocks(Element):
+    class NoBlocks(BaseElement):
         def on_update(self, output):
             pass
 
@@ -64,7 +64,7 @@ def test_updater_no_blocks(capfd):
 def test_updater_multiple_blocks(capfd):
     texts = ["foo", "bar", "baz"]
 
-    class MultipleBlocks(Element):
+    class MultipleBlocks(BaseElement):
         def on_update(self, output):
             output.extend([self.create_block(text) for text in texts])
 
@@ -78,7 +78,7 @@ def test_updater_multiple_blocks(capfd):
 
 
 def test_updater_element_intervals(capfd, updater_count):
-    class Intervals(Element):
+    class Intervals(BaseElement):
         def __init__(self):
             super().__init__()
             self.text = "initial"

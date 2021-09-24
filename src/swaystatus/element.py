@@ -1,4 +1,4 @@
-class Element:
+class BaseElement:
     def __init__(self):
         super().__init__()
         self.intervals = []

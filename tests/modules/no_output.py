@@ -1,6 +1,6 @@
-import swaystatus
+from swaystatus import BaseElement
 
 
-class Element(swaystatus.Element):
+class Element(BaseElement):
     def on_update(self, output):
         pass
