@@ -5,17 +5,17 @@ from threading import Thread
 from .updater import Updater
 
 
-def run(config):
+def run(elements, **options):
     locale.setlocale(locale.LC_ALL, "")
 
     elements_by_name = {
         element.name: element
-        for element in config.elements
+        for element in elements
         if hasattr(element, "name")
     }
 
     def stdout():
-        Updater(config.elements, interval=config.interval).run()
+        Updater(elements, **options).run()
 
     stdout_thread = Thread(target=stdout)
     stdout_thread.daemon = True

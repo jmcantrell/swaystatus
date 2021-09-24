@@ -3,19 +3,8 @@ import time
 import signal
 
 
-header = json.dumps(
-    {
-        "version": 1,
-        "click_events": True,
-        "stop_signal": signal.SIGTSTP,
-    }
-)
-body_start = "[[]"
-body_item = ",{}"
-
-
 class Updater:
-    def __init__(self, elements, interval=None):
+    def __init__(self, elements, interval=1, click_events=True):
         super().__init__()
 
         self.elements = elements
@@ -25,9 +14,17 @@ class Updater:
             element.updater = self
             self.element_timers.append([0] * len(element.intervals))
 
-        self.interval = interval or 1
+        self.interval = interval
 
         self.time_before = time.perf_counter()
+
+        self._header = {
+            "version": 1,
+            "click_events": click_events,
+            "stop_signal": signal.SIGTSTP,
+        }
+        self._body_start = "[[]"
+        self._body_item = ",{}"
 
     def _running(self):
         return True
@@ -39,7 +36,7 @@ class Updater:
         output = []
         for element in self.elements:
             element.on_update(output)
-        self._send_line(body_item.format(json.dumps(output)))
+        self._send_line(self._body_item.format(json.dumps(output)))
 
     def update(self):
         time_now = time.perf_counter()
@@ -60,8 +57,8 @@ class Updater:
         self._send_update()
 
     def run(self):
-        self._send_line(header)
-        self._send_line(body_start)
+        self._send_line(json.dumps(self._header))
+        self._send_line(self._body_start)
 
         while self._running():
             self.update()
