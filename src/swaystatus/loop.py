@@ -1,6 +1,7 @@
 import sys
 import locale
 import json
+from signal import signal, SIGUSR1
 from threading import Thread
 from .updater import Updater
 
@@ -14,8 +15,15 @@ def run(elements, **options):
         if hasattr(element, "name")
     }
 
+    updater = Updater(elements, **options)
+
     def stdout():
-        Updater(elements, **options).run()
+        updater.run()
+
+    def update(*args, **kwargs):
+        updater.update()
+
+    signal(SIGUSR1, update)
 
     stdout_thread = Thread(target=stdout)
     stdout_thread.daemon = True
