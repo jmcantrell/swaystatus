@@ -1,6 +1,6 @@
 import json
 import time
-import signal
+from signal import SIGTSTP
 
 
 class Updater:
@@ -21,7 +21,7 @@ class Updater:
         self._header = {
             "version": 1,
             "click_events": click_events,
-            "stop_signal": signal.SIGTSTP,
+            "stop_signal": SIGTSTP,
         }
         self._body_start = "[[]"
         self._body_item = ",{}"
