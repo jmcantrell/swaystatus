@@ -4,7 +4,7 @@ from signal import SIGTSTP
 
 
 class Updater:
-    def __init__(self, elements, interval=1, click_events=True):
+    def __init__(self, elements, **options):
         super().__init__()
 
         self.elements = elements
@@ -14,13 +14,13 @@ class Updater:
             element.updater = self
             self.element_timers.append([0] * len(element.intervals))
 
-        self.interval = interval
+        self.interval = options.get("interval", 1)
 
         self.time_before = time.perf_counter()
 
         self._header = {
             "version": 1,
-            "click_events": click_events,
+            "click_events": options.get("click_events", True),
             "stop_signal": SIGTSTP,
         }
         self._body_start = "[[]"

@@ -6,7 +6,6 @@ from pathlib import Path
 from argparse import ArgumentParser
 from .loop import run
 from .config import Config
-from .modules import Modules
 
 
 def parse_args():
@@ -62,29 +61,19 @@ def main():
 
     config_file = args.config_file or (config_dir / "config.toml")
 
-    config = Config(config_file)
+    config = Config()
+    config.read_file(config_file)
 
-    modules = Modules(
-        (args.include or []) + [config_dir / "modules"] + config.include
+    config["include"] = (
+        (args.include or [])
+        + [config_dir / "modules"]
+        + config.get("include", [])
     )
 
-    elements = []
-
-    for module_name in config.order:
-        module = modules.find(module_name)
-        element = module.Element(**config.settings.get(module_name, {}))
-        element.name = module_name
-        elements.append(element)
-
-    options = {
-        "interval": config.interval,
-        "click_events": config.click_events,
-    }
-
     if args.interval:
-        options["interval"] = args.interval
+        config["interval"] = args.interval
 
     if not args.click_events:
-        options["click_events"] = False
+        config["click_events"] = False
 
-    run(elements, **options)
+    run(config)

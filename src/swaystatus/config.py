@@ -1,12 +1,45 @@
-import os
 import toml
+from schema import Schema, Optional, And, Or, Use
 
 
-class Config:
-    def __init__(self, file):
-        data = toml.loads(open(file).read()) if os.path.isfile(file) else {}
-        self.order = data.get("order", [])
-        self.interval = data.get("interval", 1)
-        self.include = data.get("include", [])
-        self.settings = data.get("settings", {})
-        self.click_events = data.get("click_events", True)
+def positive(number):
+    assert number > 0
+    return number
+
+
+schema = Schema(
+    {
+        "order": [str],
+        Optional("click_events"): bool,
+        Optional("include"): [str],
+        Optional("interval"): Use(float),
+        Optional("settings"): Or(
+            {
+                str: Or(
+                    {
+                        Optional(str): object,
+                    },
+                    {},
+                ),
+            },
+            {},
+        ),
+        Optional("on_click"): Or(
+            {
+                str: Or(
+                    {
+                        And(Use(int), Use(positive)): Or([Use(str)], Use(str)),
+                    },
+                    {},
+                )
+            },
+            {},
+        ),
+    },
+    ignore_extra_keys=True,
+)
+
+
+class Config(dict):
+    def read_file(self, file):
+        self.update(schema.validate(toml.loads(open(file).read())))

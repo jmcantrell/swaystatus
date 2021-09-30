@@ -1,7 +1,7 @@
 import shutil
 from pathlib import Path
 import pytest
-from swaystatus.modules import Modules
+from swaystatus import modules
 
 
 def copy_module(name, directory):
@@ -12,9 +12,30 @@ def copy_module(name, directory):
 
 def test_modules_find(tmp_path):
     copy_module("no_output", tmp_path)
-    assert Modules([tmp_path]).find("no_output")
+    assert modules.Modules([tmp_path]).find("no_output")
 
 
-def test_modules_find_module_not_found():
+def test_modules_find_module_not_found(tmp_path):
+    copy_module("no_output", tmp_path)
     with pytest.raises(ModuleNotFoundError, match="foo"):
-        Modules([]).find("foo")
+        modules.Modules([tmp_path]).find("foo")
+
+
+def test_modules_entry_points_after(tmp_path, monkeypatch):
+    class Package:
+        __name__ = "test"
+
+    class EntryPoint:
+        def load(self):
+            return Package()
+
+    def entry_points():
+        return {"swaystatus.modules": [EntryPoint()]}
+
+    monkeypatch.setattr(modules.metadata, "entry_points", entry_points)
+
+    copy_module("no_output", tmp_path)
+
+    packages = modules.Modules([tmp_path])._packages
+    assert len(packages) == 2
+    assert packages[-1] == "test"
