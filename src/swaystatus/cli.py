@@ -82,8 +82,10 @@ def main():
     settings = config.get("settings", {})
 
     for module_id in config.get("order", []):
-        name = module_id.split(":", maxsplit=1)[0]
-        element = modules.find(name).Element(**settings.get(module_id, {}))
+        module_name = module_id.split(":", maxsplit=1)[0]
+        element_settings = settings.get(module_name, {}).copy()
+        element_settings.update(settings.get(module_id, {}))
+        element = modules.find(module_name).Element(**element_settings)
         element.name = module_id
         elements.append(element)
 
