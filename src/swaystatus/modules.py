@@ -8,6 +8,7 @@ from importlib.util import spec_from_file_location, module_from_spec
 class Modules:
     def __init__(self, include):
         self._packages = []
+        self._cache = {}
 
         for i, modules_dir in enumerate(include):
             package_name = str(uuid4()).replace("-", "_")
@@ -25,13 +26,17 @@ class Modules:
         for entry_point in entry_points:
             self._packages.append(entry_point.load().__name__)
 
-    def find(self, module):
-        for package in self._packages:
-            try:
-                return import_module(f"{package}.{module}")
-            except ModuleNotFoundError:
-                continue
-        else:
-            raise ModuleNotFoundError(
-                f"No module named '{module}' in any modules package"
-            )
+    def find(self, name):
+        if name not in self._cache:
+            for package in self._packages:
+                try:
+                    self._cache[name] = import_module(f"{package}.{name}")
+                    break
+                except ModuleNotFoundError:
+                    continue
+            else:
+                raise ModuleNotFoundError(
+                    f"No module named '{name}' in any modules package"
+                )
+
+        return self._cache[name]

@@ -6,6 +6,7 @@ from pathlib import Path
 from argparse import ArgumentParser
 from .loop import run
 from .config import Config
+from .modules import Modules
 
 
 def parse_args():
@@ -76,4 +77,14 @@ def main():
     if not args.click_events:
         config["click_events"] = False
 
-    run(config)
+    elements = []
+    modules = Modules(config["include"])
+    settings = config.get("settings", {})
+
+    for module_id in config.get("order", []):
+        name = module_id.split(":", maxsplit=1)[0]
+        element = modules.find(name).Element(**settings.get(module_id, {}))
+        element.name = module_id
+        elements.append(element)
+
+    run(elements, **config)
