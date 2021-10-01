@@ -3,7 +3,7 @@ import subprocess
 from types import MethodType
 
 
-class BaseElement:
+class Element:
     def __init__(self, *args, **kwargs):
         super().__init__()
         self.name = None
@@ -48,7 +48,7 @@ class BaseElement:
         pass
 
     def on_update(self, output):
-        raise NotImplementedError
+        pass
 
     def on_click(self, event):
         try:

@@ -1,1 +1,1 @@
-from .element import BaseElement
+from .element import Element as BaseElement

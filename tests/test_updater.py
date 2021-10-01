@@ -2,7 +2,7 @@ import os
 import json
 import random
 import pytest
-from swaystatus.element import BaseElement
+from swaystatus import BaseElement
 from swaystatus.updater import Updater
 
 zero = 0.00001

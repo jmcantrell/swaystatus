@@ -1,11 +1,11 @@
-import pytest
 from pathlib import Path
-from swaystatus.element import BaseElement
+from swaystatus import BaseElement
 
 
-def test_base_element_udpate():
-    with pytest.raises(NotImplementedError):
-        BaseElement().on_update([])
+def test_base_element_udpate_default():
+    output = []
+    BaseElement().on_update(output)
+    assert len(output) == 0
 
 
 def test_element_on_click_no_handler():
