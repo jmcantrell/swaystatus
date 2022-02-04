@@ -41,12 +41,15 @@ def test_element_on_click_str_kwarg(capfd):
     button = 1
 
     expected = {
+        "${foo}": "some string",  # manually added variable
         "${button}": str(button),  # environment variables (including event)
         "~": str(Path.home()),  # shell tilde expansion
     }
 
     for orig, result in expected.items():
-        BaseElement(on_click={1: f"echo {orig}"}).on_click({"button": button})
+        BaseElement(
+            on_click={1: f"echo {orig}"}, env={"foo": "some string"}
+        ).on_click({"button": button})
         captured = capfd.readouterr()
         assert captured.out.strip() == result
 

@@ -9,6 +9,8 @@ class Element:
         self.name = None
         self.intervals = []
 
+        self.env = kwargs.get("env", {})
+
         for button, handler in kwargs.get("on_click", {}).items():
             self._set_on_click_handler(button, handler)
 
@@ -17,6 +19,7 @@ class Element:
 
             def method(self, event):
                 env = os.environ.copy()
+                env.update(self.env)
                 env.update(
                     {
                         key: str(value if value is not None else "")
