@@ -1,9 +1,9 @@
-import sys
-import locale
-import json
+import sys, locale, json
 from signal import signal, SIGUSR1
 from threading import Thread
+from _thread import interrupt_main
 from .updater import Updater
+from .logging import logger
 
 
 def run(elements, **config):
@@ -18,10 +18,18 @@ def run(elements, **config):
     updater = Updater(elements, **config)
 
     def stdout():
-        updater.run()
+        try:
+            updater.run()
+        except Exception as e:
+            logger.exception("unhandled exception in output thread")
+            interrupt_main()
 
     def update(*args, **kwargs):
-        updater.update()
+        try:
+            updater.update()
+        except Exception as e:
+            logger.exception("unhandled exception when updating")
+            sys.exit(1)
 
     signal(SIGUSR1, update)
 
@@ -34,4 +42,8 @@ def run(elements, **config):
 
     for line in sys.stdin:
         click_event = json.loads(line.lstrip(","))
-        elements_by_name[click_event["name"]].on_click(click_event)
+        try:
+            elements_by_name[click_event["name"]].on_click(click_event)
+        except Exception as e:
+            logger.exception("unhandled exception during click event")
+            sys.exit(1)

@@ -32,16 +32,12 @@ class Updater:
     def _send_line(self, line):
         print(line, flush=True)
 
-    def _send_update(self):
-        output = []
-        for element in self.elements:
-            element.on_update(output)
-        self._send_line(self._body_item.format(json.dumps(output)))
-
     def update(self):
         time_now = time.perf_counter()
         self.seconds_elapsed = time_now - self.time_before
         self.time_before = time_now
+
+        output = []
 
         for element_index, element in enumerate(self.elements):
             timers = self.element_timers[element_index]
@@ -53,8 +49,9 @@ class Updater:
                     timers[interval_index] = 0
                 else:
                     timers[interval_index] = timer
+            element.on_update(output)
 
-        self._send_update()
+        self._send_line(self._body_item.format(json.dumps(output)))
 
     def run(self):
         self._send_line(json.dumps(self._header))

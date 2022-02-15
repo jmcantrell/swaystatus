@@ -1,12 +1,40 @@
 """Generates a status line for swaybar"""
 
-import os
-import sys
+import os, sys
+from logging import Formatter, StreamHandler, FileHandler
 from pathlib import Path
 from argparse import ArgumentParser
 from .loop import run
 from .config import Config
 from .modules import Modules
+from .logging import logger
+
+me = os.path.basename(sys.argv[0])
+log_formatter = Formatter("%(levelname)s: %(message)s")
+config_home = Path(os.environ.get("XDG_CONFIG_HOME", "~/.config")).expanduser()
+
+try:
+    from systemd.journal import JournalHandler
+except ModuleNotFoundError:
+    journal_available = False
+else:
+    journal_available = True
+
+
+def environ_path(name, default=None):
+    value = os.environ.get(name, default)
+    return Path(value).expanduser() if value else default
+
+
+def environ_paths(name):
+    value = os.environ.get(name)
+    parts = value.split(":") if value else []
+    return [Path(p).expanduser() for p in parts]
+
+
+def add_log_handler(handler):
+    handler.setFormatter(log_formatter)
+    logger.addHandler(handler)
 
 
 def parse_args():
@@ -16,14 +44,16 @@ def parse_args():
         "-c",
         "--config-file",
         metavar="FILE",
-        help="specify configuration file",
+        type=Path,
+        help="override configuration file",
     )
 
     p.add_argument(
         "-C",
         "--config-dir",
         metavar="DIRECTORY",
-        help="specify configuration directory",
+        type=Path,
+        help="override configuration directory",
     )
 
     p.add_argument(
@@ -31,6 +61,7 @@ def parse_args():
         "--include",
         action="append",
         metavar="DIRECTORY",
+        type=Path,
         help="include additional module package",
     )
 
@@ -49,26 +80,50 @@ def parse_args():
         help="disable click events",
     )
 
+    p.add_argument(
+        "-l",
+        "--log-file",
+        metavar="FILE",
+        help="output logging to %(metavar)s (default: stderr)",
+    )
+
+    if journal_available:
+        p.add_argument(
+            "-j",
+            "--log-journal",
+            action="store_true",
+            help="output logging to systemd journal",
+        )
+
     return p.parse_args()
 
 
 def main():
     args = parse_args()
 
-    config_dir = args.config_dir or (
-        Path(os.environ.get("XDG_CONFIG_HOME", Path("~/.config").expanduser()))
-        / os.path.basename(sys.argv[0])
+    config_dir = args.config_dir or environ_path(
+        "SWAYSTATUS_CONFIG_DIR", config_home / me
     )
-
-    config_file = args.config_file or (config_dir / "config.toml")
+    config_file = args.config_file or environ_path(
+        "SWAYSTATUS_CONFIG_FILE", config_dir / "config.toml"
+    )
 
     config = Config()
     config.read_file(config_file)
 
+    add_log_handler(StreamHandler())
+
+    if args.log_file:
+        add_log_handler(FileHandler(args.log_file))
+
+    if args.log_journal:
+        add_log_handler(JournalHandler(SYSLOG_IDENTIFIER=logger.name))
+
     config["include"] = (
         (args.include or [])
         + [config_dir / "modules"]
-        + config.get("include", [])
+        + [Path(d).expanduser() for d in config.get("include", [])]
+        + environ_paths("SWAYSTATUS_MODULE_PATH")
     )
 
     if args.interval:
@@ -89,4 +144,8 @@ def main():
         element.name = module_id
         elements.append(element)
 
-    run(elements, **config)
+    try:
+        run(elements, **config)
+    except Exception as e:
+        logger.exception("unhandled exception in main loop")
+        sys.exit(1)
