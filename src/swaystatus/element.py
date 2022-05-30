@@ -4,9 +4,11 @@ from types import MethodType
 
 
 class Element:
+    name = None
+
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self.name = None
+
         self.intervals = []
 
         self.env = kwargs.get("env", {})
