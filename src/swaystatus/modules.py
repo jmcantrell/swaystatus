@@ -21,7 +21,9 @@ class Modules:
                     spec.loader.exec_module(package)
                     self._packages.append(package_name)
 
-        entry_points = metadata.entry_points().get("swaystatus.modules", [])
+        entry_points = metadata.entry_points().select(
+            group="swaystatus.modules"
+        )
 
         for entry_point in entry_points:
             self._packages.append(entry_point.load().__name__)

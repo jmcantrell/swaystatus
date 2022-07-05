@@ -25,12 +25,17 @@ def test_modules_entry_points_after(tmp_path, monkeypatch):
     class Package:
         __name__ = "test"
 
+    class EntryPoints:
+        def select(self, **kwargs):
+            assert kwargs["group"] == "swaystatus.modules"
+            return [EntryPoint()]
+
     class EntryPoint:
         def load(self):
             return Package()
 
     def entry_points():
-        return {"swaystatus.modules": [EntryPoint()]}
+        return EntryPoints()
 
     monkeypatch.setattr(modules.metadata, "entry_points", entry_points)
 
