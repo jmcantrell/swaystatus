@@ -1,6 +1,5 @@
 *.egg-info/
 .coverage
-.python-version
 __pycache__/
 build/
 dist/
