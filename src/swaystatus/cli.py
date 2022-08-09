@@ -146,6 +146,6 @@ def main():
 
     try:
         run(elements, **config)
-    except Exception as e:
+    except Exception:
         logger.exception("unhandled exception in main loop")
         sys.exit(1)
