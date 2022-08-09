@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-exec python setup.py rotate -k1 -m .whl,.tar.gz
