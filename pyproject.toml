@@ -1,6 +1,6 @@
 [project]
 name = "swaystatus"
-version = "0.2.4"
+version = "0.2.6"
 authors = [
     { name="Jeremy Cantrell", email="jmcantrell@gmail.com" }
 ]
@@ -34,10 +34,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build]
-packages = ["src/swaystatus"]
+include = ["/src", "/tests"]
 
-[tool.hatch.build.force-include]
-"tests" = "tests"
+[tool.hatch.build.targets.wheel]
+packages = ["src/swaystatus"]
 
 [tool.pytest.ini_options]
 addopts = "--cov-report term-missing --cov=swaystatus"
