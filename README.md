@@ -1,6 +1,6 @@
 # swaystatus
 
-Generates a status line for swaybar.
+Generates a status line for [swaybar][swaybar-protocol].
 
 ## Installation
 
