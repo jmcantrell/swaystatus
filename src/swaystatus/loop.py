@@ -20,14 +20,14 @@ def run(elements, **config):
     def stdout():
         try:
             updater.run()
-        except Exception as e:
+        except Exception:
             logger.exception("unhandled exception in output thread")
             interrupt_main()
 
     def update(*args, **kwargs):
         try:
             updater.update()
-        except Exception as e:
+        except Exception:
             logger.exception("unhandled exception when updating")
             sys.exit(1)
 
@@ -44,6 +44,6 @@ def run(elements, **config):
         click_event = json.loads(line.lstrip(","))
         try:
             elements_by_name[click_event["name"]].on_click(click_event)
-        except Exception as e:
+        except Exception:
             logger.exception("unhandled exception during click event")
             sys.exit(1)
