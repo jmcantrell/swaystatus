@@ -1,8 +1,15 @@
 *.egg-info/
 .coverage
 .direnv/
+.dockerignore
 .envrc
+.git/
+.github/
+.gitignore
 .mine/
+.pytest_cache/
 .tool-versions
+Dockerfile
 __pycache__/
 dist/
+scripts/
