@@ -34,17 +34,6 @@ class Element:
         for button, handler in kwargs.get("on_click", {}).items():
             self._set_on_click_handler(button, handler)
 
-    def __repr__(self):
-        if not self.name:
-            return super().__repr__()
-
-        args = [f"name={self.name!r}"]
-
-        if self.instance:
-            args.append(f"instance={self.instance!r}")
-
-        return f"{self.__class__.__name__}({', '.join(args)})"
-
     def __str__(self):
         if not self.name:
             return super().__str__()
