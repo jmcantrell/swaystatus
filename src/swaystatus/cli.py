@@ -43,7 +43,7 @@ def parse_args():
         "--interval",
         type=float,
         metavar="SECONDS",
-        help="specify interval between updates",
+        help="override default update interval",
     )
 
     p.add_argument(
@@ -58,7 +58,7 @@ def parse_args():
         "--log-level",
         metavar="LEVEL",
         choices=["debug", "info", "warning", "error", "critical"],
-        help="only output logging messages whose severity is at least %(metavar)s (default: %(default)s)",
+        help="override default logging minimum severity level",
     )
 
     p.add_argument(
