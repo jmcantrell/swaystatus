@@ -72,6 +72,23 @@ def test_updater_multiple_blocks(capfd):
     assert captured.out.strip() == updater._body_item.format(json.dumps([dict(full_text=text) for text in texts]))
 
 
+def test_updater_multiple_elements(capfd):
+    class Foo(BaseElement):
+        def on_update(self, output):
+            output.append(self.create_block("foo"))
+
+    class Bar(BaseElement):
+        def on_update(self, output):
+            output.append(self.create_block("bar"))
+
+    updater = Updater([Foo(), Bar()], interval=zero)
+    updater.update()
+
+    captured = capfd.readouterr()
+
+    assert captured.out.strip() == updater._body_item.format(json.dumps([dict(full_text="foo"), dict(full_text="bar")]))
+
+
 def test_updater_element_intervals(capfd, updater_count):
     class Intervals(BaseElement):
         def __init__(self):

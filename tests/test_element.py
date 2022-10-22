@@ -62,7 +62,16 @@ def test_element_create_block_default():
     assert BaseElement().create_block("test") == {"full_text": "test"}
 
 
-def test_element_create_block_with_name_and_instance():
+def test_element_create_block_with_id():
+    element = BaseElement(name="foo", instance="bar")
+    assert element.create_block("test") == {
+        "full_text": "test",
+        "name": element.name,
+        "instance": element.instance,
+    }
+
+
+def test_element_create_block_with_id_set_after_init():
     element = BaseElement()
     element.name = "foo"
     element.instance = "bar"
@@ -70,6 +79,15 @@ def test_element_create_block_with_name_and_instance():
         "full_text": "test",
         "name": element.name,
         "instance": element.instance,
+    }
+
+
+def test_element_create_block_with_id_set_in_block():
+    element = BaseElement(name="foo", instance="bar")
+    assert element.create_block("test", name="baz", instance="qux") == {
+        "full_text": "test",
+        "name": "baz",
+        "instance": "qux",
     }
 
 
