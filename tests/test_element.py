@@ -37,41 +37,45 @@ def test_element_on_click_callable_kwarg():
     assert hit
 
 
-def test_element_on_click_str_kwarg(capfd):
+def test_element_on_click_str_kwarg(tmp_path):
     button = 1
 
-    expected = {
-        "${foo}": "some string",  # manually added variable
-        "${button}": str(button),  # environment variables (including event)
+    cases = {
+        "${foo}": "some string",  # environment variables added
+        "${button}": str(button),  # environment variables from event
         "~": str(Path.home()),  # shell tilde expansion
     }
 
-    for orig, result in expected.items():
-        BaseElement(
-            on_click={1: f"echo {orig}"}, env={"foo": "some string"}
-        ).on_click({"button": button})
-        captured = capfd.readouterr()
-        assert captured.out.strip() == result
+    env = {"foo": cases["${foo}"]}
+    event = {"button": button}
+
+    tmp_path.mkdir(exist_ok=True)
+    stdout_file = tmp_path / "stdout"
+
+    for s, expected in cases.items():
+        handler = f"echo {s} >{stdout_file}"  # shell redirection
+        BaseElement(on_click={1: handler}, env=env).on_click(event).wait()
+        assert stdout_file.read_text().strip() == expected
 
 
 def test_element_create_block_default():
     assert BaseElement().create_block("test") == {"full_text": "test"}
 
 
-def test_element_create_block_with_name():
+def test_element_create_block_with_name_and_instance():
     element = BaseElement()
     element.name = "foo"
+    element.instance = "bar"
     assert element.create_block("test") == {
         "full_text": "test",
         "name": element.name,
+        "instance": element.instance,
     }
 
 
 def test_element_create_block_with_kwargs():
     kwargs = {"foo": "a", "bar": "b"}
-    assert BaseElement().create_block("test", **kwargs) == dict(
-        full_text="test", **kwargs
-    )
+    assert BaseElement().create_block("test", **kwargs) == dict(full_text="test", **kwargs)
 
 
 def test_element_on_interval_default():

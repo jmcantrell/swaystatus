@@ -1,6 +1,9 @@
-import json
-import time
+import json, time
 from signal import SIGTSTP
+
+
+def send_line(line):
+    print(line, flush=True)
 
 
 class Updater:
@@ -18,19 +21,15 @@ class Updater:
 
         self.time_before = time.perf_counter()
 
+        self._running = False
+
         self._header = {
             "version": 1,
-            "click_events": options.get("click_events", True),
             "stop_signal": SIGTSTP,
+            "click_events": options.get("click_events", True),
         }
         self._body_start = "[[]"
         self._body_item = ",{}"
-
-    def _running(self):
-        return True
-
-    def _send_line(self, line):
-        print(line, flush=True)
 
     def update(self):
         time_now = time.perf_counter()
@@ -51,12 +50,20 @@ class Updater:
                     timers[interval_index] = timer
             element.on_update(output)
 
-        self._send_line(self._body_item.format(json.dumps(output)))
+        send_line(self._body_item.format(json.dumps(output)))
 
-    def run(self):
-        self._send_line(json.dumps(self._header))
-        self._send_line(self._body_start)
+    def running(self):
+        return self._running
 
-        while self._running():
+    def stop(self):
+        self._running = False
+
+    def start(self):
+        self._running = True
+
+        send_line(json.dumps(self._header))
+        send_line(self._body_start)
+
+        while self.running():
             self.update()
             time.sleep(self.interval)

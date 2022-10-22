@@ -1,7 +1,4 @@
-import os
-import json
-import random
-import pytest
+import os, json, random, pytest
 from swaystatus import BaseElement
 from swaystatus.updater import Updater
 
@@ -20,14 +17,14 @@ def updater_count(monkeypatch):
                 return True
             return False
 
-        monkeypatch.setattr(Updater, "_running", count_iterations)
+        monkeypatch.setattr(Updater, "running", count_iterations)
 
         return Updater
 
     return func
 
 
-def test_updater_run(capfd, updater_count):
+def test_updater_start(capfd, updater_count):
     class Foo(BaseElement):
         def on_update(self, output):
             output.append(self.create_block("foo"))
@@ -35,7 +32,7 @@ def test_updater_run(capfd, updater_count):
     count = random.randint(5, 10)
 
     updater = updater_count(count)([Foo()], interval=zero)
-    updater.run()
+    updater.start()
 
     captured = capfd.readouterr()
     lines = captured.out.strip().split(os.linesep)
@@ -43,10 +40,7 @@ def test_updater_run(capfd, updater_count):
     assert lines == [
         json.dumps(updater._header),
         updater._body_start,
-        *[
-            updater._body_item.format(json.dumps([dict(full_text="foo")]))
-            for _ in range(count)
-        ],
+        *[updater._body_item.format(json.dumps([dict(full_text="foo")])) for _ in range(count)],
     ]
 
 
@@ -75,9 +69,7 @@ def test_updater_multiple_blocks(capfd):
 
     captured = capfd.readouterr()
 
-    assert captured.out.strip() == updater._body_item.format(
-        json.dumps([dict(full_text=text) for text in texts])
-    )
+    assert captured.out.strip() == updater._body_item.format(json.dumps([dict(full_text=text) for text in texts]))
 
 
 def test_updater_element_intervals(capfd, updater_count):
@@ -95,7 +87,7 @@ def test_updater_element_intervals(capfd, updater_count):
             output.append(self.create_block(self.text))
 
     updater = updater_count(3)([Intervals()], interval=0.1)
-    updater.run()
+    updater.start()
 
     captured = capfd.readouterr()
     lines = captured.out.strip().split(os.linesep)

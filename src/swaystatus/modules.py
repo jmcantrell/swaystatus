@@ -8,11 +8,11 @@ from importlib.util import spec_from_file_location, module_from_spec
 class Modules:
     def __init__(self, include):
         self._packages = []
-        self._cache = {}
+        self._cached_modules = {}
 
         for i, modules_dir in enumerate(include):
             package_name = str(uuid4()).replace("-", "_")
-            package_init_file = Path(modules_dir) / "__init__.py"
+            package_init_file = Path(modules_dir).expanduser() / "__init__.py"
             if package_init_file.is_file():
                 spec = spec_from_file_location(package_name, package_init_file)
                 if spec:
@@ -21,24 +21,20 @@ class Modules:
                     spec.loader.exec_module(package)
                     self._packages.append(package_name)
 
-        entry_points = metadata.entry_points().select(
-            group="swaystatus.modules"
-        )
+        entry_points = metadata.entry_points().select(group="swaystatus.modules")
 
         for entry_point in entry_points:
             self._packages.append(entry_point.load().__name__)
 
     def find(self, name):
-        if name not in self._cache:
+        if name not in self._cached_modules:
             for package in self._packages:
                 try:
-                    self._cache[name] = import_module(f"{package}.{name}")
+                    self._cached_modules[name] = import_module(f"{package}.{name}")
                     break
                 except ModuleNotFoundError:
                     continue
             else:
-                raise ModuleNotFoundError(
-                    f"No module named '{name}' in any modules package"
-                )
+                raise ModuleNotFoundError(f"Module not found in any package: {name}")
 
-        return self._cache[name]
+        return self._cached_modules[name]

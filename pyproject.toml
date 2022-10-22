@@ -18,7 +18,6 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
-    "schema>=0.7",
     "toml>=0.10",
 ]
 
