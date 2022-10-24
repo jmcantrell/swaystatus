@@ -10,7 +10,7 @@ RUN python3 -m venv venv
 ENV PATH=./venv/bin:$PATH
 
 COPY requirements*.txt ./
-RUN python3 -m pip install --no-cache-dir -r requirements.txt -r requirements_dev.txt
+RUN python3 -m pip install --no-cache-dir -r requirements/production.txt -r requirements/development.txt
 
 COPY . .
 RUN python3 -m pip install --no-cache-dir -e .
