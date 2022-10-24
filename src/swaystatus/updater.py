@@ -3,36 +3,47 @@ from signal import SIGSTOP, SIGCONT
 
 
 def send_line(line):
+    """Helper to send a line to stdout immediately."""
+
     print(line, flush=True)
 
 
 class Updater:
-    def __init__(self, elements, **options):
+    def __init__(self, elements, interval, click_events):
         super().__init__()
 
         self.elements = elements
         self.element_timers = []
-
-        for element in elements:
-            element.updater = self
+        for element in self.elements:
             self.element_timers.append([0] * len(element.intervals))
 
-        self.interval = options.get("interval", 1)
-
+        self.interval = interval
         self.time_before = time.perf_counter()
 
-        self._header = {
-            "version": 1,
-            "stop_signal": SIGSTOP,
-            "cont_signal": SIGCONT,
-            "click_events": options.get("click_events", True),
-        }
+        self._header = {"version": 1, "stop_signal": SIGSTOP, "cont_signal": SIGCONT, "click_events": click_events}
         self._body_start = "[[]"
         self._body_item = ",{}"
 
         self._running = False
 
     def update(self):
+        """
+        Prompt every element for any updates to the status bar.
+
+        It does this by giving each element a turn at appending blocks to an
+        `output` list that it passes as the first argument to the element's
+        `on_update` method. This is done in the order that the elements were
+        given to the updater at initialization.
+
+        It also determines if any element has intervals that have come due and
+        should be triggered by calling the element's `on_interval` method with
+        the options given during `set_interval`.
+
+        After all this has been done, a body item, as described in the "BODY"
+        section of swaybar-protocol(7), is constructed and sent immediately to
+        stdout.
+        """
+
         time_now = time.perf_counter()
         self.seconds_elapsed = time_now - self.time_before
         self.time_before = time_now
@@ -45,7 +56,7 @@ class Updater:
                 timer += self.seconds_elapsed
                 interval, options = element.intervals[interval_index]
                 if timer >= interval:
-                    element.on_interval(options=options)
+                    element.on_interval(options)
                     timers[interval_index] = 0
                 else:
                     timers[interval_index] = timer
@@ -54,12 +65,17 @@ class Updater:
         send_line(self._body_item.format(json.dumps(output)))
 
     def running(self):
+        """This method is only necessary to facilitate monkeypatching during testing."""
+
         return self._running
 
     def stop(self):
+        """Tell the update loop to stop iterating."""
+
         self._running = False
 
     def start(self):
+        """Inform swaybar about how to interact with the status bar and begin sending content."""
         send_line(json.dumps(self._header))
         send_line(self._body_start)
 

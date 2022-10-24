@@ -1,4 +1,4 @@
-"""Generate a status line for swaybar"""
+"""Generate a status line for swaybar."""
 
 import sys
 from pathlib import Path
@@ -35,7 +35,7 @@ def parse_args():
         action="append",
         metavar="DIRECTORY",
         type=Path,
-        help="include additional module package",
+        help="include additional modules package",
     )
 
     p.add_argument(
@@ -101,19 +101,11 @@ def parse_config(args):
     return config
 
 
-def main():
-    args = parse_args()
-
-    configure_logging(level=args.log_level, file=args.log_file, journal=args.log_journal)
-
-    config = parse_config(args)
-    logger.debug(f"Using configuration: {config!r}")
-
+def load_elements(order, include, settings):
     elements = []
-    settings = config["settings"]
-    modules = Modules(config["include"])
+    modules = Modules(include)
 
-    for key in config["order"]:
+    for key in order:
         ids = key.split(":", maxsplit=1)
         ids.append(None)
 
@@ -126,13 +118,25 @@ def main():
         module = modules.find(name)
 
         logger.info(f"Loaded module from file: {module.__file__}")
-        logger.debug(f"Initializing module: {element_settings!r}")
+        logger.debug(f"Initializing module: {settings!r}")
 
-        element = module.Element(**element_settings)
-        elements.append(element)
+        elements.append(module.Element(**element_settings))
+
+    return elements
+
+
+def main():
+    args = parse_args()
+
+    configure_logging(level=args.log_level, file=args.log_file, journal=args.log_journal)
+
+    config = parse_config(args)
+    logger.debug(f"Using configuration: {config!r}")
+
+    elements = load_elements(config["order"], config["include"], config["settings"])
 
     try:
-        start(elements, **config)
+        start(elements, config["interval"], config["click_events"])
     except Exception:
         logger.exception("Unhandled exception in main loop")
         sys.exit(1)
