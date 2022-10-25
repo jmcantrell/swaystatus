@@ -1,29 +1,13 @@
 import os
-from subprocess import Popen, PIPE
 from types import MethodType
-from threading import Thread
 from .logging import logger
+from .subprocess import PopenStreamHandler
 
 
-class PopenStreamHandler(Popen):
-    """Just like `Popen`, but handle stdout and stderr output in dedicated threads."""
-
-    @staticmethod
-    def _proxy_lines(pipe, handler):
-        with pipe:
-            for line in pipe:
-                handler(line)
-
-    def __init__(self, stdout_handler, stderr_handler, *args, **kwargs):
-        kwargs["stdout"] = PIPE
-        kwargs["stderr"] = PIPE
-        super().__init__(*args, **kwargs)
-        Thread(target=self._proxy_lines, args=[self.stdout, stdout_handler]).start()
-        Thread(target=self._proxy_lines, args=[self.stderr, stderr_handler]).start()
-
-
-class Element:
-    """An element produces content to display in the status bar."""
+class BaseElement:
+    """
+    An element produces content to display in the status bar.
+    """
 
     name = None
 
@@ -50,12 +34,25 @@ class Element:
         return ":".join(args)
 
     def _set_on_click_handler(self, button, handler):
-        if not callable(handler):
+        if callable(handler):
+
+            def method(self, event):
+                logger.info(
+                    f"Executing module {self} click handler (button {button}, function)"
+                )
+                return handler(event)
+
+        else:
 
             def method(self, event):
                 env = os.environ.copy()
                 env.update(self.env)
-                env.update({key: str(value if value is not None else "") for key, value in event.items()})
+                env.update(
+                    {
+                        key: str(value if value is not None else "")
+                        for key, value in event.items()
+                    }
+                )
 
                 def create_handler(send):
                     def handler(line):
@@ -67,20 +64,18 @@ class Element:
                 stdout = create_handler(logger.info)
                 stderr = create_handler(logger.error)
 
-                logger.info(f"Executing module {self} click handler (button {button}, shell)")
+                logger.info(
+                    f"Executing module {self} click handler (button {button}, shell)"
+                )
                 return PopenStreamHandler(stdout, stderr, handler, shell=True, env=env)
-
-        else:
-
-            def method(self, event):
-                logger.info(f"Executing module {self} click handler (button {button}, function)")
-                return handler(event)
 
         setattr(self, f"on_click_{button}", MethodType(method, self))
         logger.debug(f"Module {self} set click handler for button {button}: {handler}")
 
     def create_block(self, full_text, **params):
-        """Helper for creating a block of content for output to the status bar."""
+        """
+        Helper for creating a block of content for output to the status bar.
+        """
 
         block = {"full_text": full_text}
 
@@ -94,7 +89,7 @@ class Element:
 
         return block
 
-    def set_interval(self, seconds, options=None):
+    def set_interval(self, seconds, options):
         """
         Set a trigger that activates periodically (can be used multiple times).
 
@@ -119,7 +114,7 @@ class Element:
 
         pass
 
-    def on_update(self, output: list[dict[str, object]]):
+    def on_update(self, output):
         """
         Perform some action on every update loop iteration.
 
@@ -131,15 +126,17 @@ class Element:
         for how many are added.
 
         It's recommended to use `self.create_block` to create the blocks:
+
         >>> output.append(self.create_block("hello, world"))
 
         But they can also be added directly:
+
         >>> output.append({"full_text": "hello, world"})
         """
 
         pass
 
-    def on_click(self, event: dict[str, object]):
+    def on_click(self, event):
         """
         Perform some action when a status bar block is clicked.
 

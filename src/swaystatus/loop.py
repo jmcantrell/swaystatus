@@ -1,4 +1,6 @@
-import sys, locale, json
+import sys
+import locale
+import json
 from signal import signal, SIGINT, SIGUSR1
 from threading import Thread
 from .updater import Updater
@@ -46,7 +48,9 @@ def start_stdout_thread(updater):
 def start_stdin_thread(updater, elements):
     """Start a daemon thread that continuously reads click events from stdin."""
 
-    elements_by_name = {element.name: element for element in elements if hasattr(element, "name")}
+    elements_by_name = {
+        element.name: element for element in elements if hasattr(element, "name")
+    }
 
     def read_from_stdin():
         logger.info("Listening for click events from stdin...")
@@ -62,7 +66,7 @@ def start_stdin_thread(updater, elements):
             sys.exit(1)
 
     stdin_thread = Thread(target=read_from_stdin)
-    stdin_thread.daemon = True  # so it will terminate when the main thread does
+    stdin_thread.daemon = True
     stdin_thread.start()
 
 

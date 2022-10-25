@@ -1,4 +1,6 @@
-"""Generate a status line for swaybar."""
+"""
+Generate a status line for swaybar.
+"""
 
 import sys
 from pathlib import Path
@@ -79,8 +81,12 @@ def parse_args():
 
 
 def parse_config(args):
-    config_dir = args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR", config_home / bin_name)
-    config_file = args.config_file or environ_path("SWAYSTATUS_CONFIG_FILE", config_dir / "config.toml")
+    config_dir = args.config_dir or environ_path(
+        "SWAYSTATUS_CONFIG_DIR", config_home / bin_name
+    )
+    config_file = args.config_file or environ_path(
+        "SWAYSTATUS_CONFIG_FILE", config_dir / "config.toml"
+    )
 
     config = Config()
     config.read_file(config_file)
@@ -128,7 +134,9 @@ def load_elements(order, include, settings):
 def main():
     args = parse_args()
 
-    configure_logging(level=args.log_level, file=args.log_file, journal=args.log_journal)
+    configure_logging(
+        level=args.log_level, file=args.log_file, journal=args.log_journal
+    )
 
     config = parse_config(args)
     logger.debug(f"Using configuration: {config!r}")

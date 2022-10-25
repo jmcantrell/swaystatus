@@ -1,9 +1,12 @@
-import json, time
+import time
+import json
 from signal import SIGSTOP, SIGCONT
 
 
 def send_line(line):
-    """Helper to send a line to stdout immediately."""
+    """
+    Helper to send a line to stdout immediately.
+    """
 
     print(line, flush=True)
 
@@ -20,7 +23,12 @@ class Updater:
         self.interval = interval
         self.time_before = time.perf_counter()
 
-        self._header = {"version": 1, "stop_signal": SIGSTOP, "cont_signal": SIGCONT, "click_events": click_events}
+        self._header = {
+            "version": 1,
+            "stop_signal": SIGSTOP,
+            "cont_signal": SIGCONT,
+            "click_events": click_events,
+        }
         self._body_start = "[[]"
         self._body_item = ",{}"
 
@@ -65,17 +73,26 @@ class Updater:
         send_line(self._body_item.format(json.dumps(output)))
 
     def running(self):
-        """This method is only necessary to facilitate monkeypatching during testing."""
+        """
+        This method is only necessary to facilitate monkeypatching during
+        testing.
+        """
 
         return self._running
 
     def stop(self):
-        """Tell the update loop to stop iterating."""
+        """
+        Tell the update loop to stop iterating.
+        """
 
         self._running = False
 
     def start(self):
-        """Inform swaybar about how to interact with the status bar and begin sending content."""
+        """
+        Inform swaybar about how to interact with the status bar and begin
+        sending content.
+        """
+
         send_line(json.dumps(self._header))
         send_line(self._body_start)
 

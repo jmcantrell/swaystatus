@@ -1,9 +1,11 @@
 from pathlib import Path
-from swaystatus import BaseElement
+from swaystatus.element import BaseElement
 
 
 def test_element_udpate_no_output():
-    """Ensure that nothing is added to the output by default."""
+    """
+    Ensure that nothing is added to the output by default.
+    """
 
     output = []
     BaseElement().on_update(output)
@@ -11,7 +13,9 @@ def test_element_udpate_no_output():
 
 
 def test_element_on_click_method():
-    """Ensure that click event handlers can be defined as a method."""
+    """
+    Ensure that click event handlers can be defined as a method.
+    """
 
     hit = False
 
@@ -26,7 +30,9 @@ def test_element_on_click_method():
 
 
 def test_element_on_click_function():
-    """Ensure that function click event handlers can be set at initialization."""
+    """
+    Ensure that function click event handlers can be set at initialization.
+    """
 
     hit = False
 
@@ -40,7 +46,10 @@ def test_element_on_click_function():
 
 
 def test_element_on_click_shell(tmp_path):
-    """Ensure that shell command click event handlers can be set at initialization."""
+    """
+    Ensure that shell command click event handlers can be set at
+    initialization.
+    """
 
     button = 1
 
@@ -63,13 +72,18 @@ def test_element_on_click_shell(tmp_path):
 
 
 def test_element_create_block_default():
-    """Ensure that when no name or instance is set, it's not included in the output."""
+    """
+    Ensure that when no name or instance is set, it's not included in the
+    output.
+    """
 
     assert BaseElement().create_block("test") == {"full_text": "test"}
 
 
 def test_element_create_block_with_id_set_at_init():
-    """Ensure that name and instance can be set at initialization."""
+    """
+    Ensure that name and instance can be set at initialization.
+    """
 
     element = BaseElement(name="foo", instance="bar")
     assert element.create_block("test") == {
@@ -80,7 +94,9 @@ def test_element_create_block_with_id_set_at_init():
 
 
 def test_element_create_block_with_id_set_after_init():
-    """Ensure that name and instance can be overridden after initialization."""
+    """
+    Ensure that name and instance can be overridden after initialization.
+    """
 
     element = BaseElement()
     element.name = "foo"
@@ -93,7 +109,9 @@ def test_element_create_block_with_id_set_after_init():
 
 
 def test_element_create_block_with_id_set_in_block():
-    """Ensure that name and instance can be overridden per-block."""
+    """
+    Ensure that name and instance can be overridden per-block.
+    """
 
     element = BaseElement(name="foo", instance="bar")
     assert element.create_block("test", name="baz", instance="qux") == {
@@ -104,7 +122,12 @@ def test_element_create_block_with_id_set_in_block():
 
 
 def test_element_create_block_with_kwargs():
-    """Ensure that keyword arguments passed to `create_block` are included in the result."""
+    """
+    Ensure that keyword arguments passed to `create_block` are included in the
+    result.
+    """
 
     kwargs = {"foo": "a", "bar": "b"}
-    assert BaseElement().create_block("test", **kwargs) == dict(full_text="test", **kwargs)
+    assert BaseElement().create_block("test", **kwargs) == dict(
+        full_text="test", **kwargs
+    )

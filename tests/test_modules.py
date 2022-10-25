@@ -1,10 +1,13 @@
-import pytest, shutil
+import shutil
+import pytest
 from pathlib import Path
 from swaystatus import modules
 
 
 def copy_module(name, directory):
-    """Copy a test module to a package directory."""
+    """
+    Copy a test module to a package directory.
+    """
 
     fname = f"{name}.py"
     src = Path(__file__).parent / "modules" / fname
@@ -18,21 +21,27 @@ def copy_module(name, directory):
 
 
 def test_modules_find_module_not_found():
-    """Ensure that requesting a non-existent module will raise an error."""
+    """
+    Ensure that requesting a non-existent module will raise an error.
+    """
 
     with pytest.raises(ModuleNotFoundError, match="foo"):
         modules.Modules([]).find("foo")
 
 
 def test_modules_find(tmp_path):
-    """Ensure that an existing module will be found in a valid package."""
+    """
+    Ensure that an existing module will be found in a valid package.
+    """
 
     path = copy_module("no_output", tmp_path)
     assert modules.Modules([tmp_path]).find("no_output").__file__ == str(path)
 
 
 def test_modules_entry_points(tmp_path, monkeypatch):
-    """Ensure that module packages defined as an entry point are recognized."""
+    """
+    Ensure that module packages defined as an entry point are recognized.
+    """
 
     class Package:
         __name__ = "test"
@@ -51,5 +60,5 @@ def test_modules_entry_points(tmp_path, monkeypatch):
 
     packages = modules.Modules([tmp_path])._packages
 
-    assert len(packages) == 2  # the first is a dynamically generated unique package for `tmp_path`
-    assert packages[-1] == "test"  # entry point package is added after
+    assert len(packages) == 2
+    assert packages[-1] == "test"

@@ -1,5 +1,8 @@
-import os, json, random, pytest
-from swaystatus import BaseElement
+import os
+import json
+import random
+import pytest
+from swaystatus.element import BaseElement
 from swaystatus.updater import Updater
 
 brief_interval = 0.00001
@@ -45,9 +48,10 @@ def test_updater_start(capfd, updater_count):
     updater = updater_count(count)([Foo()], brief_interval, False)
     updater.start()
 
-    assert capfd.readouterr().out.strip().split(os.linesep) == [json.dumps(updater._header), updater._body_start] + (
-        [updater._body_item.format(json.dumps([dict(full_text="foo")]))] * count
-    )
+    assert capfd.readouterr().out.strip().split(os.linesep) == [
+        json.dumps(updater._header),
+        updater._body_start,
+    ] + ([updater._body_item.format(json.dumps([dict(full_text="foo")]))] * count)
 
 
 def test_updater_no_blocks(capfd):
