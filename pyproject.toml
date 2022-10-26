@@ -7,7 +7,7 @@ authors = [
 description = "Generates a status line for swaybar"
 readme = "README.md"
 license-files = { paths = ["LICENSE.md"] }
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 keywords = ["sway", "wm", "status"]
 classifiers = [
     "Environment :: Console",
