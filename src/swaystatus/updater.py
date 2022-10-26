@@ -4,10 +4,6 @@ from signal import SIGSTOP, SIGCONT
 
 
 def send_line(line):
-    """
-    Helper to send a line to stdout immediately.
-    """
-
     print(line, flush=True)
 
 
@@ -73,26 +69,12 @@ class Updater:
         send_line(self._body_item.format(json.dumps(output)))
 
     def running(self):
-        """
-        This method is only necessary to facilitate monkeypatching during
-        testing.
-        """
-
         return self._running
 
     def stop(self):
-        """
-        Tell the update loop to stop iterating.
-        """
-
         self._running = False
 
     def start(self):
-        """
-        Inform swaybar about how to interact with the status bar and begin
-        sending content.
-        """
-
         send_line(json.dumps(self._header))
         send_line(self._body_start)
 

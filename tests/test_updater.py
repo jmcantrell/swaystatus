@@ -10,7 +10,10 @@ brief_interval = 0.00001
 
 @pytest.fixture
 def updater_count(monkeypatch):
-    """Create a patched updater class that will only send updates a requested number of times."""
+    """
+    Create a patched updater class that will only send updates a requested
+    number of times.
+    """
 
     def func(count):
         iterations = 0
@@ -30,14 +33,18 @@ def updater_count(monkeypatch):
 
 
 def test_updater_respects_option_click_events():
-    """Ensure that the updater passes on our preference for click events."""
+    """
+    Ensure that the updater passes on our preference for click events.
+    """
 
     assert Updater([], brief_interval, True)._header["click_events"]
     assert not Updater([], brief_interval, False)._header["click_events"]
 
 
 def test_updater_start(capfd, updater_count):
-    """Ensure that an updater will continuously emit blocks when started."""
+    """
+    Ensure that an updater will continuously emit blocks when started.
+    """
 
     class Foo(BaseElement):
         def on_update(self, output):
@@ -55,7 +62,10 @@ def test_updater_start(capfd, updater_count):
 
 
 def test_updater_no_blocks(capfd):
-    """Ensure that if an element does not emit any blocks, none appear in the output."""
+    """
+    Ensure that if an element does not emit any blocks, none appear in the
+    output.
+    """
 
     class NoBlocks(BaseElement):
         def on_update(self, output):
@@ -68,7 +78,9 @@ def test_updater_no_blocks(capfd):
 
 
 def test_updater_multiple_blocks(capfd):
-    """Ensure that a single element is able to output multiple blocks."""
+    """
+    Ensure that a single element is able to output multiple blocks.
+    """
 
     texts = ["foo", "bar", "baz"]
 
@@ -85,7 +97,9 @@ def test_updater_multiple_blocks(capfd):
 
 
 def test_updater_multiple_elements(capfd):
-    """Ensure that multiple elements output their blocks in the correct order."""
+    """
+    Ensure that multiple elements output their blocks in the correct order.
+    """
 
     class Foo(BaseElement):
         def on_update(self, output):
@@ -104,7 +118,9 @@ def test_updater_multiple_elements(capfd):
 
 
 def test_updater_element_intervals(capfd, updater_count):
-    """Ensure that any intervals set are called when expected."""
+    """
+    Ensure that any intervals set are called when expected.
+    """
 
     class Intervals(BaseElement):
         def __init__(self):

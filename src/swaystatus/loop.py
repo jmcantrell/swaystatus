@@ -31,8 +31,6 @@ def configure_signal_handlers(updater):
 
 
 def start_stdout_thread(updater):
-    """Start a thread that continuously outputs status line content to stdout."""
-
     def target():
         try:
             updater.start()
@@ -46,8 +44,6 @@ def start_stdout_thread(updater):
 
 
 def start_stdin_thread(updater, elements):
-    """Start a daemon thread that continuously reads click events from stdin."""
-
     elements_by_name = {
         element.name: element for element in elements if hasattr(element, "name")
     }

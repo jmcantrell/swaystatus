@@ -1,12 +1,11 @@
-"""
-Generate a status line for swaybar.
-"""
+"""Generate a status line for swaybar."""
 
 import sys
+import toml
 from pathlib import Path
 from argparse import ArgumentParser
 from .loop import start
-from .config import Config
+from .config import config
 from .modules import Modules
 from .logging import logger, configure as configure_logging
 from .env import bin_name, config_home, environ_path, environ_paths
@@ -67,6 +66,7 @@ def parse_args():
         "-l",
         "--log-file",
         metavar="FILE",
+        type=Path,
         help="output logging to %(metavar)s",
     )
 
@@ -88,8 +88,8 @@ def parse_config(args):
         "SWAYSTATUS_CONFIG_FILE", config_dir / "config.toml"
     )
 
-    config = Config()
-    config.read_file(config_file)
+    if config_file.is_file():
+        config.update(toml.loads(open(config_file).read()))
 
     config["include"] = (
         (args.include or [])

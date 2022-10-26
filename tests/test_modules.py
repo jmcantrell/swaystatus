@@ -4,7 +4,7 @@ from pathlib import Path
 from swaystatus import modules
 
 
-def copy_module(name, directory):
+def copy_module(name, directory: Path):
     """
     Copy a test module to a package directory.
     """

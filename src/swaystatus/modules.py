@@ -6,10 +6,6 @@ from importlib.util import spec_from_file_location, module_from_spec
 
 
 class Modules:
-    """
-    A registry of modules containing elements for use in the status bar.
-    """
-
     def __init__(self, include):
         self._packages = []
         self._cached_modules = {}
@@ -28,10 +24,6 @@ class Modules:
             self._packages.append(entry_point.load().__name__)
 
     def find(self, name):
-        """
-        Return the first instance of a module found in the recognized packages.
-        """
-
         if name not in self._cached_modules:
             for package in self._packages:
                 try:
