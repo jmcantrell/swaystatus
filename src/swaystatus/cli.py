@@ -124,7 +124,7 @@ def load_elements(order, include, settings):
         element_settings.update(settings.get(key, {}).copy())
 
         logger.info(f"Loaded module from file: {module.__file__}")
-        logger.debug(f"Initializing module: {settings!r}")
+        logger.debug(f"Initializing module: {element_settings!r}")
 
         elements.append(module.Element(**element_settings))
 
