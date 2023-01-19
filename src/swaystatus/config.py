@@ -46,8 +46,8 @@ swaystatus, it must be one of the following:
         SWAYSTATUS_MODULE_PATH=/path/to/modules1:/path/to/modules2
 
     5. An installed python package with an entry point for `swaystatus.modules`
-       defined like the following (obviously your package name will be
-       different):
+       defined like the following in your `pyproject.toml` (obviously your
+       package name will be different):
 
           [project.entry-points."swaystatus.modules"]
           package = "my_awesome_swaystatus_modules"
