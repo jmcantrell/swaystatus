@@ -117,11 +117,11 @@ def load_elements(order, include, settings):
 
         name, instance = ids[:2]
 
+        module = modules.find(name)
+
         element_settings = {"name": name, "instance": instance}
         element_settings.update(settings.get(name, {}).copy())
         element_settings.update(settings.get(key, {}).copy())
-
-        module = modules.find(name)
 
         logger.info(f"Loaded module from file: {module.__file__}")
         logger.debug(f"Initializing module: {settings!r}")
