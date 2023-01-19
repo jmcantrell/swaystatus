@@ -1,6 +1,6 @@
 [project]
 name = "swaystatus"
-version = "0.3.1"
+version = "0.3.2"
 authors = [
     { name="Jeremy Cantrell", email="jmcantrell@gmail.com" }
 ]
