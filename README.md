@@ -1,6 +1,6 @@
 # swaystatus
 
-Generates a status line for [swaybar][swaybar-protocol].
+Generate a status line for [swaybar][swaybar-protocol].
 
 ## Installation
 
@@ -12,26 +12,25 @@ Install as a python package:
 pip install swaystatus
 ```
 
-### Repository
+### Arch User Repository (AUR)
 
-To install in the default location (`/usr/local`):
+There are two packages available for Arch Linux, available via the
+AUR.
 
-```sh
-sudo ./scripts/install
-```
+Stable, based on the latest tagged release:
+[swaystatus][aur]
 
-To install in a different location:
-
-```sh
-PREFIX=/usr sudo ./scripts/install
-```
+Unstable, based on the latest commit to the main branch:
+[swaystatus-git][aur-git]
 
 ## Testing
 
 To run the included tests:
 
 ```sh
-./scripts/test
+pytest
 ```
 
 [swaybar-protocol]: https://man.archlinux.org/man/swaybar-protocol.7
+[aur]: https://aur.archlinux.org/packages/swaystatus/
+[aur-git]: https://aur.archlinux.org/packages/swaystatus-git/
