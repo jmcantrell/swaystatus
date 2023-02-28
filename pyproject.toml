@@ -22,8 +22,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/jmcantrell/swaystatus"
-"Bug Tracker" = "https://github.com/jmcantrell/swaystatus/-/issues"
+"Homepage" = "https://git.sr.ht/~jmcantrell/swaystatus"
+"Bug Tracker" = "https://todo.sr.ht/~jmcantrell/swaystatus"
 
 [project.scripts]
 swaystatus = "swaystatus.cli:main"
