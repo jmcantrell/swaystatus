@@ -4,7 +4,7 @@ version = "0.3.3"
 authors = [
     { name="Jeremy Cantrell", email="jmcantrell@gmail.com" }
 ]
-description = "Generates a status line for swaybar"
+description = "Generate a status line for swaybar"
 readme = "README.md"
 license-files = { paths = ["LICENSE.md"] }
 requires-python = ">=3.10"
