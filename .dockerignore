@@ -1,10 +1,10 @@
 *.egg-info/
-.coverage
+.build.yml
+.builds/
 .direnv/
 .dockerignore
 .envrc
 .git/
-.github/
 .gitignore
 .mine/
 .pytest_cache/
