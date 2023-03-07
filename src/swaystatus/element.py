@@ -166,7 +166,8 @@ class BaseElement:
                     def handler(line):
                         message = str(line, "utf-8").strip()
                         send(
-                            f"Output from module {self} button {button} handler: {message}"
+                            f"Output from module {self} "
+                            f"button {button} handler: {message}"
                         )
 
                     return handler
