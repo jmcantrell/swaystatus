@@ -1,12 +1,12 @@
 [project]
 name = "swaystatus"
-version = "0.3.3"
+version = "0.3.4"
 authors = [
     { name="Jeremy Cantrell", email="jmcantrell@gmail.com" }
 ]
 description = "Generate a status line for swaybar"
 readme = "README.md"
-license-files = { paths = ["LICENSE.md"] }
+license-files = { paths = ["LICENSE"] }
 requires-python = ">=3.10"
 keywords = ["sway", "wm", "status"]
 classifiers = [
