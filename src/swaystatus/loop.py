@@ -31,14 +31,14 @@ def configure_signal_handlers(updater):
 
 
 def start_stdout_thread(updater):
-    def target():
+    def write_to_stdout():
         try:
             updater.start()
         except Exception:
             logger.exception("Unhandled exception in stdout writer thread")
             sys.exit(1)
 
-    stdout_thread = Thread(target=target)
+    stdout_thread = Thread(target=write_to_stdout)
     stdout_thread.start()
     stdout_thread.join()
 

@@ -25,7 +25,7 @@ class BaseElement:
     For example, if there is a file named `clock.py` in the modules package, the
     element class would have `self.name` set to "clock".
 
-    The module file would have the following code:
+    The module file could have the following code:
 
         from time import strftime
         from swaystatus.element import BaseElement
@@ -47,7 +47,7 @@ class BaseElement:
         $XDG_CONFIG_HOME/swaystatus/
         ├── config.toml      # <= configuration goes here
         └── modules/
-            ├── __init__.py  # <= necessary, possibly empty, file
+            ├── __init__.py  # <= necessary, to tell python this is a package
             └── clock.py     # <= module goes here
     """
 
@@ -216,11 +216,13 @@ class BaseElement:
         activate is only done at each update loop iteration.
 
         In other words, any intervals defined at a higher frequency than the
-        update interval will run no more than once per update. If this is the
-        case, the functionality should live in `self.on_update`. Consequently,
-        this feature is only really useful if the element needs to do some work
-        at a lower frequency than the updates. For example, maybe some piece of
-        content doesn't require an update at every update.
+        update interval will run no more than once per update, in which case,
+        the functionality should probably just live in `self.on_update`.
+
+        Consequently, this feature is only really useful if the element needs
+        to do some work at a lower frequency than the updates. For example,
+        maybe some piece of content doesn't require an update at every update,
+        or the content is expensive to produce and it needs to be cached.
         """
 
         logger.info(f"Module {self} is setting interval for {seconds}s: {options!r}")
@@ -246,7 +248,7 @@ class BaseElement:
         section of swaybar-protocol(7).
 
         There are no requirements for the presence or absence of a block nor
-        for how many are added.
+        how many are added.
 
         It's recommended to use `self.create_block` to create the blocks:
 

@@ -61,7 +61,7 @@ The following keys are recognized in the configuration file:
     - `order`: A list of module names to use in the status bar. It also defines
       the order in which they will be displayed. Modules can be included more
       than once. Modules can also be defined with an instance name, like
-      `module:foo`, which can have their own settings (see the exampmle below).
+      `module:foo`, which can have their own settings (see the example below).
 
     - `interval`: A float that dictates how often the status bar will be
       updated (in seconds, default: 1.0).
@@ -73,9 +73,8 @@ The following keys are recognized in the configuration file:
       included when searching for module files.
 
     - `env`: A dictionary that defines environment variables that will be
-      available to any shell command click handler commands. This can be
-      defined at the top level, for a module, or for a specific instance of a
-      module.
+      available to any click handler shell commands. This can be defined at the
+      top level, for a module, or for a specific instance of a module.
 
     - `on_click`: A dictionary that maps pointer device button numbers to shell
       commands. The commands can be defined as either a single string or a list
