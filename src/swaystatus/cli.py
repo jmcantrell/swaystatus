@@ -71,10 +71,9 @@ def parse_args():
     )
 
     p.add_argument(
-        "-j",
-        "--log-journal",
+        "--syslog",
         action="store_true",
-        help="output logging to systemd journal (if available)",
+        help="output logging to syslog",
     )
 
     return p.parse_args()
@@ -134,9 +133,7 @@ def load_elements(order, include, settings):
 def main():
     args = parse_args()
 
-    configure_logging(
-        level=args.log_level, file=args.log_file, journal=args.log_journal
-    )
+    configure_logging(level=args.log_level, file=args.log_file, syslog=args.syslog)
 
     config = parse_config(args)
     logger.debug(f"Using configuration: {config!r}")
