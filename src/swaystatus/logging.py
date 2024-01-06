@@ -34,7 +34,7 @@ def configure(level=None, file=None, syslog=False):
         handlers.append(file_handler)
 
     if syslog:
-        from logging import SysLogHandler
+        from logging.handlers import SysLogHandler
 
         syslog_handler = SysLogHandler(address="/dev/log")
         syslog_handler.setFormatter(create_formatter(named=False, timestamped=False))
