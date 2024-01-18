@@ -1,6 +1,6 @@
 [project]
 name = "swaystatus"
-version = "0.4.2"
+version = "0.4.3"
 authors = [
     { name="Jeremy Cantrell", email="jmcantrell@gmail.com" }
 ]
@@ -31,9 +31,9 @@ dev = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/jmcantrell/swaystatus"
-"Repository" = "https://github.com/jmcantrell/swaystatus.git"
-"Bug Tracker" = "https://github.com/jmcantrell/swaystatus/issues"
+"Homepage" = "https://sr.ht/~jmcantrell/swaystatus/"
+"Repository" = "https://git.sr.ht/~jmcantrell/swaystatus"
+"Bug Tracker" = "https://todo.sr.ht/~jmcantrell/swaystatus"
 
 [project.scripts]
 swaystatus = "swaystatus.cli:main"
