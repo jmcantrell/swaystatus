@@ -16,4 +16,4 @@ tasks:
   - test: |
       cd swaystatus
       . ./venv/bin/activate
-      pytest
+      ./scripts/test

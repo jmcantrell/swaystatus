@@ -1,8 +1,4 @@
 *.egg-info/
-.coverage
-.direnv/
-.envrc
-.mine/
-.tool-versions
+.pytest_cache/
 __pycache__/
 dist/

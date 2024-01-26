@@ -1,15 +1,8 @@
 *.egg-info/
-.build.yml
-.builds/
-.direnv/
 .dockerignore
-.envrc
 .git/
 .gitignore
-.mine/
 .pytest_cache/
-.tool-versions
 Dockerfile
 __pycache__/
 dist/
-scripts/
