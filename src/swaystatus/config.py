@@ -106,7 +106,7 @@ For example, the configuration file might look like:
 
     [settings.path_exists]
     on_click.1 = '$terminal --working-directory="$instance"'
-    on_click.2 = '$terminal --hold df $instance'
+    on_click.2 = '$terminal --hold df "$instance"'
 
     [settings."clock:work".env]
     TZ = 'Asia/Tokyo'
