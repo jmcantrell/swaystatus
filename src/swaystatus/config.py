@@ -112,7 +112,6 @@ For example, the configuration file might look like:
     TZ = 'Asia/Tokyo'
 """
 
-
 config = {
     "order": [],
     "interval": 1.0,
