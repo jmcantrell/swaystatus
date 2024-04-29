@@ -4,11 +4,11 @@
 #
 #    pip-compile --extra=dev --output-file=requirements/development.txt pyproject.toml
 #
-black==24.3.0
+black==24.4.2
     # via swaystatus (pyproject.toml)
 bleach==6.1.0
     # via readme-renderer
-build==1.1.1
+build==1.2.1
     # via swaystatus (pyproject.toml)
 certifi==2024.2.2
     # via requests
@@ -20,9 +20,9 @@ click==8.1.7
     # via black
 cryptography==42.0.5
     # via secretstorage
-docutils==0.20.1
+docutils==0.21.2
     # via readme-renderer
-idna==3.6
+idna==3.7
     # via requests
 importlib-metadata==7.1.0
     # via
@@ -30,13 +30,13 @@ importlib-metadata==7.1.0
     #   twine
 iniconfig==2.0.0
     # via pytest
-jaraco-classes==3.3.1
+jaraco-classes==3.4.0
     # via keyring
 jeepney==0.8.0
     # via
     #   keyring
     #   secretstorage
-keyring==25.0.0
+keyring==25.2.0
     # via twine
 markdown-it-py==3.0.0
     # via rich
@@ -55,19 +55,19 @@ pathspec==0.12.1
     # via black
 pkginfo==1.10.0
     # via twine
-platformdirs==4.2.0
+platformdirs==4.2.1
     # via black
-pluggy==1.4.0
+pluggy==1.5.0
     # via pytest
-pycparser==2.21
+pycparser==2.22
     # via cffi
 pygments==2.17.2
     # via
     #   readme-renderer
     #   rich
-pyproject-hooks==1.0.0
+pyproject-hooks==1.1.0
     # via build
-pytest==8.1.1
+pytest==8.2.0
     # via swaystatus (pyproject.toml)
 readme-renderer==43.0
     # via twine
@@ -81,7 +81,7 @@ rfc3986==2.0.0
     # via twine
 rich==13.7.1
     # via twine
-ruff==0.3.4
+ruff==0.4.2
     # via swaystatus (pyproject.toml)
 secretstorage==3.3.3
     # via keyring
