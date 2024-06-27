@@ -24,7 +24,7 @@ docutils==0.21.2
     # via readme-renderer
 idna==3.7
     # via requests
-importlib-metadata==7.1.0
+importlib-metadata==8.0.0
     # via
     #   keyring
     #   twine
@@ -81,7 +81,7 @@ rfc3986==2.0.0
     # via twine
 rich==13.7.1
     # via twine
-ruff==0.4.8
+ruff==0.5.0
     # via swaystatus (pyproject.toml)
 secretstorage==3.3.3
     # via keyring
@@ -89,9 +89,9 @@ six==1.16.0
     # via bleach
 toml==0.10.2
     # via swaystatus (pyproject.toml)
-twine==5.1.0
+twine==5.1.1
     # via swaystatus (pyproject.toml)
-urllib3==2.2.1
+urllib3==2.2.2
     # via
     #   requests
     #   twine
