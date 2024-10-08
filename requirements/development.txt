@@ -4,45 +4,45 @@
 #
 #    pip-compile --extra=dev --output-file=requirements/development.txt pyproject.toml
 #
-black==24.8.0
+black==24.10.0
     # via swaystatus (pyproject.toml)
-build==1.2.1
+build==1.2.2
     # via swaystatus (pyproject.toml)
-certifi==2024.7.4
+certifi==2024.8.30
     # via requests
-cffi==1.17.0
+cffi==1.17.1
     # via cryptography
 charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via black
-cryptography==43.0.0
+cryptography==43.0.1
     # via secretstorage
 docutils==0.21.2
     # via readme-renderer
-idna==3.7
+idna==3.10
     # via requests
-importlib-metadata==8.2.0
+importlib-metadata==8.5.0
     # via twine
 iniconfig==2.0.0
     # via pytest
 jaraco-classes==3.4.0
     # via keyring
-jaraco-context==5.3.0
+jaraco-context==6.0.1
     # via keyring
-jaraco-functools==4.0.2
+jaraco-functools==4.1.0
     # via keyring
 jeepney==0.8.0
     # via
     #   keyring
     #   secretstorage
-keyring==25.3.0
+keyring==25.4.1
     # via twine
 markdown-it-py==3.0.0
     # via rich
 mdurl==0.1.2
     # via markdown-it-py
-more-itertools==10.4.0
+more-itertools==10.5.0
     # via
     #   jaraco-classes
     #   jaraco-functools
@@ -57,9 +57,9 @@ packaging==24.1
     #   pytest
 pathspec==0.12.1
     # via black
-pkginfo==1.11.1
+pkginfo==1.10.0
     # via twine
-platformdirs==4.2.2
+platformdirs==4.3.6
     # via black
 pluggy==1.5.0
     # via pytest
@@ -69,9 +69,9 @@ pygments==2.18.0
     # via
     #   readme-renderer
     #   rich
-pyproject-hooks==1.1.0
+pyproject-hooks==1.2.0
     # via build
-pytest==8.3.2
+pytest==8.3.3
     # via swaystatus (pyproject.toml)
 readme-renderer==44.0
     # via twine
@@ -83,9 +83,9 @@ requests-toolbelt==1.0.0
     # via twine
 rfc3986==2.0.0
     # via twine
-rich==13.7.1
+rich==13.9.2
     # via twine
-ruff==0.5.7
+ruff==0.6.9
     # via swaystatus (pyproject.toml)
 secretstorage==3.3.3
     # via keyring
@@ -93,9 +93,9 @@ toml==0.10.2
     # via swaystatus (pyproject.toml)
 twine==5.1.1
     # via swaystatus (pyproject.toml)
-urllib3==2.2.2
+urllib3==2.2.3
     # via
     #   requests
     #   twine
-zipp==3.20.0
+zipp==3.20.2
     # via importlib-metadata
