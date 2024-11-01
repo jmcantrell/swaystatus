@@ -1,5 +1,6 @@
-import shutil
 import pytest
+import shutil
+
 from pathlib import Path
 from swaystatus import modules
 

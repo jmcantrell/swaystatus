@@ -1,10 +1,12 @@
-import sys
-import locale
 import json
+import locale
+import sys
+
 from signal import signal, SIGINT, SIGUSR1
 from threading import Thread
-from .updater import Updater
+
 from .logging import logger
+from .updater import Updater
 
 
 def configure_signal_handlers(updater):

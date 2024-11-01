@@ -9,7 +9,9 @@ Elements can produce zero or more blocks at each update.
 """
 
 import os
+
 from types import MethodType
+
 from .logging import logger
 from .subprocess import PopenStreamHandler
 

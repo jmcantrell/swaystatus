@@ -1,5 +1,5 @@
-from threading import Thread
 from subprocess import Popen, PIPE
+from threading import Thread
 
 
 def proxy_lines(pipe, handler):

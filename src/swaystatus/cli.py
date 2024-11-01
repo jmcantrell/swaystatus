@@ -2,13 +2,15 @@
 
 import sys
 import toml
-from pathlib import Path
+
 from argparse import ArgumentParser
-from .loop import start
+from pathlib import Path
+
 from .config import config
-from .modules import Modules
-from .logging import logger, configure as configure_logging
 from .env import bin_name, config_home, environ_path, environ_paths
+from .logging import logger, configure as configure_logging
+from .loop import start
+from .modules import Modules
 
 
 def parse_args():

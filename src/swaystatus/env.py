@@ -1,5 +1,6 @@
 import os
 import sys
+
 from pathlib import Path
 
 bin_name = os.path.basename(sys.argv[0])

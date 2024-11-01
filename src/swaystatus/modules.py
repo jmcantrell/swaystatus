@@ -1,8 +1,9 @@
 import sys
-from uuid import uuid4
-from pathlib import Path
+
 from importlib import import_module, metadata
 from importlib.util import spec_from_file_location, module_from_spec
+from pathlib import Path
+from uuid import uuid4
 
 
 class Modules:

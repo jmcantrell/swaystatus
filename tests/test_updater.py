@@ -1,7 +1,8 @@
-import os
 import json
-import random
+import os
 import pytest
+import random
+
 from swaystatus.element import BaseElement
 from swaystatus.updater import Updater
 
