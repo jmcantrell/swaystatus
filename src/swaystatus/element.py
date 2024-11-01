@@ -127,19 +127,7 @@ class BaseElement:
                 self._set_on_click_handler(button, handler)
 
     def __str__(self):
-        """
-        Display a friendly name for this element, like `name` or
-        `name:instance`.
-        """
-
-        if not self.name:
-            return super().__str__()
-
-        args = [self.name]
-        if self.instance:
-            args.append(self.instance)
-
-        return ":".join(args)
+        return self.key() or super().__str__()
 
     def _set_on_click_handler(self, button, handler):
         if callable(handler):
@@ -180,6 +168,14 @@ class BaseElement:
 
         setattr(self, f"on_click_{button}", MethodType(method, self))
         logger.debug(f"Module {self} set click handler for button {button}: {handler}")
+
+    def key(self):
+        """
+        Return a string uniquely identifying this element.
+        """
+        return (
+            f"{self.name}:{self.instance}" if self.name and self.instance else self.name
+        )
 
     def create_block(self, full_text, **params):
         """

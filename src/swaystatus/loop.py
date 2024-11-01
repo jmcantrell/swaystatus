@@ -44,9 +44,9 @@ def start_stdout_thread(updater):
 
 
 def start_stdin_thread(updater, elements):
-    elements_by_name = {
-        element.name: element for element in elements if hasattr(element, "name")
-    }
+    elements_by_key = {key: element for element in elements if (key := element.key())}
+
+    logger.debug(list(elements_by_key.keys()))
 
     def read_from_stdin():
         logger.info("Listening for click events from stdin...")
@@ -55,7 +55,10 @@ def start_stdin_thread(updater, elements):
             for line in sys.stdin:
                 click_event = json.loads(line.strip().lstrip(","))
                 logger.debug(f"Received click event: {click_event!r}")
-                elements_by_name[click_event["name"]].on_click(click_event)
+                name = click_event["name"]
+                instance = click_event.get("instance")
+                key = f"{name}:{instance}" if instance else name
+                elements_by_key[key].on_click(click_event)
                 updater.update()
         except Exception:
             logger.exception("Unhandled exception in stdin reader thread")
