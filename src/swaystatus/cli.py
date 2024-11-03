@@ -108,6 +108,19 @@ def parse_config(args):
     return config
 
 
+def deep_merge_dicts(first, second):
+    """
+    Recursively merge the second dictionary into the first.
+    """
+    result = first.copy()
+    for key, value in second.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge_dicts(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
 def load_elements(order, include, settings):
     elements = []
     modules = Modules(include)
@@ -120,14 +133,13 @@ def load_elements(order, include, settings):
 
         module = modules.find(name)
 
-        element_settings = {"name": name, "instance": instance}
-        element_settings.update(settings.get(name, {}).copy())
-        element_settings.update(settings.get(key, {}).copy())
+        kwargs = deep_merge_dicts(settings.get(name, {}), settings.get(key, {}))
+        kwargs.update({"name": name, "instance": instance})
 
         logger.info(f"Loaded module from file: {module.__file__}")
-        logger.debug(f"Initializing module: {element_settings!r}")
+        logger.debug(f"Initializing module: {kwargs!r}")
 
-        elements.append(module.Element(**element_settings))
+        elements.append(module.Element(**kwargs))
 
     return elements
 
