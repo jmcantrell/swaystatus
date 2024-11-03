@@ -175,9 +175,11 @@ class BaseElement:
         """
         Return a string uniquely identifying this element.
         """
-        return (
-            f"{self.name}:{self.instance}" if self.name and self.instance else self.name
-        )
+        if self.name and self.instance:
+            return f"{self.name}:{self.instance}"
+
+        if self.name:
+            return self.name
 
     def create_block(self, full_text, **params):
         """

@@ -57,11 +57,14 @@ def start_stdin_thread(updater, elements):
             for line in sys.stdin:
                 click_event = json.loads(line.strip().lstrip(","))
                 logger.debug(f"Received click event: {click_event!r}")
+
                 name = click_event["name"]
                 instance = click_event.get("instance")
                 key = f"{name}:{instance}" if instance else name
+
                 elements_by_key[key].on_click(click_event)
                 updater.update()
+
         except Exception:
             logger.exception("Unhandled exception in stdin reader thread")
             sys.exit(1)
