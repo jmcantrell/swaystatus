@@ -48,8 +48,6 @@ def start_stdout_thread(updater):
 def start_stdin_thread(updater, elements):
     elements_by_key = {key: element for element in elements if (key := element.key())}
 
-    logger.debug(list(elements_by_key.keys()))
-
     def read_from_stdin():
         logger.info("Listening for click events from stdin...")
         try:
@@ -62,7 +60,12 @@ def start_stdin_thread(updater, elements):
                 instance = click_event.get("instance")
                 key = f"{name}:{instance}" if instance else name
 
-                elements_by_key[key].on_click(click_event)
+                try:
+                    element = elements_by_key[key]
+                except KeyError:
+                    element = elements_by_key[name]
+
+                element.on_click(click_event)
                 updater.update()
 
         except Exception:
