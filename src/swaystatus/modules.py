@@ -6,6 +6,10 @@ from pathlib import Path
 from uuid import uuid4
 
 
+def unique_package_name():
+    return str(uuid4()).replace("-", "")
+
+
 class Modules:
     def __init__(self, include):
         self._packages = []
@@ -13,7 +17,7 @@ class Modules:
 
         for i, modules_dir in enumerate(include):
             if (init_file := Path(modules_dir).expanduser() / "__init__.py").is_file():
-                package_name = str(uuid4()).replace("-", "")
+                package_name = unique_package_name()
                 if spec := spec_from_file_location(package_name, init_file):
                     package = module_from_spec(spec)
                     sys.modules[package_name] = package

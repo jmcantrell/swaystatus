@@ -30,7 +30,8 @@ jobs:
         run: |
           . ./venv/bin/activate
           pip install --upgrade pip
-          pip install --requirement=requirements/{production,development}.txt
+          pip install --requirement=./requirements/production.txt
+          pip install --requirement=./requirements/development.txt
           pip install --editable=.
 
       - name: Execute test runner

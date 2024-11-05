@@ -133,7 +133,11 @@ def load_elements(order, include, settings):
 
         module = modules.find(name)
 
-        kwargs = deep_merge_dicts(settings.get(name, {}), settings.get(key, {}))
+        kwargs = deep_merge_dicts(
+            settings.get(name, {}),
+            settings.get(key, {}),
+        )
+
         kwargs.update({"name": name, "instance": instance})
 
         logger.info(f"Loaded module from file: {module.__file__}")
