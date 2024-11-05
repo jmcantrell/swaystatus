@@ -126,10 +126,10 @@ def load_elements(order, include, settings):
     modules = Modules(include)
 
     for key in order:
-        ids = key.split(":", maxsplit=1)
-        ids.append(None)
-
-        name, instance = ids[:2]
+        try:
+            name, instance = key.split(":", maxsplit=1)
+        except ValueError:
+            name, instance = key, None
 
         module = modules.find(name)
 
@@ -147,15 +147,27 @@ def load_elements(order, include, settings):
 def main():
     args = parse_args()
 
-    configure_logging(level=args.log_level, file=args.log_file, syslog=args.syslog)
+    configure_logging(
+        level=args.log_level,
+        file=args.log_file,
+        syslog=args.syslog,
+    )
 
     config = parse_config(args)
     logger.debug(f"Using configuration: {config!r}")
 
-    elements = load_elements(config["order"], config["include"], config["settings"])
+    elements = load_elements(
+        config["order"],
+        config["include"],
+        config["settings"],
+    )
 
     try:
-        start(elements, config["interval"], config["click_events"])
+        start(
+            elements,
+            config["interval"],
+            config["click_events"],
+        )
     except Exception:
         logger.exception("Unhandled exception in main loop")
         sys.exit(1)

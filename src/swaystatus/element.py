@@ -24,13 +24,13 @@ class BaseElement:
     `Element` and be contained in a file named according to how its
     corresponding block should be named.
 
-    For example, if there is a file named `clock.py` in the modules package, the
-    element class would have `self.name` set to "clock".
+    For example, if there is a file named `clock.py` in the modules package, an
+    instance of the element class would have `self.name` set to "clock".
 
     The module file could have the following code:
 
-        from time import strftime
         from swaystatus.element import BaseElement
+        from time import strftime
 
         class Element(BaseElement):
             def on_update(self, output):
@@ -156,8 +156,7 @@ class BaseElement:
                     def handler(line):
                         message = str(line, "utf-8").strip()
                         send(
-                            f"Output from module {self} "
-                            f"button {button} handler: {message}"
+                            f"Output from module {self} button {button} handler: {message}"
                         )
 
                     return handler

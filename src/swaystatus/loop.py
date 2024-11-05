@@ -46,12 +46,13 @@ def start_stdout_thread(updater):
 
 
 def start_stdin_thread(updater, elements):
-    elements_by_key = {key: element for element in elements if (key := element.key())}
+    elements_by_key = {key: elem for elem in elements if (key := elem.key())}
 
     def read_from_stdin():
         logger.info("Listening for click events from stdin...")
         try:
             assert sys.stdin.readline().strip() == "["
+
             for line in sys.stdin:
                 click_event = json.loads(line.strip().lstrip(","))
                 logger.debug(f"Received click event: {click_event!r}")
