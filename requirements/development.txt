@@ -8,15 +8,15 @@ black==24.10.0
     # via swaystatus (pyproject.toml)
 build==1.2.2
     # via swaystatus (pyproject.toml)
-certifi==2024.8.30
+certifi==2024.12.14
     # via requests
 cffi==1.17.1
     # via cryptography
-charset-normalizer==3.3.2
+charset-normalizer==3.4.0
     # via requests
-click==8.1.7
+click==8.1.8
     # via black
-cryptography==43.0.1
+cryptography==44.0.0
     # via secretstorage
 docutils==0.21.2
     # via readme-renderer
@@ -36,7 +36,7 @@ jeepney==0.8.0
     # via
     #   keyring
     #   secretstorage
-keyring==25.4.1
+keyring==25.5.0
     # via twine
 markdown-it-py==3.0.0
     # via rich
@@ -48,16 +48,16 @@ more-itertools==10.5.0
     #   jaraco-functools
 mypy-extensions==1.0.0
     # via black
-nh3==0.2.18
+nh3==0.2.20
     # via readme-renderer
-packaging==24.1
+packaging==24.2
     # via
     #   black
     #   build
     #   pytest
 pathspec==0.12.1
     # via black
-pkginfo==1.10.0
+pkginfo==1.12.0
     # via twine
 platformdirs==4.3.6
     # via black
@@ -71,7 +71,7 @@ pygments==2.18.0
     #   rich
 pyproject-hooks==1.2.0
     # via build
-pytest==8.3.3
+pytest==8.3.4
     # via swaystatus (pyproject.toml)
 readme-renderer==44.0
     # via twine
@@ -83,19 +83,19 @@ requests-toolbelt==1.0.0
     # via twine
 rfc3986==2.0.0
     # via twine
-rich==13.9.2
+rich==13.9.4
     # via twine
-ruff==0.6.9
+ruff==0.8.4
     # via swaystatus (pyproject.toml)
 secretstorage==3.3.3
     # via keyring
 toml==0.10.2
     # via swaystatus (pyproject.toml)
-twine==5.1.1
+twine==6.0.1
     # via swaystatus (pyproject.toml)
-urllib3==2.2.3
+urllib3==2.3.0
     # via
     #   requests
     #   twine
-zipp==3.20.2
+zipp==3.21.0
     # via importlib-metadata
