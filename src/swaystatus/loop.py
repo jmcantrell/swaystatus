@@ -2,7 +2,7 @@ import json
 import locale
 import sys
 
-from signal import signal, SIGINT, SIGUSR1
+from signal import signal, Signals, SIGINT, SIGTERM, SIGUSR1
 from threading import Thread
 
 from .logging import logger
@@ -11,7 +11,7 @@ from .updater import Updater
 
 def configure_signal_handlers(updater):
     def update(sig, frame):
-        logger.info(f"Signal was sent to update status bar: {sig}")
+        logger.info(f"Signal was sent to update: {Signals(sig).name} ({sig})")
         logger.debug(f"Current stack frame: {frame}")
         try:
             updater.update()
@@ -20,7 +20,7 @@ def configure_signal_handlers(updater):
             sys.exit(1)
 
     def shutdown(sig, frame):
-        logger.info(f"Signal was sent to shutdown: {sig}")
+        logger.info(f"Signal was sent to shutdown: {Signals(sig).name} ({sig})")
         logger.debug(f"Current stack frame: {frame}")
         try:
             updater.stop()
@@ -30,6 +30,7 @@ def configure_signal_handlers(updater):
 
     signal(SIGUSR1, update)
     signal(SIGINT, shutdown)
+    signal(SIGTERM, shutdown)
 
 
 def start_stdout_thread(updater):
