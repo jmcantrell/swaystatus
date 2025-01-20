@@ -1,6 +1,5 @@
 """Generate a status line for swaybar."""
 
-import sys
 import toml
 
 from argparse import ArgumentParser
@@ -174,4 +173,6 @@ def main():
         )
     except Exception:
         logger.exception("Unhandled exception in main loop")
-        sys.exit(1)
+        return 1
+
+    return 0
