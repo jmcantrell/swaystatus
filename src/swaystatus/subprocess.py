@@ -2,9 +2,9 @@ from subprocess import Popen, PIPE
 from threading import Thread
 
 
-def proxy_lines(pipe, handler):
-    with pipe:
-        for line in pipe:
+def proxy_context(context, handler):
+    with context as lines:
+        for line in lines:
             handler(line)
 
 
@@ -18,5 +18,5 @@ class PopenStreamHandler(Popen):
         kwargs["stdout"] = PIPE
         kwargs["stderr"] = PIPE
         super().__init__(*args, **kwargs)
-        Thread(target=proxy_lines, args=[self.stdout, stdout_handler]).start()
-        Thread(target=proxy_lines, args=[self.stderr, stderr_handler]).start()
+        Thread(target=proxy_context, args=[self.stdout, stdout_handler]).start()
+        Thread(target=proxy_context, args=[self.stderr, stderr_handler]).start()
