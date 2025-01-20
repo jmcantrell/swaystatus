@@ -13,9 +13,9 @@ from .modules import Modules
 
 
 def parse_args():
-    p = ArgumentParser(description=__doc__)
+    parser = ArgumentParser(description=__doc__)
 
-    p.add_argument(
+    parser.add_argument(
         "-c",
         "--config-file",
         metavar="FILE",
@@ -23,7 +23,7 @@ def parse_args():
         help="override configuration file",
     )
 
-    p.add_argument(
+    parser.add_argument(
         "-C",
         "--config-dir",
         metavar="DIRECTORY",
@@ -31,7 +31,7 @@ def parse_args():
         help="override configuration directory",
     )
 
-    p.add_argument(
+    parser.add_argument(
         "-I",
         "--include",
         action="append",
@@ -40,7 +40,7 @@ def parse_args():
         help="include additional modules package",
     )
 
-    p.add_argument(
+    parser.add_argument(
         "-i",
         "--interval",
         type=float,
@@ -48,14 +48,14 @@ def parse_args():
         help="override default update interval",
     )
 
-    p.add_argument(
+    parser.add_argument(
         "--no-click-events",
         dest="click_events",
         action="store_false",
         help="disable click events",
     )
 
-    p.add_argument(
+    parser.add_argument(
         "-L",
         "--log-level",
         metavar="LEVEL",
@@ -63,7 +63,7 @@ def parse_args():
         help="override default logging minimum severity level",
     )
 
-    p.add_argument(
+    parser.add_argument(
         "-l",
         "--log-file",
         metavar="FILE",
@@ -71,13 +71,13 @@ def parse_args():
         help="output logging to %(metavar)s",
     )
 
-    p.add_argument(
+    parser.add_argument(
         "--syslog",
         action="store_true",
         help="output logging to syslog",
     )
 
-    return p.parse_args()
+    return parser.parse_args()
 
 
 def parse_config(args):
