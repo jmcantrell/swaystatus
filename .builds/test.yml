@@ -2,19 +2,13 @@
 image: archlinux
 packages:
   - python
-  - python-pip
+  - uv
 sources:
   - https://git.sr.ht/~jmcantrell/swaystatus
 tasks:
   - setup: |
       cd swaystatus
-      python -m venv venv
-      . ./venv/bin/activate
-      pip install --upgrade pip
-      pip install --requirement=./requirements/production.txt
-      pip install --requirement=./requirements/development.txt
-      pip install --editable=.
+      uv sync --frozen
   - test: |
       cd swaystatus
-      . ./venv/bin/activate
-      ./scripts/test
+      uv run --frozen ./scripts/test

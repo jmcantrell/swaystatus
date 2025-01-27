@@ -22,19 +22,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create venv
-        run: |
-          python -m venv venv
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
-      - name: Install dependencies
+      - name: Sync environment
         run: |
-          . ./venv/bin/activate
-          pip install --upgrade pip
-          pip install --requirement=./requirements/production.txt
-          pip install --requirement=./requirements/development.txt
-          pip install --editable=.
+          uv sync --frozen
 
       - name: Execute test runner
         run: |
-          . ./venv/bin/activate
-          ./scripts/test
+          uv run --frozen ./scripts/test
