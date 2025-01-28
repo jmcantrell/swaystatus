@@ -28,7 +28,7 @@ Unstable, based on the latest commit to the main branch:
 To run the included tests:
 
 ```sh
-./scripts/test
+uv run ./scripts/test
 ```
 
 [swaybar-protocol]: https://man.archlinux.org/man/swaybar-protocol.7
