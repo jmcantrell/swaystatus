@@ -23,14 +23,6 @@ Stable, based on the latest tagged release:
 Unstable, based on the latest commit to the main branch:
 [swaystatus-git][aur-git]
 
-## Testing
-
-To run the included tests:
-
-```sh
-uv run ./scripts/test
-```
-
 [swaybar-protocol]: https://man.archlinux.org/man/swaybar-protocol.7
 [aur]: https://aur.archlinux.org/packages/swaystatus/
 [aur-git]: https://aur.archlinux.org/packages/swaystatus-git/
