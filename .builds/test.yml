@@ -1,7 +1,6 @@
 ---
 image: archlinux
 packages:
-  - python
   - uv
 sources:
   - https://git.sr.ht/~jmcantrell/swaystatus
