@@ -2,7 +2,7 @@
 
 import toml
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from pathlib import Path
 
 from .config import config
@@ -13,7 +13,16 @@ from .modules import Modules
 
 
 def parse_args():
-    parser = ArgumentParser(description=__doc__)
+    class MyHelpFormatter(RawDescriptionHelpFormatter):
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, max_help_position=40, indent_increment=4, **kwargs)
+
+    parser = ArgumentParser(
+        description=__doc__,
+        usage="%(prog)s [OPTIONS]",
+        formatter_class=MyHelpFormatter,
+    )
 
     parser.add_argument(
         "-c",
