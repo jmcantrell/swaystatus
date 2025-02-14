@@ -15,7 +15,7 @@ from .modules import Modules
 
 def configure_logging(level: str | int):
     stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    stream_handler.setFormatter(logging.Formatter("%(name)s: %(levelname)s: %(message)s"))
 
     if level and isinstance(level, str):
         level = level.upper()
