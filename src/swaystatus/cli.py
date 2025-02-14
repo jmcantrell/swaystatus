@@ -1,15 +1,26 @@
 """Generate a status line for swaybar."""
 
 import toml
+import logging
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from pathlib import Path
 
 from .config import config
 from .env import bin_name, config_home, environ_path, environ_paths
-from .logging import logger, configure as configure_logging
+from .logging import logger
 from .loop import start
 from .modules import Modules
+
+
+def configure_logging(level: str | int):
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+
+    if level and isinstance(level, str):
+        level = level.upper()
+
+    logging.basicConfig(level=level, handlers=[stream_handler])
 
 
 def parse_args():
@@ -65,25 +76,11 @@ def parse_args():
     )
 
     parser.add_argument(
-        "-L",
         "--log-level",
         metavar="LEVEL",
+        default="info",
         choices=["debug", "info", "warning", "error", "critical"],
-        help="override default logging minimum severity level",
-    )
-
-    parser.add_argument(
-        "-l",
-        "--log-file",
-        metavar="FILE",
-        type=Path,
-        help="output logging to %(metavar)s",
-    )
-
-    parser.add_argument(
-        "--syslog",
-        action="store_true",
-        help="output logging to syslog",
+        help="override default minimum logging level (default: %(default)s)",
     )
 
     return parser.parse_args()
@@ -159,11 +156,7 @@ def load_elements(order, include, settings):
 def main():
     args = parse_args()
 
-    configure_logging(
-        level=args.log_level,
-        file=args.log_file,
-        syslog=args.syslog,
-    )
+    configure_logging(args.log_level)
 
     config = parse_config(args)
     logger.debug(f"Using configuration: {config!r}")
