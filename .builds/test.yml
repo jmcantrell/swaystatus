@@ -10,4 +10,4 @@ tasks:
       uv sync --frozen
   - test: |
       cd swaystatus
-      uv run --frozen ./scripts/test
+      uv run --frozen pytest
