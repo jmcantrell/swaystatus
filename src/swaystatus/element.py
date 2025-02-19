@@ -9,11 +9,19 @@ Elements can produce zero or more blocks at each update.
 """
 
 import os
-
 from types import MethodType
+from typing import Callable
 
 from .logging import logger
-from .subprocess import PopenStreamHandler
+from .subprocess import PopenStreamHandler, StreamHandler
+
+type Seconds = float
+type Button = int
+type Event = dict
+type Block = dict
+type Output = list[Block]
+type ClickHandler = str | list[str] | Callable[[Event], None]
+type ClickHandlers = dict[Button, ClickHandler]
 
 
 class BaseElement:
@@ -53,9 +61,17 @@ class BaseElement:
             └── clock.py     # <= module goes here
     """
 
-    name = None
+    name: str | None
+    instance: str | None
+    env: dict
 
-    def __init__(self, name=None, instance=None, env=None, on_click=None):
+    def __init__(
+        self,
+        name: str | None = None,
+        instance: str | None = None,
+        env: dict | None = None,
+        on_click: ClickHandlers | None = None,
+    ) -> None:
         """
         Intialize a new status bar content producer.
 
@@ -116,53 +132,39 @@ class BaseElement:
             ...
             full_text = "The time is now: %r"
         """
-
         super().__init__()
-
         self.name = name
         self.instance = instance
         self.env = env or {}
-        self.intervals = []
-
         if on_click:
             for button, handler in on_click.items():
                 self._set_on_click_handler(button, handler)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.key() or super().__str__()
 
-    def _set_on_click_handler(self, button, handler):
+    def _set_on_click_handler(self, button: int, handler: ClickHandler):
         if callable(handler):
 
-            def method(self, event):
-                logger.info(
-                    f"Executing module {self} handler (button {button}, function)"
-                )
+            def method(self, event: dict):
+                logger.info(f"Executing module {self} handler (button {button}, function)")
                 return handler(event)
 
         else:
 
-            def method(self, event):
+            def method(self, event: dict):
                 env = os.environ.copy()
                 env.update(self.env)
-                env.update(
-                    {
-                        key: str(value if value is not None else "")
-                        for key, value in event.items()
-                    }
-                )
+                env.update({key: str(value if value is not None else "") for key, value in event.items()})
 
-                def create_handler(send):
-                    def handler(line):
-                        message = str(line, "utf-8").strip()
-                        send(
-                            f"Output from module {self} button {button} handler: {message}"
-                        )
+                def create_log_handler(log: StreamHandler):
+                    def handler(line: str):
+                        log(f"Output from module {self} button {button} handler: {line.strip()}")
 
                     return handler
 
-                stdout = create_handler(logger.info)
-                stderr = create_handler(logger.error)
+                stdout = create_log_handler(logger.debug)
+                stderr = create_log_handler(logger.error)
 
                 logger.info(f"Executing module {self} handler (button {button}, shell)")
                 return PopenStreamHandler(stdout, stderr, handler, shell=True, env=env)
@@ -170,17 +172,15 @@ class BaseElement:
         setattr(self, f"on_click_{button}", MethodType(method, self))
         logger.debug(f"Module {self} set click handler for button {button}: {handler}")
 
-    def key(self):
-        """
-        Return a string uniquely identifying this element.
-        """
+    def key(self) -> str | None:
+        """Return a string uniquely identifying this element."""
         if self.name and self.instance:
             return f"{self.name}:{self.instance}"
-
         if self.name:
             return self.name
+        return None
 
-    def create_block(self, full_text, **params):
+    def create_block(self, full_text: str, **params) -> Block:
         """
         Helper for creating a block of content for output to the status bar.
 
@@ -192,53 +192,15 @@ class BaseElement:
 
         Any extra keyword arguments are set directly in the block.
         """
-
         block = {"full_text": full_text}
-
         if self.name:
             block["name"] = self.name
-
         if self.instance:
             block["instance"] = self.instance
-
         block.update(params)
-
         return block
 
-    def set_interval(self, seconds, options):
-        """
-        Set a trigger that activates periodically (can be used multiple times).
-
-        Every `seconds` seconds call `self.on_interval` with `options` as an
-        argument. It's probable that the trigger will not activate as precisely
-        as might be expected, as the check that determines if it should
-        activate is only done at each update loop iteration.
-
-        In other words, any intervals defined at a higher frequency than the
-        update interval will run no more than once per update, in which case,
-        the functionality should probably just live in `self.on_update`.
-
-        Consequently, this feature is only really useful if the element needs
-        to do some work at a lower frequency than the updates. For example,
-        maybe some piece of content doesn't require an update at every update,
-        or the content is expensive to produce and it needs to be cached.
-        """
-
-        logger.info(f"Module {self} is setting interval for {seconds}s: {options!r}")
-        self.intervals.append((seconds, options))
-
-    def on_interval(self, options):
-        """
-        Perform some action after a previously set interval.
-
-        An interval should be set using `self.set_interval` during
-        initialization and this method should be overridden for this feature to
-        be useful.
-        """
-
-        pass
-
-    def on_update(self, output):
+    def on_update(self, output: Output):
         """
         Perform some action on every update loop iteration.
 
@@ -257,10 +219,9 @@ class BaseElement:
 
             output.append({"full_text": "hello, world"})
         """
-
         pass
 
-    def on_click(self, event):
+    def on_click(self, event: Event):
         """
         Perform some action when a status bar block is clicked.
 
@@ -278,7 +239,6 @@ class BaseElement:
         other methods, e.g. `self.on_click_<button>` where `<button>` is the
         pointer device button number.
         """
-
         try:
             return getattr(self, f"on_click_{event['button']}")(event)
         except AttributeError:

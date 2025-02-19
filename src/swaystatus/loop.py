@@ -1,92 +1,121 @@
 import json
 import locale
 import sys
+from functools import cached_property
+from signal import SIGCONT, SIGINT, SIGSTOP, SIGTERM, SIGUSR1, Signals, signal
+from threading import Event, Thread
+from typing import Iterable, Iterator
 
-from signal import signal, Signals, SIGINT, SIGTERM, SIGUSR1
-from threading import Thread
-
+from .element import BaseElement
 from .logging import logger
 from .updater import Updater
 
+type Seconds = float
 
-def configure_signal_handlers(updater):
+header = {
+    "version": 1,
+    "stop_signal": SIGSTOP,
+    "cont_signal": SIGCONT,
+    "click_events": False,
+}
+body_start = "[[]"
+body_item = ",{}"
+
+
+class OutputWriter:
+    file = sys.stdout
+
+    def __init__(self, updater: Updater, interval: Seconds, click_events: bool) -> None:
+        self.updater = updater
+        self.interval = interval
+        self.click_events = click_events
+        self._tick = Event()
+        self._running = Event()
+
+    def send(self, line: str) -> None:
+        print(line, flush=True, file=self.file)
+
+    def update(self) -> None:
+        self._tick.set()
+
+    def stop(self) -> None:
+        self._running.clear()
+        self._tick.set()
+
+    def start(self) -> None:
+        self.send(json.dumps(header | dict(click_events=self.click_events)))
+        self.send(body_start)
+        self._running.set()
+        while self._running.is_set():
+            self.send(body_item.format(json.dumps(self.updater.update())))
+            self._tick.clear()
+            self._tick.wait(self.interval)
+
+
+class InputReader(Thread):
+    daemon = True
+    file = sys.stdin
+
+    def __init__(self, elements: Iterable[BaseElement], output_writer: OutputWriter) -> None:
+        super().__init__(name="input")
+        self.elements = elements
+        self.output_writer = output_writer
+
+    @cached_property
+    def elements_by_key(self) -> dict[str, BaseElement]:
+        return {key: elem for elem in self.elements if (key := elem.key())}
+
+    @property
+    def click_events(self) -> Iterator[dict]:
+        assert self.file.readline().strip() == "["
+        for line in self.file:
+            yield json.loads(line.strip().lstrip(","))
+
+    def run(self) -> None:
+        logger.info("Listening for click events from stdin...")
+
+        for click_event in self.click_events:
+            logger.debug(f"Received click event: {click_event!r}")
+
+            name = click_event["name"]
+            instance = click_event.get("instance")
+            key = f"{name}:{instance}" if instance else name
+
+            try:
+                element = self.elements_by_key[key]
+            except KeyError:
+                element = self.elements_by_key[name]
+
+            element.on_click(click_event)
+            self.output_writer.update()
+
+
+def start(elements: Iterable[BaseElement], interval: Seconds, click_events: bool) -> None:
+    locale.setlocale(locale.LC_ALL, "")
+
+    updater = Updater(*elements)
+
+    output_writer = OutputWriter(updater, interval, click_events)
+
+    if click_events:
+        input_thread = InputReader(elements, output_writer)
+
     def update(sig, frame):
         logger.info(f"Signal was sent to update: {Signals(sig).name} ({sig})")
         logger.debug(f"Current stack frame: {frame}")
-        try:
-            updater.update()
-        except Exception:
-            logger.exception("Unhandled exception while updating status bar")
-            sys.exit(1)
+        output_writer.update()
+
+    signal(SIGUSR1, update)
 
     def shutdown(sig, frame):
         logger.info(f"Signal was sent to shutdown: {Signals(sig).name} ({sig})")
         logger.debug(f"Current stack frame: {frame}")
-        try:
-            updater.stop()
-        except Exception:
-            logger.exception("Unhandled exception while shutting down")
-            sys.exit(1)
+        output_writer.stop()
 
-    signal(SIGUSR1, update)
     signal(SIGINT, shutdown)
     signal(SIGTERM, shutdown)
 
-
-def start_stdout_thread(updater):
-    def write_to_stdout():
-        try:
-            updater.start()
-        except Exception:
-            logger.exception("Unhandled exception in stdout writer thread")
-            sys.exit(1)
-
-    stdout_thread = Thread(target=write_to_stdout)
-    stdout_thread.start()
-    stdout_thread.join()
-
-
-def start_stdin_thread(updater, elements):
-    elements_by_key = {key: elem for elem in elements if (key := elem.key())}
-
-    def read_from_stdin():
-        logger.info("Listening for click events from stdin...")
-        try:
-            assert sys.stdin.readline().strip() == "["
-
-            for line in sys.stdin:
-                click_event = json.loads(line.strip().lstrip(","))
-                logger.debug(f"Received click event: {click_event!r}")
-
-                name = click_event["name"]
-                instance = click_event.get("instance")
-                key = f"{name}:{instance}" if instance else name
-
-                try:
-                    element = elements_by_key[key]
-                except KeyError:
-                    element = elements_by_key[name]
-
-                element.on_click(click_event)
-                updater.update()
-
-        except Exception:
-            logger.exception("Unhandled exception in stdin reader thread")
-            sys.exit(1)
-
-    stdin_thread = Thread(target=read_from_stdin)
-    stdin_thread.daemon = True
-    stdin_thread.start()
-
-
-def start(elements, interval, click_events):
-    locale.setlocale(locale.LC_ALL, "")
-
-    updater = Updater(elements, interval, click_events)
-
-    configure_signal_handlers(updater)
-
     if click_events:
-        start_stdin_thread(updater, elements)
+        input_thread.start()
 
-    start_stdout_thread(updater)
+    output_writer.start()

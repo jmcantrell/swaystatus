@@ -1,42 +1,50 @@
 import sys
-
+from functools import cached_property
 from importlib import import_module, metadata
-from importlib.util import spec_from_file_location, module_from_spec
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from types import ModuleType
+from typing import Iterable
 from uuid import uuid4
 
 
-def unique_package_name():
+def unique_package_name() -> str:
     return str(uuid4()).replace("-", "")
 
 
 class Modules:
-    def __init__(self, include):
-        self._packages = []
-        self._cached_modules = {}
+    def __init__(self, include: Iterable[Path]):
+        self.include = list(include)
+        self.cache: dict[str, ModuleType] = {}
 
-        for i, modules_dir in enumerate(include):
-            if (init_file := Path(modules_dir).expanduser() / "__init__.py").is_file():
+    @cached_property
+    def packages(self) -> list[str]:
+        result = []
+
+        for i, modules_dir in enumerate(self.include):
+            if (init_file := modules_dir.expanduser() / "__init__.py").is_file():
                 package_name = unique_package_name()
                 if spec := spec_from_file_location(package_name, init_file):
                     package = module_from_spec(spec)
                     sys.modules[package_name] = package
                     if spec.loader:
                         spec.loader.exec_module(package)
-                        self._packages.append(package_name)
+                        result.append(package_name)
 
         for entry_point in metadata.entry_points(group="swaystatus.modules"):
-            self._packages.append(entry_point.load().__name__)
+            result.append(entry_point.load().__name__)
 
-    def find(self, name):
-        if name not in self._cached_modules:
-            for package in self._packages:
+        return result
+
+    def find(self, name: str) -> ModuleType:
+        if name not in self.cache:
+            for package in self.packages:
                 try:
-                    self._cached_modules[name] = import_module(f"{package}.{name}")
+                    self.cache[name] = import_module(f"{package}.{name}")
                     break
                 except ModuleNotFoundError:
                     continue
             else:
                 raise ModuleNotFoundError(f"Module not found in any package: {name}")
 
-        return self._cached_modules[name]
+        return self.cache[name]
