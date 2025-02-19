@@ -6,7 +6,7 @@ type StreamHandler = Callable[[str], None]
 
 
 class ProxyThread(Thread):
-    def __init__(self, source: IO[bytes], handler: StreamHandler) -> None:
+    def __init__(self, source: IO[str], handler: StreamHandler) -> None:
         super().__init__()
         self.source = source
         self.handler = handler
@@ -14,7 +14,7 @@ class ProxyThread(Thread):
     def run(self) -> None:
         with self.source as lines:
             for line in lines:
-                self.handler(line.decode("utf-8"))
+                self.handler(line)
 
 
 class PopenStreamHandler(Popen):

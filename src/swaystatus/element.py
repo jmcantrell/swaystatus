@@ -167,7 +167,7 @@ class BaseElement:
                 stderr = create_log_handler(logger.error)
 
                 logger.info(f"Executing module {self} handler (button {button}, shell)")
-                return PopenStreamHandler(stdout, stderr, handler, shell=True, env=env)
+                return PopenStreamHandler(stdout, stderr, handler, shell=True, text=True, env=env)
 
         setattr(self, f"on_click_{button}", MethodType(method, self))
         logger.debug(f"Module {self} set click handler for button {button}: {handler}")
