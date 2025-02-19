@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 
-exec ruff check --fix ./src ./tests
+exec uv run ruff check --fix ./src ./tests
