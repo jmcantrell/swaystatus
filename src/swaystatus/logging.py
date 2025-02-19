@@ -1,5 +1,5 @@
 from logging import getLogger
 
-from .env import bin_name
+from .env import self_name
 
-logger = getLogger(bin_name)
+logger = getLogger(self_name)

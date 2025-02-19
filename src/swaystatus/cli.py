@@ -8,7 +8,7 @@ from typing import Iterable
 
 from .config import config
 from .element import BaseElement
-from .env import bin_name, config_home, environ_path, environ_paths
+from .env import config_home, environ_path, environ_paths, self_name
 from .logging import logger
 from .loop import start
 from .modules import Modules
@@ -72,8 +72,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def parse_config(args):
-    config_dir = args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR") or config_home / bin_name
-    config_file = args.config_file or environ_path("SWAYSTATUS_CONFIG_FILE") or config_dir / "config.toml"
+    config_dir = args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR") or (config_home / self_name)
+    config_file = args.config_file or environ_path("SWAYSTATUS_CONFIG_FILE") or (config_dir / "config.toml")
 
     if config_file.is_file():
         config.update(tomllib.loads(open(config_file).read()))
