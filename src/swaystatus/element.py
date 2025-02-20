@@ -16,6 +16,7 @@ from .logging import logger
 from .subprocess import PopenStreamHandler, StreamHandler
 
 type Seconds = float
+type Env = dict[str, str]
 type Block = dict[str, Any]
 type Output = list[Block]
 type PointerButton = int
@@ -69,7 +70,7 @@ class BaseElement:
         *,
         name: str | None = None,
         instance: str | None = None,
-        env: dict | None = None,
+        env: Env | None = None,
         on_click: dict[PointerButton, ClickHandler] | None = None,
     ) -> None:
         """
