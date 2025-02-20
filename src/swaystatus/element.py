@@ -66,6 +66,7 @@ class BaseElement:
 
     def __init__(
         self,
+        *,
         name: str | None = None,
         instance: str | None = None,
         env: dict | None = None,
