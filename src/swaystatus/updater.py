@@ -1,4 +1,8 @@
+from typing import Any
+
 from .element import BaseElement
+
+type Output = list[dict[str, Any]]
 
 
 class Updater:
@@ -6,7 +10,7 @@ class Updater:
         super().__init__()
         self.elements = list(elements)
 
-    def update(self) -> list[dict]:
+    def update(self) -> Output:
         """
         Prompt every element for any updates to the status bar.
 
@@ -15,7 +19,7 @@ class Updater:
         `on_update` method. This is done in the order that the elements were
         given to the updater at initialization.
         """
-        output: list[dict] = []
+        output: Output = []
         for element in self.elements:
             element.on_update(output)
         return output

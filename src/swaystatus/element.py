@@ -10,18 +10,17 @@ Elements can produce zero or more blocks at each update.
 
 import os
 from types import MethodType
-from typing import Callable
+from typing import Any, Callable
 
 from .logging import logger
 from .subprocess import PopenStreamHandler, StreamHandler
 
 type Seconds = float
-type Button = int
-type Event = dict
-type Block = dict
+type Block = dict[str, Any]
 type Output = list[Block]
-type ClickHandler = str | list[str] | Callable[[Event], None]
-type ClickHandlers = dict[Button, ClickHandler]
+type PointerButton = int
+type ClickEvent = dict[str, Any]
+type ClickHandler = str | list[str] | Callable[[ClickEvent], None]
 
 
 class BaseElement:
@@ -70,7 +69,7 @@ class BaseElement:
         name: str | None = None,
         instance: str | None = None,
         env: dict | None = None,
-        on_click: ClickHandlers | None = None,
+        on_click: dict[PointerButton, ClickHandler] | None = None,
     ) -> None:
         """
         Intialize a new status bar content producer.
@@ -221,7 +220,7 @@ class BaseElement:
         """
         pass
 
-    def on_click(self, event: Event):
+    def on_click(self, event: ClickEvent):
         """
         Perform some action when a status bar block is clicked.
 
