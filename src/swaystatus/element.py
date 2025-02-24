@@ -2,245 +2,234 @@
 An element produces blocks of content to display in the status bar.
 
 When the status bar is running, every configured element will be prompted for
-updates at the configured interval. Once every element has replied with their
-output, it's all encoded and sent to swaybar via stdout.
-
-Elements can produce zero or more blocks at each update.
+blocks at the configured interval. Once every element has replied, all of the
+collected blocks are encoded and sent to the bar via stdout.
 """
 
 import os
+from functools import cached_property
+from subprocess import PIPE, Popen
+from threading import Thread
 from types import MethodType
-from typing import Any, Callable
+from typing import IO, Callable, Iterator
 
+from .block import Block
+from .click_event import ClickEvent
 from .logging import logger
-from .subprocess import PopenStreamHandler, StreamHandler
 
-type Seconds = float
-type Env = dict[str, str]
-type Block = dict[str, Any]
-type Output = list[Block]
-type PointerButton = int
-type ClickEvent = dict[str, Any]
+type StreamHandler = Callable[[str], None]
 type ClickHandler = str | list[str] | Callable[[ClickEvent], None]
+
+
+class ProxyThread(Thread):
+    """Thread that sends it's input to a handler."""
+
+    def __init__(self, source: IO[str], handler: StreamHandler) -> None:
+        super().__init__()
+        self.source = source
+        self.handler = handler
+
+    def run(self) -> None:
+        with self.source as lines:
+            for line in lines:
+                self.handler(line)
+
+
+class PopenStreamHandler(Popen):
+    """Just like `Popen`, but handle stdout and stderr output in dedicated threads."""
+
+    def __init__(self, stdout_handler, stderr_handler, *args, **kwargs) -> None:
+        kwargs["stdout"] = kwargs["stderr"] = PIPE
+        super().__init__(*args, **kwargs)
+        assert self.stdout and self.stderr
+        ProxyThread(self.stdout, stdout_handler).start()
+        ProxyThread(self.stderr, stderr_handler).start()
 
 
 class BaseElement:
     """
-    This base class should be subclassed in a swaystatus module package, i.e.
-    the `modules` package in the configuration directory or a python package
-    with a `swaystatus:modules` entry point. The subclass should be named
-    `Element` and be contained in a file named according to how its
-    corresponding block should be named.
+    A base class for constructing elements for the status bar.
 
-    For example, if there is a file named `clock.py` in the modules package, an
-    instance of the element class would have `self.name` set to "clock".
+    The subclass must be named `Element` and be contained in a module file
+    whose name will be used by swaystatus to identify it. For example, if there
+    is a file named `clock.py` in a modules package, the class will have an
+    attribute `name` set to "clock".
 
-    The module file could have the following code:
+    The `blocks` method should be overridden to produce output. There is no
+    restriction or requirement on the number of blocks an element instance
+    produces on each invocation of the method.
 
-        from swaystatus.element import BaseElement
-        from time import strftime
+    A hypothetical clock module file could contain the following:
 
-        class Element(BaseElement):
-            def on_update(self, output):
-                output.append(self.create_block(strftime("%c")))
+        >>> from time import strftime
+        >>> from typing import Iterator
+        >>> from swaystatus import BaseElement, Block
+        >>> class Element(BaseElement):
+        >>>     def blocks(self) -> Iterator[Block]:
+        >>>         yield self.create_block(strftime("%c"))
 
-    Enable the module by adding it to the configuration:
-
-        order = ["clock"]
-
-        # You could also add a click handler:
-        [settings.clock]
-        on_click.1 = "foot --hold cal"
-
-    All this would need to be put in the configuration directory:
+    The most direct way to use the module would be to add it to the
+    configuration directory in a `modules` package:
 
         $XDG_CONFIG_HOME/swaystatus/
         ├── config.toml      # <= configuration goes here
         └── modules/
-            ├── __init__.py  # <= necessary, to tell python this is a package
+            ├── __init__.py  # <= necessary, to mark this as a package
             └── clock.py     # <= module goes here
+
+    Enable the module by adding it to the configuration file:
+
+        order = ["clock"]
+
+    If the clock should respond to a left mouse button click by running a shell
+    command, enable click events and add a click handler to the settings for
+    that module:
+
+        order = ["clock"]
+
+        click_events = true
+
+        [settings.clock]
+        on_click.1 = "foot --hold cal"
+
+    Maybe there needs to be an additional clock that always shows a specific timezone:
+
+        order = ["clock", "clock:home"]
+
+        click_events = true
+
+        [settings.clock]
+        on_click.1 = "foot --hold cal"
+
+        [settings."clock:home".env]
+        TZ = 'Asia/Tokyo'
+
+    The "name:instance" syntax allows multiple instances of the same module,
+    each having their own settings.
     """
 
-    name: str | None
-    instance: str | None
-    env: dict
+    name: str
+    instance: str | None = None
 
     def __init__(
         self,
         *,
-        name: str | None = None,
-        instance: str | None = None,
-        env: Env | None = None,
-        on_click: dict[PointerButton, ClickHandler] | None = None,
+        env: dict[str, str] | None = None,
+        on_click: dict[int, ClickHandler] | None = None,
     ) -> None:
         """
         Intialize a new status bar content producer.
 
-        If the status bar is configured for click events, then `name` and,
-        optionally, `instance` should be set, as they will uniquely identify
-        the block that was clicked.
+        The dict `env` will be added to the execution environment of any click
+        handler.
 
-        In order for click events to be useful, handlers for the relevant
-        pointer buttons should be defined.
+        The dict `on_click` maps pointer button numbers to click handlers (i.e.
+        a function or shell command) which take precedence over any already
+        defined on the class.
 
-        Ultimately, there should be a method defined in this class named like
-        `on_click_<button>` where `<button>` is the pointer button number.
+        When subclassing, there could be more keyword arguments passed,
+        depending on its settings in the configuration file.
 
-        These methods can be defined explicitly in the element class. This way
-        offers the most flexibility and the least hand-holding. They can also
-        be defined at runtime by passing a callable to the initializer in the
-        `on_click` keyword argument:
+        To illustrate, let's change the clock example from earlier to allow
+        configuration of how the element displays the time. Add a constructor
+        that accepts a keyword argument, and change the `blocks` method to use
+        the setting:
 
-            def my_function(event):
-                print(f"Got event: {event!r}")
+            >>> from time import strftime
+            >>> from typing import Iterator
+            >>> from swaystatus import BaseElement, Block
+            >>> class Element(BaseElement):
+            >>>     def __init__(self, full_text="%c", **kwargs) -> None:
+            >>>         super().__init__(**kwargs)
+            >>>         self.full_text = full_text
+            >>>     def blocks(self) -> Iterator[Block]:
+            >>>         yield self.create_block(strftime(self.full_text))
 
-            Element(on_click={1: my_function})
-
-        The `on_click` argument also accepts handlers as a shell command,
-        similar to what `subprocess.run` would accept:
-
-            Element(on_click={1: 'foot top', 2: ['foot', '--hold', 'free']})
-
-        If this form is used, the commands are executed in a shell context,
-        with all the superpowers that implies, as well as logging stdout and
-        stderr to the root logger. This type of handler can also be defined in
-        the configuration file, and will be passed to the element class
-        automatically.
-
-        Additionally, if the `env` keyword argument is given, it will be added
-        to the environment visible to these handlers. It should be a dictionary
-        defining any environment variables that should be set when running
-        shell command click handlers.
-
-        Building on the earlier example, configurability can be added to the
-        clock module by adding an initialization method to the class:
-
-            def __init__(self, *args, full_text=None, **kwargs):
-                super().__init__(*args, **kwargs)
-                self._full_text = full_text or "%c"
-
-        The update method would need to be changed, as well:
-
-            def on_update(self, output):
-                full_text = strftime(self._full_text)
-                output.append(self.create_block(full_text))
-
-        This alone will behave exactly as it did before, but it can also be
-        configured. For example, you might add this to the module's settings in
-        the configuration file:
+        Without any further changes, it will behave as it did originally, but
+        now it can be configured by adding something like the following to the
+        configuration file:
 
             [settings.clock]
-            ...
-            full_text = "The time is now: %r"
+            full_text = "The time here is: %r"
+
+        If there are other instances of the module, they will inherit the
+        setting, but it can be overridden:
+
+            [settings."clock:home"]
+            full_text = "The time at home is: %r"
         """
-        super().__init__()
-        self.name = name
-        self.instance = instance
         self.env = env or {}
         if on_click:
             for button, handler in on_click.items():
-                self._set_on_click_handler(button, handler)
+                self.set_on_click_handler(button, handler)
 
     def __str__(self) -> str:
-        return self.key() or super().__str__()
+        return self.key
 
-    def _set_on_click_handler(self, button: int, handler: ClickHandler):
-        if callable(handler):
+    @cached_property
+    def key(self) -> str:
+        """Return a string uniquely identifying this element instance."""
+        return f"{self.name}:{self.instance}" if self.instance else self.name
 
-            def method(self, event: dict):
-                logger.info(f"Executing module {self} handler (button {button}, function)")
-                return handler(event)
-
-        else:
-
-            def method(self, event: dict):
-                env = os.environ.copy()
-                env.update(self.env)
-                env.update({key: str(value if value is not None else "") for key, value in event.items()})
-
-                def create_log_handler(log: StreamHandler):
-                    def handler(line: str):
-                        log(f"Output from module {self} button {button} handler: {line.strip()}")
-
-                    return handler
-
-                stdout = create_log_handler(logger.debug)
-                stderr = create_log_handler(logger.error)
-
-                logger.info(f"Executing module {self} handler (button {button}, shell)")
-                return PopenStreamHandler(stdout, stderr, handler, shell=True, text=True, env=env)
-
-        setattr(self, f"on_click_{button}", MethodType(method, self))
-        logger.debug(f"Module {self} set click handler for button {button}: {handler}")
-
-    def key(self) -> str | None:
-        """Return a string uniquely identifying this element."""
-        if self.name and self.instance:
-            return f"{self.name}:{self.instance}"
-        if self.name:
-            return self.name
-        return None
-
-    def create_block(self, full_text: str, **params) -> Block:
+    def blocks(self) -> Iterator[Block]:
         """
-        Helper for creating a block of content for output to the status bar.
+        Yield blocks of content to display on the status bar.
 
-        If `self.name` or `self.instance` are set, they will be included
-        automatically.
+        To create a block, it's recommended to use `self.create_block` so that
+        the block has the proper name and instance set:
 
-        The only required parameter is `full_text` as it's the only required
-        field for a viable content block.
-
-        Any extra keyword arguments are set directly in the block.
+            >>> from typing import Iterator
+            >>> from swaystatus import BaseElement, Block
+            >>> class Element(BaseElement):
+            >>>     def blocks(self) -> Iterator[Block]:
+            >>>         yield self.create_block("Howdy!")
         """
-        block = {"full_text": full_text}
-        if self.name:
-            block["name"] = self.name
-        if self.instance:
-            block["instance"] = self.instance
-        block.update(params)
-        return block
+        raise NotImplementedError
 
-    def on_update(self, output: Output):
-        """
-        Perform some action on every update loop iteration.
+    def create_block(self, full_text: str, **kwargs) -> Block:
+        """Create a block of content associated with this element."""
+        if self.instance is not None:
+            kwargs["instance"] = self.instance
+        return Block(name=self.name, full_text=full_text, **kwargs)
 
-        For anything to appear on the status bar, a block should be added to
-        `output` in this method. For a description of blocks, see the "BODY"
-        section of swaybar-protocol(7).
-
-        There are no requirements for the presence or absence of a block nor
-        how many are added.
-
-        It's recommended to use `self.create_block` to create the blocks:
-
-            output.append(self.create_block("hello, world"))
-
-        But they can also be added directly:
-
-            output.append({"full_text": "hello, world"})
-        """
-        pass
-
-    def on_click(self, event: ClickEvent):
-        """
-        Perform some action when a status bar block is clicked.
-
-        If `click_events` is set to `True` in the configuration and `self.name`
-        (and possibly `self.instance`) is set, any time the user clicks a
-        block, this method will be called on the element that produced it and
-        passed an event object describing the click. For a description of click
-        events, see the "CLICK EVENTS" section of swaybar-protocol(7).
-
-        If blocks are created using `self.create_block`, the name and instance
-        keys will be set automatically in the block.
-
-        This method can be overridden to provide direct control on how click
-        events should be handled, but, by default, will delegate the events to
-        other methods, e.g. `self.on_click_<button>` where `<button>` is the
-        pointer device button number.
-        """
+    def on_click(self, event: ClickEvent) -> None:
+        """Perform some action when a status bar block is clicked."""
         try:
-            return getattr(self, f"on_click_{event['button']}")(event)
+            getattr(self, f"on_click_{event.button}")(event)
         except AttributeError:
             pass
+
+    def set_on_click_handler(self, button: int, handler: ClickHandler):
+        """
+        Add a method to this instance that calls `handler` when this element
+        is clicked with the pointer `button`.
+
+        The handler can be a function that accepts a `ClickEvent` as the first
+        (and only) positional argument. It can also be a command compatible
+        with the various `subprocess` functions, i.e. a `str` or `list[str]`
+        representing a shell command.
+
+        This is mainly a convenience method that handles binding a regular
+        function as a method and logging everything.
+        """
+        if callable(handler):
+
+            def method(self, event: ClickEvent):
+                logger.info(f"Executing {self} module function click handler for button {button}")
+                environ_save = os.environ.copy()
+                os.environ.update(self.env)
+                try:
+                    handler(event)
+                finally:
+                    os.environ.update(environ_save)
+        else:
+
+            def method(self, event: ClickEvent):
+                env = os.environ.copy()
+                env.update(self.env)
+                env.update({k: str(v) for k, v in event.dict().items()})
+                logger.info(f"Executing {self} module shell command click handler for button {button}")
+                PopenStreamHandler(logger.debug, logger.error, handler, shell=True, text=True, env=env).wait()
+
+        setattr(self, f"on_click_{button}", MethodType(method, self))
+        logger.debug(f"Module {self} set click handler: button {button} => {handler}")

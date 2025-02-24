@@ -1,13 +1,17 @@
+from dataclasses import replace
 from pathlib import Path
 
-from swaystatus.element import BaseElement
+import pytest
+
+from swaystatus import BaseElement
+
+from .fake import click_event
 
 
-def test_element_udpate_no_output():
+def test_base_element_blocks_not_implemented():
     """Ensure that nothing is added to the output by default."""
-    output = []
-    BaseElement().on_update(output)
-    assert len(output) == 0
+    with pytest.raises(NotImplementedError):
+        BaseElement().blocks()
 
 
 def test_element_on_click_method():
@@ -19,7 +23,7 @@ def test_element_on_click_method():
             nonlocal hit
             hit = True
 
-    Element().on_click({"button": 1})
+    Element().on_click(replace(click_event, button=1))
     assert hit
 
 
@@ -27,15 +31,18 @@ def test_element_on_click_function():
     """Ensure that function click event handlers can be set at initialization."""
     hit = False
 
+    class Element(BaseElement):
+        name = "test"
+
     def handler(event):
         nonlocal hit
         hit = True
 
-    BaseElement(on_click={1: handler}).on_click({"button": 1})
+    Element(on_click={1: handler}).on_click(replace(click_event, button=1))
     assert hit
 
 
-def test_element_on_click_shell(tmp_path):
+def test_element_on_click_shell_command(tmp_path):
     """Ensure that shell command click event handlers can be set at initialization."""
     button = 1
     cases = {
@@ -44,54 +51,14 @@ def test_element_on_click_shell(tmp_path):
         "~": str(Path.home()),  # shell tilde expansion
     }
     env = {"foo": cases["${foo}"]}
-    event = {"button": button}
+    event = replace(click_event, button=button)
     tmp_path.mkdir(parents=True, exist_ok=True)
     stdout_file = tmp_path / "stdout"
 
+    class Element(BaseElement):
+        name = "test"
+
     for s, expected in cases.items():
         handler = f"echo {s} >{stdout_file}"  # shell redirection
-        BaseElement(on_click={1: handler}, env=env).on_click(event).wait()
+        Element(on_click={1: handler}, env=env).on_click(event)
         assert stdout_file.read_text().strip() == expected
-
-
-def test_element_create_block_default():
-    """Ensure that when no name or instance is set, it's not included in the output."""
-    assert BaseElement().create_block("test") == {"full_text": "test"}
-
-
-def test_element_create_block_with_id_set_at_init():
-    """Ensure that name and instance can be set at initialization."""
-    element = BaseElement(name="foo", instance="bar")
-    assert element.create_block("test") == {
-        "full_text": "test",
-        "name": element.name,
-        "instance": element.instance,
-    }
-
-
-def test_element_create_block_with_id_set_after_init():
-    """Ensure that name and instance can be overridden after initialization."""
-    element = BaseElement()
-    element.name = "foo"
-    element.instance = "bar"
-    assert element.create_block("test") == {
-        "full_text": "test",
-        "name": element.name,
-        "instance": element.instance,
-    }
-
-
-def test_element_create_block_with_id_set_in_block():
-    """Ensure that name and instance can be overridden per-block."""
-    element = BaseElement(name="foo", instance="bar")
-    assert element.create_block("test", name="baz", instance="qux") == {
-        "full_text": "test",
-        "name": "baz",
-        "instance": "qux",
-    }
-
-
-def test_element_create_block_with_kwargs():
-    """Ensure that keyword arguments passed to `create_block` are included in the result."""
-    kwargs = {"foo": "a", "bar": "b"}
-    assert BaseElement().create_block("test", **kwargs) == dict(full_text="test", **kwargs)

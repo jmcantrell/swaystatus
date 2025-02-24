@@ -8,43 +8,39 @@ from typing import Iterable
 from uuid import uuid4
 
 
-def unique_package_name() -> str:
-    return str(uuid4()).replace("-", "")
-
-
 class Modules:
-    def __init__(self, include: Iterable[Path]):
-        self.include = list(include)
-        self.cache: dict[str, ModuleType] = {}
+    """Provide a way to locate and import swaystatus elements."""
+
+    def __init__(self, include: Iterable[str | Path]) -> None:
+        self.include = list(map(Path, include))
+        self._cache: dict[str, ModuleType] = {}
 
     @cached_property
     def packages(self) -> list[str]:
+        """Returns recognized module packages in order of preference."""
         result = []
-
-        for i, modules_dir in enumerate(self.include):
-            if (init_file := modules_dir.expanduser() / "__init__.py").is_file():
-                package_name = unique_package_name()
+        for package_dir in self.include:
+            if (init_file := Path(package_dir).expanduser() / "__init__.py").is_file():
+                package_name = str(uuid4()).replace("-", "")
                 if spec := spec_from_file_location(package_name, init_file):
                     package = module_from_spec(spec)
                     sys.modules[package_name] = package
                     if spec.loader:
                         spec.loader.exec_module(package)
                         result.append(package_name)
-
         for entry_point in metadata.entry_points(group="swaystatus.modules"):
             result.append(entry_point.load().__name__)
-
         return result
 
-    def find(self, name: str) -> ModuleType:
-        if name not in self.cache:
+    def load(self, name: str) -> ModuleType:
+        """Return the first matching module."""
+        if name not in self._cache:
             for package in self.packages:
                 try:
-                    self.cache[name] = import_module(f"{package}.{name}")
+                    self._cache[name] = import_module(f"{package}.{name}")
                     break
                 except ModuleNotFoundError:
-                    continue
+                    pass
             else:
                 raise ModuleNotFoundError(f"Module not found in any package: {name}")
-
-        return self.cache[name]
+        return self._cache[name]
