@@ -231,5 +231,5 @@ class BaseElement:
                 logger.info(f"Executing {self} module shell command click handler for button {button}")
                 PopenStreamHandler(logger.debug, logger.error, handler, shell=True, text=True, env=env).wait()
 
+        logger.debug(f"Module {self} setting click handler: button {button} => {handler}")
         setattr(self, f"on_click_{button}", MethodType(method, self))
-        logger.debug(f"Module {self} set click handler: button {button} => {handler}")

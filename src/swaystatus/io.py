@@ -26,6 +26,7 @@ class OutputWriter:
         self._tick.set()
 
     def start(self) -> None:
+        logger.info("Starting to write output...")
         self._running.set()
         status_line = self.output_generator.process(self.file)
         while self._running.is_set():
@@ -44,6 +45,7 @@ class InputReader(Thread):
         self.output_writer = output_writer
 
     def run(self) -> None:
+        logger.info("Starting to read input...")
         for event in self.input_delegator.process(self.file):
             logger.debug(f"Received click event: {event}")
             self.output_writer.update()
@@ -56,12 +58,10 @@ def start(config: Config) -> None:
 
     elements = list(config.elements)
 
-    logger.info("Starting to write output...")
     output_generator = OutputGenerator(elements, config.click_events)
     output_writer = OutputWriter(output_generator, config.interval)
 
     if config.click_events:
-        logger.info("Starting to read input...")
         input_delegator = InputDelegator(elements)
         input_reader = InputReader(input_delegator, output_writer)
 
