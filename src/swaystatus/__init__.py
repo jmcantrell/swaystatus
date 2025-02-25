@@ -7,23 +7,16 @@ There are two primary ways of using this package:
    bar blocks. For details, see the documentation for `swaystatus.element`.
 
 2. Producing content for swaybar with the `swaystatus` command. For details on
-   the command line interface, run `swaystatus --help`. For details on
-   configuring swaystatus, see the documentation for `swaystatus.config`.
+   the command line interface, run `swaystatus --help`.
 
-This package does not contain any element modules. The intention is to provide
-a simple implementation of the swaybar-protocol(7) and leave the details to the
-user.
+This package does not contain any element modules, but it does support the
+usage of external module packages, making it easy to use any number of local or
+published module collections.
 
-There is support the usage of external module packages, making it easy to use
-any number of local or published module collections. For example, there might
-be modules published on PyPI as `awesome-swaystatus-modules` and as long as
-that package has an entry point defined for `swaystatus.modules`, it will be
-found by swaystatus and its modules available to use after installing.
+See the documentation for `swaystatus.config` for details on adding modules and
+configuration.
 
-Something like the following in the `pyproject.toml` is all that's necessary:
-
-    [project.entry-points."swaystatus.modules"]
-    package = 'awesome_swaystatus_modules'
+See swaybar-protocol(7) for a full description of the status bar protocol.
 """
 
 __all__ = ["Block", "ClickEvent", "BaseElement"]

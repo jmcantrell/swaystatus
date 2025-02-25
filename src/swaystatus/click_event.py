@@ -6,11 +6,7 @@ from typing import Any
 
 @dataclass(slots=True, kw_only=True)
 class ClickEvent:
-    """
-    Data class that maps directly on to the JSON representation.
-
-    See the "CLICK EVENTS" section of swaybar-protocol(7) for a full description.
-    """
+    """Data class for events generated when clicking on status bar blocks."""
 
     name: str | None = None
     instance: str | None = None
@@ -25,4 +21,5 @@ class ClickEvent:
     scale: float
 
     def dict(self) -> dict[str, Any]:
+        """Return a dict representation of this instance without any `None` values."""
         return {name: value for name, value in asdict(self).items() if value is not None}

@@ -6,11 +6,7 @@ from typing import Any
 
 @dataclass(slots=True, kw_only=True)
 class Block:
-    """
-    Data class that maps directly on to the JSON representation.
-
-    See the "BODY" section of swaybar-protocol(7) for a full description.
-    """
+    """Data class for units of status bar content."""
 
     full_text: str | None = None
     short_text: str | None = None
@@ -31,5 +27,5 @@ class Block:
     markup: str | None = None
 
     def dict(self) -> dict[str, Any]:
-        """Return a dict representation of this instance."""
+        """Return a dict representation of this instance without any `None` values."""
         return {name: value for name, value in asdict(self).items() if value is not None}
