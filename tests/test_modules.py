@@ -5,23 +5,33 @@ import pytest
 from swaystatus.modules import Modules
 
 
-def test_modules_load_module_not_found():
+def test_modules_load_module_not_found() -> None:
     """Ensure that requesting a non-existent module will raise an error."""
     with pytest.raises(ModuleNotFoundError, match="foo"):
-        Modules([]).load("foo")
+        modules = Modules()
+        modules.packages = []
+        modules.load("foo")
 
 
-def test_modules_load(tmp_module):
+def test_modules_load(tmp_module) -> None:
     """Ensure that an existing module will be found in a valid package."""
-    path = tmp_module("no_output")
-    assert Modules([path.parent]).load("no_output").__file__ == str(path)
+    path = tmp_module(dst_name="foo.py")
+    assert Modules([path.parent]).load("foo").__file__ == str(path)
 
 
-def test_modules_entry_points(tmp_module, monkeypatch):
+def test_modules_load_first_found(tmp_module) -> None:
+    """Ensure packages included earlier have preference when looking for a module."""
+    name = "foo"
+    path1 = tmp_module(dst_name=f"a/{name}.py")
+    path2 = tmp_module(dst_name=f"b/{name}.py")
+    assert Modules([path1.parent, path2.parent]).load(name).__file__ == str(path1)
+
+
+def test_modules_entry_points(tmp_module, monkeypatch) -> None:
     """Ensure that module packages defined as an entry point are recognized."""
 
     class Package:
-        __name__ = "test"
+        __name__ = "entry"
 
     class EntryPoint:
         def load(self):
@@ -32,8 +42,6 @@ def test_modules_entry_points(tmp_module, monkeypatch):
         return [EntryPoint()]
 
     monkeypatch.setattr(importlib.metadata, "entry_points", entry_points)
-    path = tmp_module("no_output")
-
-    packages = Modules([path.parent]).packages
-    assert len(packages) == 2  # tmp_path and the fake entry point
-    assert packages[-1] == "test"  # the fake entry point is after tmp_path
+    modules = Modules([tmp_module().parent])
+    assert len(modules.packages) == 2  # tmp_path and the fake entry point
+    assert modules.packages[-1] == "entry"  # the fake entry point is after tmp_path

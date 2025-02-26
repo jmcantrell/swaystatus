@@ -26,6 +26,9 @@ class Block:
     separator_block_width: int | None = None
     markup: str | None = None
 
+    def __str__(self) -> str:
+        return f"{self.full_text!r} from name={self.name} instance={self.instance}"
+
     def dict(self) -> dict[str, Any]:
         """Return a dict representation of this instance without any `None` values."""
         return {name: value for name, value in asdict(self).items() if value is not None}

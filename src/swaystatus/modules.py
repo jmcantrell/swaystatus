@@ -1,3 +1,41 @@
+"""
+Locate and load content generation elements stored in modules.
+
+A status bar element (a subclass of `swaystatus.BaseElement`) must be named
+`Element` and must be stored in a module file at the top level of a package
+that is visible in any or all of the following places (in order of preference,
+the first package to provide it wins):
+
+    1. `--include=<DIRECTORY>` (can be used multiple times)
+
+    2. A python package in the configuration directory (in order of preference):
+
+          a. `<DIRECTORY>/modules/` where `<DIRECTORY>` is from `--config-dir=<DIRECTORY>`
+          b. `$SWAYSTATUS_CONFIG_DIR/modules/`
+          c. `$XDG_CONFIG_HOME/swaystatus/modules/`
+          d. `$HOME/.config/swaystatus/modules/`
+
+    3. Included in the configuration file:
+
+        include = ['/path/to/package1', '/path/to/package2']
+
+    4. A python package path specified in an environment variable:
+
+        SWAYSTATUS_PACKAGE_PATH=/path/to/package1:/path/to/package2
+
+    5. A python package with an entry point for `swaystatus.modules` defined
+       like the following in the `pyproject.toml`:
+
+          [project.entry-points."swaystatus.modules"]
+          package = "awesome_swaystatus_modules"
+
+When a module is found and imported, the the `Element.name` class attribute is
+assigned the name used to look it up. This is done so that the class can be
+located when delegating click events.
+
+See the documentation for `swaystatus.element` to learn about creating elements.
+"""
+
 import sys
 from functools import cached_property
 from importlib import import_module, metadata
@@ -7,12 +45,14 @@ from types import ModuleType
 from typing import Iterable
 from uuid import uuid4
 
+from .element import BaseElement
+
 
 class Modules:
     """Provide a way to locate and import swaystatus elements."""
 
-    def __init__(self, include: Iterable[str | Path]) -> None:
-        self.include = list(map(Path, include))
+    def __init__(self, include: Iterable[str | Path] | None = None) -> None:
+        self.include = list(map(Path, include or []))
         self._cache: dict[str, ModuleType] = {}
 
     @cached_property
@@ -37,10 +77,16 @@ class Modules:
         if name not in self._cache:
             for package in self.packages:
                 try:
-                    self._cache[name] = import_module(f"{package}.{name}")
-                    break
+                    module = import_module(f"{package}.{name}")
+                    if hasattr(module, "Element") and issubclass(module.Element, BaseElement):
+                        module.Element.name = name
+                        self._cache[name] = module
+                        break
                 except ModuleNotFoundError:
                     pass
             else:
                 raise ModuleNotFoundError(f"Module not found in any package: {name}")
         return self._cache[name]
+
+
+__all__ = [Modules.__name__]

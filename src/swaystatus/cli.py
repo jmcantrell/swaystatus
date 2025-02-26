@@ -23,6 +23,7 @@ def parse_args() -> argparse.Namespace:
         formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(
             prog, indent_increment=4, max_help_position=45
         ),
+        epilog="See `pydoc swaystatus` for full documentation.",
     )
     parser.add_argument(
         "-c",

@@ -47,7 +47,7 @@ class InputReader(Thread):
     def run(self) -> None:
         logger.info("Starting to read input...")
         for event in self.input_delegator.process(self.file):
-            logger.debug(f"Received click event: {event}")
+            logger.debug(f"Processed click event: {event}")
             self.output_writer.update()
 
 

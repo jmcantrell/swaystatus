@@ -4,6 +4,7 @@ from typing import IO, Iterable, Iterator
 
 from .click_event import ClickEvent
 from .element import BaseElement
+from .logging import logger
 
 type Key = tuple[str, str | None]
 
@@ -22,10 +23,18 @@ class InputDelegator:
         assert file.readline().strip() == "["
         for line in file:
             event = ClickEvent(**json.loads(line.strip().lstrip(",")))
-            if event.name:
+            if not event.name:
+                logger.warning(f"Received click event for unidentifiable element: {event}")
+                continue
+            try:
+                key = (event.name, event.instance)
+                element = self.elements_by_key[key]
+            except KeyError:
                 try:
-                    element = self.elements_by_key[(event.name, event.instance)]
+                    key = (event.name, None)
+                    element = self.elements_by_key[key]
                 except KeyError:
-                    element = self.elements_by_key[(event.name, None)]
-                element.on_click(event)
-                yield event
+                    logger.warning(f"Received click event for unknown element: {event}")
+                    continue
+            element.on_click(event)
+            yield event

@@ -20,6 +20,9 @@ class ClickEvent:
     height: int
     scale: float
 
+    def __str__(self) -> str:
+        return f"button {self.button} on name={self.name} instance={self.instance}"
+
     def dict(self) -> dict[str, Any]:
         """Return a dict representation of this instance without any `None` values."""
         return {name: value for name, value in asdict(self).items() if value is not None}

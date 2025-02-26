@@ -1,4 +1,5 @@
 import json
+from functools import partial
 from signal import SIGCONT, SIGSTOP
 from typing import IO, Iterable, Iterator
 
@@ -22,9 +23,7 @@ class OutputGenerator:
             yield from element.blocks()
 
     def process(self, file: IO[str]) -> Iterator:
-        def send(line: str) -> None:
-            print(line, flush=True, file=file)
-
+        send = partial(print, file=file, flush=True)
         send(
             json.dumps(
                 dict(

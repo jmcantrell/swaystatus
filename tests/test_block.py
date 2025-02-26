@@ -1,9 +1,11 @@
+from typing import Any
+
 from swaystatus import Block
 
 
-def test_block_dict_minimal():
+def test_block_dict_minimal() -> None:
     """Ensure that only the keyword arguments passed are included in its `dict` form."""
-    kwarg_pairs = [
+    kwarg_pairs: list[tuple[str, Any]] = [
         ("full_text", "full"),
         ("short_text", "short"),
         ("color", "#eeeeee"),
@@ -22,7 +24,6 @@ def test_block_dict_minimal():
         ("separator_block_width", 2),
         ("markup", "pango"),
     ]
-
     for i in range(len(kwarg_pairs)):
         kwargs = dict(kwarg_pairs[:i])
         assert Block(**kwargs).dict() == kwargs

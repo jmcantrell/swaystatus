@@ -1,6 +1,8 @@
-from swaystatus.element import BaseElement
+from typing import Iterator
+
+from swaystatus import BaseElement, Block
 
 
 class Element(BaseElement):
-    def on_update(self, output):
-        pass
+    def blocks(self) -> Iterator[Block]:
+        yield from []

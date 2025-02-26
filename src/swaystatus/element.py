@@ -7,43 +7,16 @@ collected blocks are encoded and sent to the bar via stdout.
 """
 
 import os
-from functools import cached_property
 from subprocess import PIPE, Popen
 from threading import Thread
 from types import MethodType
-from typing import IO, Callable, Iterator
+from typing import IO, Callable, Iterator, Self
 
 from .block import Block
 from .click_event import ClickEvent
 from .logging import logger
 
-type StreamHandler = Callable[[str], None]
-type ClickHandler = str | list[str] | Callable[[ClickEvent], None]
-
-
-class ProxyThread(Thread):
-    """Thread that sends it's input to a handler."""
-
-    def __init__(self, source: IO[str], handler: StreamHandler) -> None:
-        super().__init__()
-        self.source = source
-        self.handler = handler
-
-    def run(self) -> None:
-        with self.source as lines:
-            for line in lines:
-                self.handler(line)
-
-
-class PopenStreamHandler(Popen):
-    """Just like `Popen`, but handle stdout and stderr output in dedicated threads."""
-
-    def __init__(self, stdout_handler, stderr_handler, *args, **kwargs) -> None:
-        kwargs["stdout"] = kwargs["stderr"] = PIPE
-        super().__init__(*args, **kwargs)
-        assert self.stdout and self.stderr
-        ProxyThread(self.stdout, stdout_handler).start()
-        ProxyThread(self.stderr, stderr_handler).start()
+type ClickHandler[T: BaseElement] = str | list[str] | Callable[[T, ClickEvent], None]
 
 
 class BaseElement:
@@ -55,18 +28,19 @@ class BaseElement:
     is a file named `clock.py` in a modules package, the class will have an
     attribute `name` set to "clock".
 
-    The `blocks` method should be overridden to produce output. There is no
-    restriction or requirement on the number of blocks an element instance
-    produces on each invocation of the method.
+    The `blocks` method must be overridden to produce output. There is no
+    requirement regarding the number of blocks that are yielded, but if no
+    blocks are yielded, nothing will be visible in the status bar for that
+    element.
 
-    A hypothetical clock module file could contain the following:
+    A hypothetical clock module file might contain the following:
 
         >>> from time import strftime
         >>> from typing import Iterator
         >>> from swaystatus import BaseElement, Block
         >>> class Element(BaseElement):
         >>>     def blocks(self) -> Iterator[Block]:
-        >>>         yield self.create_block(strftime("%c"))
+        >>>         yield self.block(strftime("%c"))
 
     The most direct way to use the module would be to add it to the
     configuration directory in a `modules` package:
@@ -104,8 +78,29 @@ class BaseElement:
         [settings."clock:home".env]
         TZ = 'Asia/Tokyo'
 
-    The "name:instance" syntax allows multiple instances of the same module,
-    each having their own settings.
+    The "name:instance" form in `order` allows multiple instances of the same
+    module, each having their own settings.
+
+    Because the module is named `clock.py`, swaystatus will set the class
+    attribute `name` to "clock" for the first instance ("clock") in `order` as
+    if it had been declared like:
+
+        >>> from swaystatus import BaseElement
+        >>> class Element(BaseElement):
+        >>>     name = "clock"
+
+    Because the second instance ("clock:home") is using the instance form, it
+    will also have the instance attribute `instance` set to "home" as if it had
+    been declared like:
+
+        >>> from swaystatus import BaseElement
+        >>> class Element(BaseElement):
+        >>>     name = "clock"
+        >>> element = Element()
+        >>> element.instance = "home"
+
+    You should not set these attributes yourself, as it will confuse and sadden
+    swaystatus, and it will propably not respond to your clicks.
     """
 
     name: str
@@ -115,7 +110,7 @@ class BaseElement:
         self,
         *,
         env: dict[str, str] | None = None,
-        on_click: dict[int, ClickHandler] | None = None,
+        on_click: dict[int, ClickHandler[Self]] | None = None,
     ) -> None:
         """
         Intialize a new status bar content producer.
@@ -124,7 +119,7 @@ class BaseElement:
         handler.
 
         The dict `on_click` maps pointer button numbers to click handlers (i.e.
-        a function or shell command) which take precedence over any already
+        functions or shell commands) which take precedence over any already
         defined on the class.
 
         When subclassing, there could be more keyword arguments passed,
@@ -143,7 +138,7 @@ class BaseElement:
             >>>         super().__init__(**kwargs)
             >>>         self.full_text = full_text
             >>>     def blocks(self) -> Iterator[Block]:
-            >>>         yield self.create_block(strftime(self.full_text))
+            >>>         yield self.block(strftime(self.full_text))
 
         Without any further changes, it will behave as it did originally, but
         now it can be configured by adding something like the following to the
@@ -164,30 +159,74 @@ class BaseElement:
                 self.set_on_click_handler(button, handler)
 
     def __str__(self) -> str:
-        return self.key
-
-    @cached_property
-    def key(self) -> str:
-        """Return a string uniquely identifying this element instance."""
         return f"{self.name}:{self.instance}" if self.instance else self.name
 
     def blocks(self) -> Iterator[Block]:
         """
         Yield blocks of content to display on the status bar.
 
-        To create a block, it's recommended to use `self.create_block` so that
-        the block has the proper name and instance set:
+        To create a block, it's recommended to use the `block` method so that
+        the block has the proper name and instance set and that there is some
+        text:
 
             >>> from typing import Iterator
             >>> from swaystatus import BaseElement, Block
             >>> class Element(BaseElement):
             >>>     def blocks(self) -> Iterator[Block]:
-            >>>         yield self.create_block("Howdy!")
+            >>>         yield self.block("Howdy!")
+
+        There's nothing wrong with creating instances of `Block` directly, but
+        it's easier to break the ability for swaystatus to send the element
+        click events.
+
+        See the documentation for `block` for a more detailed explanation.
         """
         raise NotImplementedError
 
-    def create_block(self, full_text: str, **kwargs) -> Block:
-        """Create a block of content associated with this element."""
+    def block(self, full_text: str, **kwargs) -> Block:
+        """
+        Create a block of content associated with this element.
+
+        This helper ensures that the block it creates is linked to the element
+        yielding it, i.e. the name and instance attributes are set correctly,
+        which allows click events to be sent to this element.
+
+        Another potential issue happens when a module instance has been
+        declared in the configuration `order` with the "name:instance" form and
+        the module's element class is also yielding blocks with dynamic
+        instance attributes.
+
+        To illustrate the problem, consider an element that yields blocks that
+        could be different at every update. For example, there could be a
+        module that shows network interfaces:
+
+            >>> from pathlib import Path
+            >>> from typing import Iterator
+            >>> from swaystatus import BaseElement, Block
+            >>> class Element(BaseElement):
+            >>>     def blocks(self) -> Iterator[Block]:
+            >>>         for dev in Path('/sys/class/net').iterdir():
+            >>>             yield self.block(dev.name, instance=dev.name)
+
+        The difference between this and the clock example is that the clock
+        instances are not dynamic. Swaystatus knows there will always be two
+        instances and knows how to reach them.
+
+        The network interfaces example's instances are dynamic, therefore
+        swaystatus can only reach this element by the module name.
+
+        The consequence is that a module's instances can either be declared
+        statically in the configuration or the blocks created with instances at
+        runtime, but not both. Trying to yield a block from the element in
+        module "foo" with its instance set to "a" when the module was already
+        declared in the configuration `order` as "foo:b" will mean that click
+        events will be lost.
+
+        Using the `block` method will ensure that the block has the name and
+        instance set correctly. If the block's instance is set dynamically and
+        the module's instance was declared in the configuration, an exception
+        will be raised.
+        """
         if self.instance is not None:
             kwargs["instance"] = self.instance
         return Block(name=self.name, full_text=full_text, **kwargs)
@@ -199,37 +238,72 @@ class BaseElement:
         except AttributeError:
             pass
 
-    def set_on_click_handler(self, button: int, handler: ClickHandler):
+    def set_on_click_handler(self, button: int, handler: ClickHandler[Self]) -> None:
         """
-        Add a method to this instance that calls `handler` when this element
-        is clicked with the pointer `button`.
+        Adds a method to this instance that calls `handler` when blocks from
+        this element are clicked with the pointer `button`.
 
-        The handler can be a function that accepts a `ClickEvent` as the first
-        (and only) positional argument. It can also be a command compatible
-        with the various `subprocess` functions, i.e. a `str` or `list[str]`
-        representing a shell command.
+        The `handler` can be one of the following:
 
-        This is mainly a convenience method that handles binding a regular
-        function as a method and logging everything.
+            - A function that accepts two positional arguments, this element
+              instance and a `ClickEvent`.
+
+            - A shell command compatible with `subprocess.run`, i.e. a string
+              or list of strings. Output will be logged at the `DEBUG` level.
         """
         if callable(handler):
+            handler_desc = f"{self} module function click handler for button {button}"
 
             def method(self, event: ClickEvent):
-                logger.info(f"Executing {self} module function click handler for button {button}")
+                logger.info(f"Executing {handler_desc}")
                 environ_save = os.environ.copy()
                 os.environ.update(self.env)
                 try:
-                    handler(event)
+                    handler(self, event)
+                except Exception:
+                    logger.exception(f"Unhandled exception in {handler_desc}")
                 finally:
                     os.environ.update(environ_save)
         else:
+            handler_desc = f"{self} module shell command click handler for button {button}"
 
             def method(self, event: ClickEvent):
                 env = os.environ.copy()
                 env.update(self.env)
                 env.update({k: str(v) for k, v in event.dict().items()})
-                logger.info(f"Executing {self} module shell command click handler for button {button}")
-                PopenStreamHandler(logger.debug, logger.error, handler, shell=True, text=True, env=env).wait()
+                logger.info(f"Executing {handler_desc}")
+                try:
+                    PopenStreamHandler(logger.debug, logger.error, handler, env=env, shell=True, text=True).wait()
+                except Exception:
+                    logger.exception(f"Unhandled exception in {handler_desc}")
 
-        logger.debug(f"Module {self} setting click handler: button {button} => {handler}")
+        logger.debug(f"Setting {self} module click handler: button {button} => {handler}")
         setattr(self, f"on_click_{button}", MethodType(method, self))
+
+
+class ProxyThread(Thread):
+    """Thread that sends it's input to a function."""
+
+    def __init__(self, source: IO[str], handler: Callable[[str], None]) -> None:
+        super().__init__()
+        self.source = source
+        self.handler = handler
+
+    def run(self) -> None:
+        with self.source as lines:
+            for line in lines:
+                self.handler(line.strip())
+
+
+class PopenStreamHandler(Popen):
+    """Just like `Popen`, but handle stdout and stderr output in dedicated threads."""
+
+    def __init__(self, stdout_handler, stderr_handler, *args, **kwargs) -> None:
+        kwargs["stdout"] = kwargs["stderr"] = PIPE
+        super().__init__(*args, **kwargs)
+        assert self.stdout and self.stderr
+        ProxyThread(self.stdout, stdout_handler).start()
+        ProxyThread(self.stderr, stderr_handler).start()
+
+
+__all__ = [BaseElement.__name__]

@@ -11,76 +11,32 @@ Configuration is defined in a toml file located in one of the following places
     5. `$XDG_CONFIG_HOME/swaystatus/config.toml`
     6. `$HOME/.config/swaystatus/config.toml`
 
-At the very minimum, the configuration file should contain the `order` key
-which describes the desired elements and the order in which they will appear:
-
-    order = ['hostname', 'clock']
-
-Each name in the list corresponds to a python module file contained in a
-package visible to swaystatus. The package could be in any of the following:
-
-    1. A python package path given by `--include` (can be used multiple times).
-
-    2. A python package called `modules` in the configuration directory. The
-       first package that exists in the following list (in order of preference)
-       will be visible:
-
-          a. `<DIRECTORY>/modules/` where `<DIRECTORY>` is from `--config-dir=<DIRECTORY>`
-          b. `$SWAYSTATUS_CONFIG_DIR/modules/`
-          c. `$XDG_CONFIG_HOME/swaystatus/modules/`
-          d. `$HOME/.config/swaystatus/modules/`
-
-    3. A python package path specified in the configuration file:
-
-        include = ['/path/to/package1', '/path/to/package2']
-
-    4. A python package path specified in an environment variable:
-
-        SWAYSTATUS_PACKAGE_PATH=/path/to/package1:/path/to/package2
-
-    5. An installed python package with an entry point for `swaystatus.modules`
-       defined like the following in the `pyproject.toml` (the package name
-       could be anything).
-
-          [project.entry-points."swaystatus.modules"]
-          package = "awesome_swaystatus_modules"
-
-Any combination of the above methods can be used. When looking for a particular
-module, packages are searched in the order of preference defined above. If any
-packages contain modules with the same name, the first package in the order
-above that provides it will be used.
-
 The following keys are recognized in the configuration file:
 
-    `order`
-        A list of the desired modules to display and their order. Each item can
-        be of the form "name" or "name:instance". The latter form allows the
-        same module to be used multiple times with different settings.
+    `order` (type: `list[str]`)
+        The desired modules to display and their order. Each item can be of the
+        form "name" or "name:instance". The latter form allows the same module
+        to be used multiple times with different settings.
 
-    `interval`
-        A float specifying how often to update the status bar (in seconds,
-        default: 1.0).
+    `interval` (type: `float`, default: `5.0`)
+        How often (in seconds) to update the status bar.
 
-    `click_events`
-        A boolean indicating whether or not to listen for status bar clicks
-        (default: false).
+    `click_events` (type: `bool`, default: `false`)
+        Whether or not to listen for status bar clicks.
 
-    `include`
-        A list of additional directories to treat as module packages (type:
-        `list[str]`).
+    `include` (type: `list[str]`, default: `[]`)
+        Additional directories to treat as module packages.
 
-    `env`
-        A dictionary of additional environment variables visible to click
-        handlers (type: `dict[str, str]`).
+    `env` (type: `dict[str, str]`, default: `{}`)
+        Additional environment variables visible to click handlers.
 
-    `on_click`
-        A dictionary mapping pointer device button numbers to shell commands
-        (type: `dict[int, str | list[str]]`).
+    `on_click` (type: `dict[int, str | list[str]]`, default: `{}`)
+        Maps pointer button numbers to shell commands that should be run in
+        response to a click by that button.
 
-    `settings`
-        A dictionary mapping modules to keyword arguments that will be passed
-        to the element constructor. The dictionary keys correspond to `order`
-        key items mentioned earlier (type: `dict[str, dict[str, Any]]`.
+    `settings` (type: `dict[str, dict[str, Any]]`)
+        Maps module specifiers (as defined in `order`) to keyword arguments
+        that will be passed to the element constructor.
 
 A typical configuration file might look like the following:
 
@@ -99,10 +55,14 @@ A typical configuration file might look like the following:
 
     [settings.hostname]
     full_text = "host: {}"
+    on_click.1 = '$terminal --hold hostnamectl'
 
     [settings.path_exists]
-    on_click.1 = '$terminal --working-directory="$instance"'
-    on_click.2 = '$terminal --hold df "$instance"'
+    on_click.1 = ['$terminal', '--working-directory=$instance']
+    on_click.2 = ['$terminal', '--hold', 'df', '$instance']
+
+    [settings.clock]
+    on_click.1 = '$terminal --hold cal'
 
     [settings.clock.env]
     TZ = 'America/Chicago'
@@ -119,11 +79,13 @@ from .element import BaseElement
 from .logging import logger
 from .modules import Modules
 
+default_interval = 5.0
+
 
 @dataclass(slots=True, kw_only=True, eq=False)
 class Config:
     order: list[str] = field(default_factory=list)
-    interval: float = 1.0
+    interval: float = default_interval
     click_events: bool = False
     settings: dict[str, Any] = field(default_factory=dict)
     include: list[str | Path] = field(default_factory=list)
@@ -134,24 +96,25 @@ class Config:
     def elements(self) -> Iterator[BaseElement]:
         """Yield all desired element constructors in the configured order."""
         modules = Modules(self.include)
-        for key in self.order:
+        for i, key in enumerate(self.order):
             try:
                 name, instance = key.split(":", maxsplit=1)
             except ValueError:
                 name, instance = key, None
+            assert name, f"Missing module name for item {i} in `order`: {key}"
             module = modules.load(name)
-            if hasattr(module, "Element") and issubclass(module.Element, BaseElement):
-                logger.info(f"Loaded {name} element from {module.__file__}")
-                module.Element.name = name
-                settings = deep_merge_dicts(
-                    self.settings.get(name, {}),
-                    self.settings.get(key, {}),
-                )
-                settings["env"] = self.env | settings.get("env", {})
-                logger.debug(f"Initializing {name} element: {settings!r}")
-                element = module.Element(**settings)
-                element.instance = instance
-                yield element
+            logger.info(f"Loaded {name} element from {module.__file__}")
+            settings = deep_merge_dicts(
+                self.settings.get(name, {}),
+                self.settings.get(key, {}),
+            )
+            settings["env"] = self.env | settings.get("env", {})
+            if instance:
+                settings["env"]["instance"] = instance
+            logger.debug(f"Initializing {key} element: {settings!r}")
+            element = module.Element(**settings)
+            element.instance = instance
+            yield element
 
 
 def deep_merge_dicts(first: dict, second: dict) -> dict:
