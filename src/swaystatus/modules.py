@@ -35,7 +35,7 @@ See the documentation for `swaystatus.element` to learn about creating elements.
 """
 
 import sys
-from functools import cached_property
+from functools import cache, cached_property
 from importlib import import_module, metadata
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -44,6 +44,7 @@ from typing import Iterable
 from uuid import uuid4
 
 from .element import BaseElement
+from .logging import logger
 
 
 class Modules:
@@ -51,7 +52,6 @@ class Modules:
 
     def __init__(self, include: Iterable[str | Path] | None = None) -> None:
         self.include = list(map(Path, include or []))
-        self._cache: dict[str, ModuleType] = {}
 
     @cached_property
     def packages(self) -> list[str]:
@@ -70,21 +70,20 @@ class Modules:
             result.append(entry_point.load().__name__)
         return result
 
+    @cache
     def load(self, name: str) -> ModuleType:
-        """Return the first matching module."""
-        if name not in self._cache:
-            for package in self.packages:
-                try:
-                    module = import_module(f"{package}.{name}")
-                    if hasattr(module, "Element") and issubclass(module.Element, BaseElement):
-                        module.Element.name = name
-                        self._cache[name] = module
-                        break
-                except ModuleNotFoundError:
-                    pass
-            else:
-                raise ModuleNotFoundError(f"Module not found in any package: {name}")
-        return self._cache[name]
+        """Return the first matching module in any visible packages."""
+        for package in self.packages:
+            try:
+                module = import_module(f"{package}.{name}")
+                if hasattr(module, "Element") and issubclass(module.Element, BaseElement):
+                    logger.debug(f"Imported module: {module!r}")
+                    module.Element.name = name
+                    return module
+            except ModuleNotFoundError:
+                pass
+        else:
+            raise ModuleNotFoundError(f"Module not found in any package: {name}")
 
 
 __all__ = [Modules.__name__]

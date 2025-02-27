@@ -15,8 +15,10 @@ def test_output_multiple_blocks() -> None:
             for text in texts:
                 yield self.block(text)
 
-    output = OutputGenerator([Element()])
-    assert list(output.blocks()) == [Block(name="test", full_text=text) for text in texts]
+    output_generator = OutputGenerator([Element()])
+    actual_blocks = list(output_generator.blocks())
+    expected_blocks = [Block(name="test", full_text=text) for text in texts]
+    assert actual_blocks == expected_blocks
 
 
 def test_output_multiple_elements() -> None:
@@ -34,9 +36,10 @@ def test_output_multiple_elements() -> None:
         def blocks(self) -> Iterator[Block]:
             yield self.block("bar")
 
-    output = OutputGenerator([Element1(), Element2()])
-
-    assert list(output.blocks()) == [
+    output_generator = OutputGenerator([Element1(), Element2()])
+    actual_blocks = list(output_generator.blocks())
+    expected_blocks = [
         Block(name="test1", full_text="foo"),
         Block(name="test2", full_text="bar"),
     ]
+    assert actual_blocks == expected_blocks

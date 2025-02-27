@@ -62,4 +62,5 @@ def test_element_on_click_shell_command(tmp_path) -> None:
     for s, expected in cases.items():
         handler = f"echo {s} >{stdout_file}"  # shell redirection
         Element(on_click={1: handler}, env=env).on_click(event)
-        assert stdout_file.read_text().strip() == expected
+        actual = stdout_file.read_text().strip()
+        assert actual == expected

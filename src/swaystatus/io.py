@@ -64,14 +64,14 @@ def start(config: Config) -> None:
 
     def update(sig, frame):
         logger.info(f"Signal was sent to update: {Signals(sig).name} ({sig})")
-        logger.debug(repr(frame))
+        logger.debug(f"Current stack frame: {frame!r}")
         output_writer.update()
 
     signal(SIGUSR1, update)
 
     def shutdown(sig, frame):
         logger.info(f"Signal was sent to shutdown: {Signals(sig).name} ({sig})")
-        logger.debug(repr(frame))
+        logger.debug(f"Current stack frame: {frame!r}")
         output_writer.stop()
 
     signal(SIGINT, shutdown)

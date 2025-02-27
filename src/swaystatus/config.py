@@ -91,27 +91,28 @@ class Config:
 
     @property
     def elements(self) -> Iterator[BaseElement]:
-        """Yield all desired element constructors in the configured order."""
         modules = Modules(self.include)
-        for i, key in enumerate(self.order):
-            try:
-                name, instance = key.split(":", maxsplit=1)
-            except ValueError:
-                name, instance = key, None
-            assert name, f"Missing module name for item {i} in `order`: {key}"
+        for key in self.order:
+            name, instance = decode_key(key)
             module = modules.load(name)
-            logger.info(f"Loaded {name} element")
-            logger.debug(repr(module))
             kwargs = deep_merge_dicts(
                 self.settings.get(name, {}),
                 self.settings.get(key, {}),
             )
             kwargs["env"] = self.env | kwargs.get("env", {})
             kwargs["instance"] = instance
-            logger.debug(f"Initializing {key} element: {kwargs=!r}")
+            logger.debug(f"Initializing element {name=!r}: {kwargs=!r}")
             element = module.Element(**kwargs)
             element.instance = instance
             yield element
+
+
+def decode_key(key: str) -> tuple[str, str | None]:
+    try:
+        name, instance = key.split(":", maxsplit=1)
+    except ValueError:
+        name, instance = key, None
+    return name, instance
 
 
 def deep_merge_dicts(first: dict, second: dict) -> dict:
