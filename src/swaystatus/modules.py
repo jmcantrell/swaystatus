@@ -10,8 +10,8 @@ that is visible in any or all of the following places (in order of preference):
     2. A python package in the data directory (in order of preference):
 
           a. `--data-dir=<DIRECTORY>`
-          b. `$SWAYSTATUS_DATA_DIR`
-          c. `$XDG_DATA_HOME/swaystatus/`
+          b. `$SWAYSTATUS_DATA_DIR/modules`
+          c. `$XDG_DATA_HOME/swaystatus/modules`
 
     3. Included in the configuration file:
 
