@@ -1,5 +1,5 @@
-import json
 from functools import cached_property
+from json import JSONDecoder
 from typing import IO, Iterable, Iterator
 
 from .click_event import ClickEvent
@@ -33,10 +33,11 @@ class InputDelegator:
         return None
 
     def process(self, file: IO[str]) -> Iterator[ClickEvent]:
+        decoder = Decoder()
         assert file.readline().strip() == "["
         for line in file:
             try:
-                event = ClickEvent(**json.loads(line.strip().lstrip(",")))
+                event = decoder.decode(line.strip().lstrip(","))
             except Exception:
                 logger.exception("Exception while decoding input: {line!r}")
                 continue
@@ -47,3 +48,8 @@ class InputDelegator:
                 yield event
             else:
                 logger.warning(f"Unable to identify source element for {event}")
+
+
+class Decoder(JSONDecoder):
+    def __init__(self) -> None:
+        super().__init__(object_hook=lambda kwargs: ClickEvent(**kwargs))

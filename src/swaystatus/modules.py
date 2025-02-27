@@ -39,7 +39,6 @@ from functools import cache, cached_property
 from importlib import import_module, metadata
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from types import ModuleType
 from typing import Iterable
 from uuid import uuid4
 
@@ -47,18 +46,18 @@ from .element import BaseElement
 from .logging import logger
 
 
-class Modules:
+class ModuleRegistry:
     """Provide a way to locate and import swaystatus elements."""
 
-    def __init__(self, include: Iterable[str | Path] | None = None) -> None:
-        self.include = list(map(Path, include or []))
+    def __init__(self, include: Iterable[str | Path]) -> None:
+        self.include = [Path(i).expanduser() for i in include or []]
 
     @cached_property
     def packages(self) -> list[str]:
         """Returns recognized module packages in order of preference."""
         result = []
         for package_dir in self.include:
-            if (init_file := Path(package_dir).expanduser() / "__init__.py").is_file():
+            if (init_file := package_dir / "__init__.py").is_file():
                 package_name = str(uuid4()).replace("-", "")
                 if spec := spec_from_file_location(package_name, init_file):
                     package = module_from_spec(spec)
@@ -71,7 +70,7 @@ class Modules:
         return result
 
     @cache
-    def load(self, name: str) -> ModuleType:
+    def element_class(self, name: str) -> type[BaseElement]:
         """Return the first matching module in any visible packages."""
         for package in self.packages:
             try:
@@ -79,11 +78,11 @@ class Modules:
                 if hasattr(module, "Element") and issubclass(module.Element, BaseElement):
                     logger.debug(f"Imported module: {module!r}")
                     module.Element.name = name
-                    return module
+                    return module.Element
             except ModuleNotFoundError:
                 pass
         else:
             raise ModuleNotFoundError(f"Module not found in any package: {name}")
 
 
-__all__ = [Modules.__name__]
+__all__ = [ModuleRegistry.__name__]

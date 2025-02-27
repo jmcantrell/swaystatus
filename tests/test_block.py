@@ -26,4 +26,4 @@ def test_block_dict_minimal() -> None:
     ]
     for i in range(len(kwarg_pairs)):
         kwargs = dict(kwarg_pairs[:i])
-        assert Block(**kwargs).dict() == kwargs
+        assert Block(**kwargs).as_dict() == kwargs

@@ -1,22 +1,19 @@
 """
 Framework for creating an interactive status line for swaybar.
 
-There are two ways of interacting with this package:
+Typical usage consists of the following:
 
-1. Defining modules by subclassing `swaystatus.BaseElement` to produce status
-   bar blocks. For details, see the documentation for `swaystatus.element`.
+    1. Define modules by subclassing `BaseElement` to produce blocks.
+        - See `swaystatus.element` about creating elements.
+        - See `swaystatus.modules` about where to put element modules.
 
-2. Producing content for swaybar with the `swaystatus` command. For details on
-   the command line interface, run `swaystatus --help`.
+    2. Configure swaystatus to use those elements.
+        - See `swaystatus.config` about enabling and configuring elements.
 
-This package does not contain any element modules, but it does support the
-usage of external module packages, making it easy to use any number of local or
-published module collections.
+    3. Produce content for swaybar with the `swaystatus` command.
+        - See `swaystatus --help` about command line usage.
+        - See `status_command` in sway-bar(5) to set the status command.
 
-See the documentation for `swaystatus.config` to learn about adding and
-configuring modules.
-
-See sway-bar(5) for details on setting the status line generator.
 See swaybar-protocol(7) for a full description of the status bar protocol.
 """
 

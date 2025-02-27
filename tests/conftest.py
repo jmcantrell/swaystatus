@@ -29,7 +29,7 @@ def click_events_file():
         file = StringIO()
         file.write("[\n")
         for event in events:
-            file.write(f",{json.dumps(event.dict())}\n")
+            file.write(f",{json.dumps(event.as_dict())}\n")
         file.seek(0)
         return file
 

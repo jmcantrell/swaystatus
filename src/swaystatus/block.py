@@ -29,6 +29,6 @@ class Block:
     def __str__(self) -> str:
         return f"block full_text={self.full_text!r}"
 
-    def dict(self) -> dict[str, Any]:
-        """Return a dict representation of this instance without any `None` values."""
+    def as_dict(self) -> dict[str, Any]:
+        """Return a dict representation of this instance without any unset values."""
         return {name: value for name, value in asdict(self).items() if value is not None}

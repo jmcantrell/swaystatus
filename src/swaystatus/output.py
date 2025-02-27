@@ -1,7 +1,7 @@
-import json
 from functools import partial
+from json import JSONEncoder
 from signal import SIGCONT, SIGSTOP
-from typing import IO, Iterable, Iterator
+from typing import IO, Any, Iterable, Iterator
 
 from .block import Block
 from .element import BaseElement
@@ -27,9 +27,10 @@ class OutputGenerator:
                 logger.exception(f"Exception while getting blocks for {element}")
 
     def process(self, file: IO[str]) -> Iterator[list[Block]]:
+        encoder = Encoder()
         send = partial(print, file=file, flush=True)
         send(
-            json.dumps(
+            encoder.encode(
                 dict(
                     version=1,
                     stop_signal=SIGSTOP,
@@ -41,5 +42,10 @@ class OutputGenerator:
         send("[[]")
         while True:
             blocks = list(self.blocks())
-            send(",{}".format(json.dumps(list(map(Block.dict, blocks)))))
+            send(",{}".format(encoder.encode(blocks)))
             yield blocks
+
+
+class Encoder(JSONEncoder):
+    def default(self, block: Block) -> dict[str, Any]:
+        return block.as_dict()

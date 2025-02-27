@@ -1,24 +1,25 @@
 import importlib
+import sys
 
 import pytest
 
-from swaystatus.modules import Modules
+from swaystatus.modules import ModuleRegistry
 
 
 def test_modules_load_module_not_found() -> None:
     """Ensure that requesting a non-existent module will raise an error."""
     with pytest.raises(ModuleNotFoundError, match="foo"):
-        modules = Modules()
-        modules.packages = []
-        modules.load("foo")
+        registry = ModuleRegistry([])
+        registry.packages = []
+        registry.element_class("foo")
 
 
 def test_modules_load(tmp_module) -> None:
     """Ensure that an existing module will be found in a valid package."""
     path = tmp_module(dst_name="foo.py")
-    modules = Modules([path.parent])
-    module = modules.load("foo")
-    assert module.__file__ == str(path)
+    modules = ModuleRegistry([path.parent])
+    Element = modules.element_class("foo")
+    assert sys.modules[Element.__module__].__file__ == str(path)
 
 
 def test_modules_load_first_found(tmp_module) -> None:
@@ -26,9 +27,9 @@ def test_modules_load_first_found(tmp_module) -> None:
     name = "foo"
     path1 = tmp_module(dst_name=f"a/{name}.py")
     path2 = tmp_module(dst_name=f"b/{name}.py")
-    modules = Modules([path1.parent, path2.parent])
-    module = modules.load(name)
-    assert module.__file__ == str(path1)
+    registry = ModuleRegistry([path1.parent, path2.parent])
+    Element = registry.element_class(name)
+    assert sys.modules[Element.__module__].__file__ == str(path1)
 
 
 def test_modules_entry_points(tmp_module, monkeypatch) -> None:
@@ -46,6 +47,6 @@ def test_modules_entry_points(tmp_module, monkeypatch) -> None:
         return [EntryPoint()]
 
     monkeypatch.setattr(importlib.metadata, "entry_points", entry_points)
-    modules = Modules([tmp_module().parent])
-    assert len(modules.packages) == 2  # tmp_path and the fake entry point
-    assert modules.packages[-1] == "entry"  # the fake entry point is after tmp_path
+    registry = ModuleRegistry([tmp_module().parent])
+    assert len(registry.packages) == 2  # tmp_path and the fake entry point
+    assert registry.packages[-1] == "entry"  # the fake entry point is after tmp_path

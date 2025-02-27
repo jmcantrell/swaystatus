@@ -16,7 +16,7 @@ from .block import Block
 from .click_event import ClickEvent
 from .logging import logger
 
-type ClickHandler[T: BaseElement] = str | list[str] | Callable[[T, ClickEvent], None]
+type ClickHandler[T: BaseElement] = str | list[str] | Callable[[T, ClickEvent], Popen | None]
 
 
 class BaseElement:
@@ -89,8 +89,7 @@ class BaseElement:
         >>> from swaystatus import BaseElement
         >>> class Element(BaseElement):
         >>>     name = "clock"
-        >>> element = Element()
-        >>> element.instance = "home"
+        >>> element = Element(instance="home")
 
     You should not set these attributes yourself, as it will confuse and sadden
     swaystatus, and it will propably not respond to your clicks.
@@ -109,7 +108,7 @@ class BaseElement:
         Intialize a new status bar content producer.
 
         The `instance` argument will be provided by swaystatus when the element
-        is loaded. This should not be provided by the subclass.
+        is created. This should not be provided by the subclass.
 
         The dictionary `env` will be added to the execution environment of any
         click handler. Upon instantiation, the value is a combination of the
@@ -160,14 +159,10 @@ class BaseElement:
         self.env = env or {}
         if on_click:
             for button, handler in on_click.items():
-                self.set_on_click_handler(button, handler)
+                self.set_click_handler(button, handler)
 
     def __str__(self) -> str:
-        return f"element key={self.key!r}"
-
-    @property
-    def key(self) -> str:
-        return f"{self.name}:{self.instance}" if self.instance else self.name
+        return f"element name={self.name!r} instance={self.instance!r}"
 
     def blocks(self) -> Iterator[Block]:
         """
@@ -183,10 +178,6 @@ class BaseElement:
             >>>     def blocks(self) -> Iterator[Block]:
             >>>         yield self.block("Howdy!")
 
-        There's nothing wrong with creating instances of `Block` directly, but
-        it's easier to break the ability for swaystatus to send the element
-        click events.
-
         See the documentation for `block` for a more detailed explanation.
         """
         raise NotImplementedError
@@ -195,17 +186,17 @@ class BaseElement:
         """
         Create a block of content associated with this element.
 
-        This helper ensures that the block it creates is linked to the element
-        yielding it, i.e. the name and instance attributes are set correctly,
-        which allows click events to be sent to this element.
+        This method ensures that the `Block` it creates is linked to the
+        element yielding it, i.e. the name and instance attributes are set
+        correctly, which allows click events to be sent to this element.
 
         Another potential issue happens when a module instance has been
         declared in the configuration `order` with the "name:instance" form and
         the module's element class is also yielding blocks with dynamic
         instance attributes. When swaybar sends click events from these blocks,
-        swaystatus is unable to find any known module instances that match and
-        falls back to sending it to the "name" module, which may or may not
-        exist, and is definitely not the sender.
+        swaystatus is unable to match it with any of the elements it knows
+        about and falls back to sending it to the "name" module, which may or
+        may not exist, and is definitely not the sender.
 
         To illustrate the problem, consider an element that yields blocks that
         could be different at every update. For example, there could be a
@@ -223,8 +214,9 @@ class BaseElement:
         instances are not dynamic. Swaystatus knows there will always be two
         instances and knows how to reach them.
 
-        The network interfaces example's instances are dynamic, therefore
-        swaystatus can only reach this element by the module name.
+        The blocks coming from this new example have potentially different
+        instances at every update, so swaystatus can only reach this element by
+        the module name.
 
         The consequence is that a module's instances can either be declared
         statically in the configuration or the blocks created with instances at
@@ -246,14 +238,19 @@ class BaseElement:
             kwargs["instance"] = self.instance
         return Block(name=self.name, full_text=full_text, **kwargs)
 
-    def on_click(self, event: ClickEvent) -> None:
-        """Perform some action when a status bar block is clicked."""
-        try:
-            getattr(self, f"on_click_{event.button}")(event)
-        except AttributeError:
-            pass
+    def on_click(self, event: ClickEvent) -> Popen | None:
+        """
+        Delegate a click event to the handler corresponding to its button.
 
-    def set_on_click_handler(self, button: int, handler: ClickHandler[Self]) -> None:
+        If the handler for the event's button is a shell command, a `Popen`
+        object will be returned.
+        """
+        try:
+            return getattr(self, f"on_click_{event.button}")(event)
+        except AttributeError:
+            return None
+
+    def set_click_handler(self, button: int, handler: ClickHandler[Self]) -> None:
         """
         Adds a method to this instance that calls `handler` when blocks from
         this element are clicked with the pointer `button`.
@@ -261,7 +258,8 @@ class BaseElement:
         The `handler` can be one of the following:
 
             - A function that accepts two positional arguments, this element
-              instance and a `ClickEvent`.
+              instance and a `ClickEvent`. It can return a `Popen` object which
+              will eventually be returned by the `on_click` method.
 
             - A shell command compatible with `subprocess.run`, i.e. a string
               or list of strings. Output will be logged at the `DEBUG` level.
@@ -272,6 +270,8 @@ class BaseElement:
         handler_kind = "function" if callable(handler) else "shell command"
         handler_desc = f"{self} {method_name} {handler_kind}"
 
+        handler_wrapped: Callable[[Self, ClickEvent], Popen | None]
+
         if callable(handler):
             handler_wrapped = handler
         else:
@@ -279,26 +279,28 @@ class BaseElement:
             def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
                 return lambda line: func(f"Output from {handler_desc}: {line.strip()}")
 
-            def handler_wrapped(element: Self, event: ClickEvent):
-                PopenStreamHandler(
+            def handler_wrapped(element: Self, event: ClickEvent) -> Popen:
+                return PopenStreamHandler(
                     prefixed(logger.debug),
                     prefixed(logger.error),
                     handler,
                     shell=True,
                     text=True,
-                ).wait()
+                )
 
-        def method_wrapped(self: Self, event: ClickEvent):
+        def method_wrapped(self: Self, event: ClickEvent) -> Popen | None:
             logger.debug(f"Executing {handler_desc} => {handler}")
             environ_save = os.environ.copy()
-            os.environ.update(self.env.copy() | {k: str(v) for k, v in event.dict().items()})
+            os.environ.update(self.env.copy())
+            os.environ.update({k: str(v) for k, v in event.as_dict().items()})
             try:
-                handler_wrapped(self, event)
+                return handler_wrapped(self, event)
             except Exception:
                 logger.exception(f"Unhandled exception in {handler_desc}")
             finally:
                 os.environ.clear()
                 os.environ.update(environ_save)
+            return None
 
         logger.info(f"Setting {handler_desc} => {handler}")
         setattr(self, method_name, MethodType(method_wrapped, self))

@@ -13,7 +13,7 @@ Configuration is defined in a toml file located in one of the following places
 
 The following keys are recognized in the configuration file:
 
-    `order` (type: `list[str]`)
+    `order` (type: `list[str]`, default: `[]`)
         The desired modules to display and their order. Each item can be of the
         form "name" or "name:instance". The latter form allows the same module
         to be used multiple times with different settings.
@@ -34,7 +34,7 @@ The following keys are recognized in the configuration file:
         Maps pointer button numbers to shell commands that should be run in
         response to a click by that button.
 
-    `settings` (type: `dict[str, dict[str, Any]]`)
+    `settings` (type: `dict[str, dict[str, Any]]`, default: `{}`)
         Maps module specifiers (as defined in `order`) to keyword arguments
         that will be passed to the element constructor.
 
@@ -71,11 +71,11 @@ A typical configuration file might look like the following:
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from .element import BaseElement
 from .logging import logger
-from .modules import Modules
+from .modules import ModuleRegistry
 
 default_interval = 5.0
 
@@ -91,11 +91,12 @@ class Config:
     env: dict[str, str] = field(default_factory=dict)
 
     @cached_property
-    def elements(self) -> Iterator[BaseElement]:
-        modules = Modules(self.include)
+    def elements(self) -> list[BaseElement]:
+        result = []
+        registry = ModuleRegistry(self.include)
         for key in self.order:
             name, instance = decode_key(key)
-            module = modules.load(name)
+            Element = registry.element_class(name)
             kwargs = deep_merge_dicts(
                 self.settings.get(name, {}),
                 self.settings.get(key, {}),
@@ -103,9 +104,8 @@ class Config:
             kwargs["env"] = self.env | kwargs.get("env", {})
             kwargs["instance"] = instance
             logger.debug(f"Initializing element {name=!r}: {kwargs=!r}")
-            element = module.Element(**kwargs)
-            element.instance = instance
-            yield element
+            result.append(Element(**kwargs))
+        return result
 
 
 def decode_key(key: str) -> tuple[str, str | None]:
@@ -125,3 +125,6 @@ def deep_merge_dicts(first: dict, second: dict) -> dict:
         else:
             result[key] = value
     return result
+
+
+__all__ = [Config.__name__]

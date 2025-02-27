@@ -16,15 +16,16 @@ def test_base_element_blocks_not_implemented() -> None:
 
 def test_element_on_click_subclass() -> None:
     """Ensure that click event handlers can be defined as a method."""
-    hit = False
+    was_clicked = False
 
     class Element(BaseElement):
         def on_click_1(self, event: ClickEvent):
-            nonlocal hit
-            hit = True
+            nonlocal was_clicked
+            was_clicked = True
 
-    Element().on_click(replace(click_event, button=1))
-    assert hit
+    element = Element()
+    element.on_click(replace(click_event, button=1))
+    assert was_clicked
 
 
 def test_element_on_click_function() -> None:
@@ -33,15 +34,15 @@ def test_element_on_click_function() -> None:
     class Element(BaseElement):
         name = "test"
 
-    hit: BaseElement | None = None
+    clicked_element: BaseElement | None = None
 
     def handler(element: BaseElement, event: ClickEvent):
-        nonlocal hit
-        hit = element
+        nonlocal clicked_element
+        clicked_element = element
 
     element = Element(on_click={1: handler})
     element.on_click(replace(click_event, button=1))
-    assert hit is element
+    assert clicked_element is element
 
 
 def test_element_on_click_shell_command(tmp_path) -> None:
@@ -59,8 +60,11 @@ def test_element_on_click_shell_command(tmp_path) -> None:
     class Element(BaseElement):
         name = "test"
 
-    for s, expected in cases.items():
+    for s, expected_output in cases.items():
         handler = f"echo {s} >{stdout_file}"  # shell redirection
-        Element(on_click={1: handler}, env=env).on_click(event)
-        actual = stdout_file.read_text().strip()
-        assert actual == expected
+        element = Element(on_click={1: handler}, env=env)
+        process = element.on_click(event)
+        assert process
+        process.wait()
+        actual_output = stdout_file.read_text().strip()
+        assert actual_output == expected_output
