@@ -53,13 +53,11 @@ class InputReader(Thread):
 def start(config: Config) -> None:
     locale.setlocale(locale.LC_ALL, "")
 
-    elements = list(config.elements)
-
-    output_generator = OutputGenerator(elements, config.click_events)
+    output_generator = OutputGenerator(config.elements, config.click_events)
     output_writer = OutputWriter(output_generator, config.interval)
 
     if config.click_events:
-        input_delegator = InputDelegator(elements)
+        input_delegator = InputDelegator(config.elements)
         input_reader = InputReader(input_delegator, output_writer)
 
     def update(sig, frame):

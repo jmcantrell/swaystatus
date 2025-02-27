@@ -17,7 +17,7 @@ class OutputGenerator:
         click_events=False,
     ) -> None:
         self.elements = list(elements)
-        self.click_events = bool(click_events)
+        self.click_events = click_events
 
     def blocks(self) -> Iterator[Block]:
         for element in self.elements:

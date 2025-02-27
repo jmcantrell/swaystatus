@@ -69,6 +69,7 @@ A typical configuration file might look like the following:
 """
 
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -79,7 +80,7 @@ from .modules import Modules
 default_interval = 5.0
 
 
-@dataclass(slots=True, kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False)
 class Config:
     order: list[str] = field(default_factory=list)
     interval: float = default_interval
@@ -89,7 +90,7 @@ class Config:
     on_click: dict[int, str | list[str]] = field(default_factory=dict)
     env: dict[str, str] = field(default_factory=dict)
 
-    @property
+    @cached_property
     def elements(self) -> Iterator[BaseElement]:
         modules = Modules(self.include)
         for key in self.order:

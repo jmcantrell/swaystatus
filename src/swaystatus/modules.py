@@ -7,19 +7,19 @@ that is visible in any or all of the following places (in order of preference):
 
     1. `--include=<DIRECTORY>` (can be used multiple times)
 
-    2. A python package in the data directory (in order of preference):
+    2. Included in the configuration file:
+
+        include = ['/path/to/package1', '/path/to/package2']
+
+    3. Python packages in a colon-separated environment variable:
+
+        SWAYSTATUS_PACKAGE_PATH="/path/to/package1:/path/to/package2"
+
+    4. A python package in the data directory (in order of preference):
 
           a. `--data-dir=<DIRECTORY>`
           b. `$SWAYSTATUS_DATA_DIR/modules`
           c. `$XDG_DATA_HOME/swaystatus/modules`
-
-    3. Included in the configuration file:
-
-        include = ['/path/to/package1', '/path/to/package2']
-
-    4. A python package path specified in an environment variable:
-
-        SWAYSTATUS_PACKAGE_PATH="/path/to/package1:/path/to/package2"
 
     5. A python package with an entry point for `swaystatus.modules` defined
        like the following in the `pyproject.toml`:

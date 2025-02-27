@@ -85,11 +85,11 @@ def load_config(args: argparse.Namespace) -> Config:
     include = []
     if args.include:
         include.extend(args.include)
-    include.append(data_dir / "modules")
     if config.include:
         include.extend(config.include)
     if paths := environ_paths("SWAYSTATUS_PACKAGE_PATH"):
         include.extend(paths)
+    include.append(data_dir / "modules")
     config.include = include
     if args.interval:
         config.interval = args.interval
