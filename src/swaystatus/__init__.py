@@ -13,8 +13,8 @@ This package does not contain any element modules, but it does support the
 usage of external module packages, making it easy to use any number of local or
 published module collections.
 
-See the documentation for `swaystatus.config` to learn about adding modules and
-configuration.
+See the documentation for `swaystatus.config` to learn about adding and
+configuring modules.
 
 See sway-bar(5) for details on setting the status line generator.
 See swaybar-protocol(7) for a full description of the status bar protocol.

@@ -5,6 +5,7 @@ from typing import IO, Iterable, Iterator
 
 from .block import Block
 from .element import BaseElement
+from .logging import logger
 
 
 class OutputGenerator:
@@ -20,9 +21,12 @@ class OutputGenerator:
 
     def blocks(self) -> Iterator[Block]:
         for element in self.elements:
-            yield from element.blocks()
+            try:
+                yield from element.blocks()
+            except Exception:
+                logger.exception(f"Exception while getting blocks for {element}")
 
-    def process(self, file: IO[str]) -> Iterator:
+    def process(self, file: IO[str]) -> Iterator[list[Block]]:
         send = partial(print, file=file, flush=True)
         send(
             json.dumps(
@@ -36,5 +40,6 @@ class OutputGenerator:
         )
         send("[[]")
         while True:
-            send(",{}".format(json.dumps([block.dict() for block in self.blocks()])))
-            yield
+            blocks = list(self.blocks())
+            send(",{}".format(json.dumps(list(map(Block.dict, blocks)))))
+            yield blocks

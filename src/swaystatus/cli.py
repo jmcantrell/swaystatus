@@ -6,7 +6,7 @@ import tomllib
 from pathlib import Path
 
 from .config import Config
-from .env import config_home, environ_path, environ_paths, self_name
+from .env import config_home, data_home, environ_path, environ_paths, self_name
 from .io import start
 from .logging import logger
 
@@ -40,12 +40,19 @@ def parse_args() -> argparse.Namespace:
         help="override configuration directory",
     )
     parser.add_argument(
+        "-D",
+        "--data-dir",
+        metavar="DIRECTORY",
+        type=Path,
+        help="override data directory",
+    )
+    parser.add_argument(
         "-I",
         "--include",
         action="append",
         metavar="DIRECTORY",
         type=Path,
-        help="include additional modules package",
+        help="include an additional modules package",
     )
     parser.add_argument(
         "-i",
@@ -71,15 +78,19 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_config(args: argparse.Namespace) -> Config:
+    data_dir: Path = args.data_dir or environ_path("SWAYSTATUS_DATA_DIR") or (data_home / self_name)
     config_dir: Path = args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR") or (config_home / self_name)
     config_file: Path = args.config_file or environ_path("SWAYSTATUS_CONFIG_FILE") or (config_dir / "config.toml")
     config = Config(**(tomllib.load(config_file.open("rb")) if config_file.is_file() else {}))
-    config.include = (
-        (args.include or [])
-        + [config_dir / "modules"]
-        + (config.include or [])
-        + (environ_paths("SWAYSTATUS_PACKAGE_PATH") or [])
-    )
+    include = []
+    if args.include:
+        include.extend(args.include)
+    include.append(data_dir)
+    if config.include:
+        include.extend(config.include)
+    if paths := environ_paths("SWAYSTATUS_PACKAGE_PATH"):
+        include.extend(paths)
+    config.include = include
     if args.interval:
         config.interval = args.interval
     if args.click_events:

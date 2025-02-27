@@ -28,10 +28,11 @@ class BaseElement:
     is a file named `clock.py` in a modules package, the class will have an
     attribute `name` set to "clock".
 
-    The `blocks` method must be overridden to produce output. There is no
-    requirement regarding the number of blocks that are yielded, but if no
-    blocks are yielded, nothing will be visible in the status bar for that
-    element.
+    The `blocks` method is called to generate output at every interval and must
+    be overridden. There is no requirement regarding the number of blocks that
+    are yielded, however if no blocks are yielded, nothing will be visible in
+    the status bar for that element. This may be desirable if, for example, the
+    module yields a block for every mounted disk and there are none mounted.
 
     A hypothetical clock module file might contain the following:
 
@@ -42,22 +43,13 @@ class BaseElement:
         >>>     def blocks(self) -> Iterator[Block]:
         >>>         yield self.block(strftime("%c"))
 
-    The most direct way to use the module would be to add it to the
-    configuration directory in a `modules` package:
-
-        $XDG_CONFIG_HOME/swaystatus/
-        ├── config.toml      # <= configuration goes here
-        └── modules/
-            ├── __init__.py  # <= necessary, to mark this as a package
-            └── clock.py     # <= module goes here
-
     Enable the module by adding it to the configuration file:
 
         order = ["clock"]
 
-    If the clock should respond to a left mouse button click by running a shell
-    command, enable click events and add a click handler to the settings for
-    that module:
+    Let's make the clock respond to a left mouse button click by running a
+    shell command. Enable click events and add a click handler to the settings
+    for that module:
 
         order = ["clock"]
 
@@ -66,7 +58,8 @@ class BaseElement:
         [settings.clock]
         on_click.1 = "foot --hold cal"
 
-    Maybe there needs to be an additional clock that always shows a specific timezone:
+    Maybe there needs to be an additional clock that always shows a specific
+    timezone:
 
         order = ["clock", "clock:home"]
 
@@ -82,16 +75,16 @@ class BaseElement:
     module, each having their own settings.
 
     Because the module is named `clock.py`, swaystatus will set the class
-    attribute `name` to "clock" for the first instance ("clock") in `order` as
+    attribute `name` to "clock" for the first element ("clock" in `order`) as
     if it had been declared like:
 
         >>> from swaystatus import BaseElement
         >>> class Element(BaseElement):
         >>>     name = "clock"
 
-    Because the second instance ("clock:home") is using the instance form, it
-    will also have the instance attribute `instance` set to "home" as if it had
-    been declared like:
+    Because the second element ("clock:home") is using the "name:instance"
+    form, it will also have the instance attribute `instance` set to "home" as
+    if it had been declared like:
 
         >>> from swaystatus import BaseElement
         >>> class Element(BaseElement):
@@ -104,23 +97,30 @@ class BaseElement:
     """
 
     name: str
-    instance: str | None = None
 
     def __init__(
         self,
         *,
+        instance: str | None = None,
         env: dict[str, str] | None = None,
         on_click: dict[int, ClickHandler[Self]] | None = None,
     ) -> None:
         """
         Intialize a new status bar content producer.
 
-        The dict `env` will be added to the execution environment of any click
-        handler.
+        The `instance` argument will be provided by swaystatus when the element
+        is loaded. This should not be provided by the subclass.
 
-        The dict `on_click` maps pointer button numbers to click handlers (i.e.
-        functions or shell commands) which take precedence over any already
-        defined on the class.
+        The dictionary `env` will be added to the execution environment of any
+        click handler. Upon instantiation, the value is a combination of the
+        values in configuration for `env`, `settings.<name>.env`, and
+        `settings."<name>:<instance>".env`, merged together in that order, with
+        later values overriding earlier ones. Additionally, the attributes
+        `name` and `instance` (if set) are added.
+
+        The dictionary `on_click` maps pointer button numbers to click handlers
+        (i.e. functions or shell commands) which take precedence over any
+        already defined on the class.
 
         When subclassing, there could be more keyword arguments passed,
         depending on its settings in the configuration file.
@@ -148,17 +148,25 @@ class BaseElement:
             full_text = "The time here is: %r"
 
         If there are other instances of the module, they will inherit the
-        setting, but it can be overridden:
+        settings, but they can be overridden:
 
             [settings."clock:home"]
             full_text = "The time at home is: %r"
+
+            [settings."clock:home".env]
+            TZ = 'Asia/Tokyo'
         """
+        self.instance = instance
         self.env = env or {}
         if on_click:
             for button, handler in on_click.items():
                 self.set_on_click_handler(button, handler)
 
     def __str__(self) -> str:
+        return f"element key={self.key!r}"
+
+    @property
+    def key(self) -> str:
         return f"{self.name}:{self.instance}" if self.instance else self.name
 
     def blocks(self) -> Iterator[Block]:
@@ -194,7 +202,10 @@ class BaseElement:
         Another potential issue happens when a module instance has been
         declared in the configuration `order` with the "name:instance" form and
         the module's element class is also yielding blocks with dynamic
-        instance attributes.
+        instance attributes. When swaybar sends click events from these blocks,
+        swaystatus is unable to find any known module instances that match and
+        falls back to sending it to the "name" module, which may or may not
+        exist, and is definitely not the sender.
 
         To illustrate the problem, consider an element that yields blocks that
         could be different at every update. For example, there could be a
@@ -220,12 +231,16 @@ class BaseElement:
         runtime, but not both. Trying to yield a block from the element in
         module "foo" with its instance set to "a" when the module was already
         declared in the configuration `order` as "foo:b" will mean that click
-        events will be lost.
+        events will be lost, or worse, sent to the wrong element.
 
-        Using the `block` method will ensure that the block has the name and
-        instance set correctly. If the block's instance is set dynamically and
-        the module's instance was declared in the configuration, an exception
-        will be raised.
+        Using the `block` method will ensure that the returned `Block` has the
+        name and instance set correctly. If the block's instance is set
+        dynamically and the module's instance was declared in the
+        configuration, an exception will be raised.
+
+        See the documentation for `swaystatus.block` for a full specification
+        of `Block`'s available fields which can be passed as keyword arguments
+        to this method.
         """
         if self.instance is not None:
             kwargs["instance"] = self.instance
@@ -250,35 +265,43 @@ class BaseElement:
 
             - A shell command compatible with `subprocess.run`, i.e. a string
               or list of strings. Output will be logged at the `DEBUG` level.
+              During execution of the handler, all attributes of the event will
+              be added to the environment.
         """
+        method_name = f"on_click_{button}"
+        handler_kind = "function" if callable(handler) else "shell command"
+        handler_desc = f"{self} {method_name} {handler_kind}"
+
         if callable(handler):
-            handler_desc = f"{self} module function click handler for button {button}"
-
-            def method(self, event: ClickEvent):
-                logger.info(f"Executing {handler_desc}")
-                environ_save = os.environ.copy()
-                os.environ.update(self.env)
-                try:
-                    handler(self, event)
-                except Exception:
-                    logger.exception(f"Unhandled exception in {handler_desc}")
-                finally:
-                    os.environ.update(environ_save)
+            handler_wrapped = handler
         else:
-            handler_desc = f"{self} module shell command click handler for button {button}"
 
-            def method(self, event: ClickEvent):
-                env = os.environ.copy()
-                env.update(self.env)
-                env.update({k: str(v) for k, v in event.dict().items()})
-                logger.info(f"Executing {handler_desc}")
-                try:
-                    PopenStreamHandler(logger.debug, logger.error, handler, env=env, shell=True, text=True).wait()
-                except Exception:
-                    logger.exception(f"Unhandled exception in {handler_desc}")
+            def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
+                return lambda line: func(f"Output from {handler_desc}: {line.strip()}")
 
-        logger.debug(f"Setting {self} module click handler: button {button} => {handler}")
-        setattr(self, f"on_click_{button}", MethodType(method, self))
+            def handler_wrapped(element: Self, event: ClickEvent):
+                PopenStreamHandler(
+                    prefixed(logger.debug),
+                    prefixed(logger.error),
+                    handler,
+                    shell=True,
+                    text=True,
+                ).wait()
+
+        def method_wrapped(self: Self, event: ClickEvent):
+            logger.debug(f"Executing {handler_desc} => {handler}")
+            environ_save = os.environ.copy()
+            os.environ.update(self.env.copy() | {k: str(v) for k, v in event.dict().items()})
+            try:
+                handler_wrapped(self, event)
+            except Exception:
+                logger.exception(f"Unhandled exception in {handler_desc}")
+            finally:
+                os.environ.clear()
+                os.environ.update(environ_save)
+
+        logger.info(f"Setting {handler_desc} => {handler}")
+        setattr(self, method_name, MethodType(method_wrapped, self))
 
 
 class ProxyThread(Thread):

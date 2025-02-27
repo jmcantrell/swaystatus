@@ -64,9 +64,6 @@ A typical configuration file might look like the following:
     [settings.clock]
     on_click.1 = '$terminal --hold cal'
 
-    [settings.clock.env]
-    TZ = 'America/Chicago'
-
     [settings."clock:home".env]
     TZ = 'Asia/Tokyo'
 """
@@ -103,16 +100,16 @@ class Config:
                 name, instance = key, None
             assert name, f"Missing module name for item {i} in `order`: {key}"
             module = modules.load(name)
-            logger.info(f"Loaded {name} element from {module.__file__}")
-            settings = deep_merge_dicts(
+            logger.info(f"Loaded {name} element")
+            logger.debug(repr(module))
+            kwargs = deep_merge_dicts(
                 self.settings.get(name, {}),
                 self.settings.get(key, {}),
             )
-            settings["env"] = self.env | settings.get("env", {})
-            if instance:
-                settings["env"]["instance"] = instance
-            logger.debug(f"Initializing {key} element: {settings!r}")
-            element = module.Element(**settings)
+            kwargs["env"] = self.env | kwargs.get("env", {})
+            kwargs["instance"] = instance
+            logger.debug(f"Initializing {key} element: {kwargs=!r}")
+            element = module.Element(**kwargs)
             element.instance = instance
             yield element
 

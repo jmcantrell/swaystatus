@@ -19,22 +19,31 @@ class InputDelegator:
     def elements_by_key(self) -> dict[Key, BaseElement]:
         return {(e.name, e.instance): e for e in self.elements}
 
+    def element_for_event(self, event: ClickEvent) -> BaseElement | None:
+        if not event.name:
+            return None
+        try:
+            return self.elements_by_key[(event.name, event.instance)]
+        except KeyError:
+            pass
+        try:
+            return self.elements_by_key[(event.name, None)]
+        except KeyError:
+            pass
+        return None
+
     def process(self, file: IO[str]) -> Iterator[ClickEvent]:
         assert file.readline().strip() == "["
         for line in file:
-            event = ClickEvent(**json.loads(line.strip().lstrip(",")))
-            if not event.name:
-                logger.warning(f"Received click event for unidentifiable element: {event}")
-                continue
             try:
-                key = (event.name, event.instance)
-                element = self.elements_by_key[key]
-            except KeyError:
-                try:
-                    key = (event.name, None)
-                    element = self.elements_by_key[key]
-                except KeyError:
-                    logger.warning(f"Received click event for unknown element: {event}")
-                    continue
-            element.on_click(event)
-            yield event
+                event = ClickEvent(**json.loads(line.strip().lstrip(",")))
+            except Exception:
+                logger.exception("Exception while decoding input: {line!r}")
+                continue
+            logger.debug(f"Received click event: {event!r}")
+            if element := self.element_for_event(event):
+                logger.info(f"Sending {event} to {element}")
+                element.on_click(event)
+                yield event
+            else:
+                logger.warning(f"Unable to identify source element for {event}")

@@ -1,4 +1,4 @@
-"""A block represents a unit of content for the status bar."""
+"""A block is a unit of content for the status bar."""
 
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -27,7 +27,7 @@ class Block:
     markup: str | None = None
 
     def __str__(self) -> str:
-        return f"{self.full_text!r} from name={self.name} instance={self.instance}"
+        return f"block full_text={self.full_text!r}"
 
     def dict(self) -> dict[str, Any]:
         """Return a dict representation of this instance without any `None` values."""

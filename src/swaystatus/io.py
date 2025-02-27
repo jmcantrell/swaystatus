@@ -28,11 +28,11 @@ class OutputWriter:
     def start(self) -> None:
         logger.info("Starting to write output...")
         self._running.set()
-        status_line = self.output_generator.process(self.file)
-        while self._running.is_set():
-            next(status_line)
+        for blocks in self.output_generator.process(self.file):
             self._tick.clear()
             self._tick.wait(self.interval)
+            if not self._running.is_set():
+                break
 
 
 class InputReader(Thread):
@@ -47,14 +47,11 @@ class InputReader(Thread):
     def run(self) -> None:
         logger.info("Starting to read input...")
         for event in self.input_delegator.process(self.file):
-            logger.debug(f"Processed click event: {event}")
             self.output_writer.update()
 
 
 def start(config: Config) -> None:
     locale.setlocale(locale.LC_ALL, "")
-
-    logger.debug(f"Using configuration: {config!r}")
 
     elements = list(config.elements)
 
@@ -67,14 +64,14 @@ def start(config: Config) -> None:
 
     def update(sig, frame):
         logger.info(f"Signal was sent to update: {Signals(sig).name} ({sig})")
-        logger.debug(f"Current stack frame: {frame}")
+        logger.debug(repr(frame))
         output_writer.update()
 
     signal(SIGUSR1, update)
 
     def shutdown(sig, frame):
         logger.info(f"Signal was sent to shutdown: {Signals(sig).name} ({sig})")
-        logger.debug(f"Current stack frame: {frame}")
+        logger.debug(repr(frame))
         output_writer.stop()
 
     signal(SIGINT, shutdown)

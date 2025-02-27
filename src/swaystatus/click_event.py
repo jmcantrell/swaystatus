@@ -21,7 +21,7 @@ class ClickEvent:
     scale: float
 
     def __str__(self) -> str:
-        return f"button {self.button} on name={self.name} instance={self.instance}"
+        return f"click event button={self.button}"
 
     def dict(self) -> dict[str, Any]:
         """Return a dict representation of this instance without any `None` values."""
