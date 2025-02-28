@@ -6,8 +6,6 @@ from .click_event import ClickEvent
 from .element import BaseElement, ClickHandlerResult
 from .logging import logger
 
-type Key = tuple[str, str | None]
-
 
 class InputDelegator:
     """Handle click events, sending them to the appropriate element's handler."""
@@ -16,7 +14,7 @@ class InputDelegator:
         self.elements = list(elements)
 
     @cached_property
-    def elements_by_key(self) -> dict[Key, BaseElement]:
+    def elements_by_key(self) -> dict[tuple[str, str | None], BaseElement]:
         return {(e.name, e.instance): e for e in self.elements}
 
     def element_for_event(self, event: ClickEvent) -> BaseElement | None:
