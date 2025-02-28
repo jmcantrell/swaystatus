@@ -127,7 +127,7 @@ class BaseElement:
         depending on its settings in the configuration file.
 
         To illustrate, let's change the clock example from earlier to allow
-        configuration of how the element displays the time. Add a constructor
+        configuration of how the element displays the time. Add an initializer
         that accepts a keyword argument, and change the `blocks` method to use
         the setting:
 
@@ -192,10 +192,10 @@ class BaseElement:
         element yielding it, i.e. the name and instance attributes are set
         correctly, which allows click events to be sent to this element.
 
-        Another potential issue happens when a module instance has been
-        declared in the configuration `order` with the "name:instance" form and
-        the module's element class is also yielding blocks with dynamic
-        instance attributes. When swaybar sends click events from these blocks,
+        One potential issue happens when a module instance has been declared in
+        the configuration `order` with the "name:instance" form and the
+        module's element class is also yielding blocks with dynamic instance
+        attributes. When swaybar sends click events from these blocks,
         swaystatus is unable to match it with any of the elements it knows
         about and falls back to sending it to the "name" module, which may or
         may not exist, and is definitely not the sender.
@@ -241,12 +241,7 @@ class BaseElement:
         return Block(name=self.name, full_text=full_text, **kwargs)
 
     def on_click(self, event: ClickEvent) -> ClickHandlerResult:
-        """
-        Delegate a click event to the handler corresponding to its button.
-
-        If the handler for the event's button is a shell command, a `Popen`
-        object will be returned.
-        """
+        """Delegate a click event to the handler corresponding to its button."""
         try:
             return getattr(self, f"on_click_{event.button}")(event)
         except AttributeError:
@@ -254,7 +249,7 @@ class BaseElement:
 
     def set_click_handler(self, button: int, handler: ClickHandler[Self]) -> None:
         """
-        Adds a method to this instance that calls `handler` when blocks from
+        Add a method to this instance that calls `handler` when blocks from
         this element are clicked with the pointer `button`.
 
         During execution of the handler, all attributes of the event will be

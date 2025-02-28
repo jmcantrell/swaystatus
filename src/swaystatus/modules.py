@@ -54,7 +54,7 @@ class ModuleRegistry:
 
     @cached_property
     def packages(self) -> list[str]:
-        """Returns recognized module packages in order of preference."""
+        """Return recognized packages names in order of preference."""
         result = []
         for package_dir in self.include:
             if (init_file := package_dir / "__init__.py").is_file():
@@ -71,7 +71,7 @@ class ModuleRegistry:
 
     @cache
     def element_class(self, name: str) -> type[BaseElement]:
-        """Return the first matching module in any visible packages."""
+        """Return the first matching element constructor in any visible packages."""
         for package in self.packages:
             try:
                 module = import_module(f"{package}.{name}")

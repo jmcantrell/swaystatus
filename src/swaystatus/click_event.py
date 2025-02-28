@@ -1,4 +1,4 @@
-"""A click event describes a block that was click by a pointer."""
+"""A click event describes a block that was clicked by a pointer."""
 
 from dataclasses import asdict, dataclass
 from typing import Any
