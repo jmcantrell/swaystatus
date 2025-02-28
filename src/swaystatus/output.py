@@ -49,3 +49,6 @@ class OutputGenerator:
 class Encoder(JSONEncoder):
     def default(self, block: Block) -> dict[str, Any]:
         return block.as_dict()
+
+
+__all__ = [OutputGenerator.__name__]

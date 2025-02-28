@@ -107,3 +107,6 @@ def main() -> int:
         logger.exception("Unhandled exception in main")
         return 1
     return 0
+
+
+__all__ = [main.__name__]

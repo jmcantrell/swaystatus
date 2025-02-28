@@ -49,3 +49,6 @@ class InputDelegator:
 class Decoder(JSONDecoder):
     def __init__(self) -> None:
         super().__init__(object_hook=lambda kwargs: ClickEvent(**kwargs))
+
+
+__all__ = [InputDelegator.__name__]

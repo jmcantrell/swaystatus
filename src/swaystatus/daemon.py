@@ -98,3 +98,6 @@ def start(config: Config) -> None:
         input_reader.start()
 
     output_writer.start()
+
+
+__all__ = [start.__name__]
