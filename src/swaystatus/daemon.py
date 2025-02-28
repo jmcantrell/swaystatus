@@ -58,8 +58,10 @@ class InputReader(Thread):
 
 
 class UpdaterWaiter(Thread):
+    daemon = True
+
     def __init__(self, wait: Callable[[], bool], output_writer: OutputWriter) -> None:
-        super().__init__()
+        super().__init__(name="update")
         self.wait = wait
         self.output_writer = output_writer
 
