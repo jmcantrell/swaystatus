@@ -1,6 +1,6 @@
 import locale
 import sys
-from signal import SIGINT, SIGTERM, SIGUSR1, Signals, signal
+from signal import SIGCONT, SIGINT, SIGTERM, SIGUSR1, Signals, signal
 from subprocess import Popen
 from threading import Event, Thread
 from typing import Callable
@@ -84,6 +84,7 @@ def start(config: Config) -> None:
         output_writer.update()
 
     signal(SIGUSR1, update)
+    signal(SIGCONT, update)
 
     def shutdown(sig, frame):
         logger.info(f"Signal was sent to shutdown: {Signals(sig).name} ({sig})")
