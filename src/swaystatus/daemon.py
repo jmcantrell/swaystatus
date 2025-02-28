@@ -1,7 +1,9 @@
 import locale
 import sys
 from signal import SIGINT, SIGTERM, SIGUSR1, Signals, signal
+from subprocess import Popen
 from threading import Event, Thread
+from typing import Callable
 
 from .config import Config
 from .input import InputDelegator
@@ -46,7 +48,23 @@ class InputReader(Thread):
 
     def run(self) -> None:
         logger.info("Starting to read input...")
-        for event in self.input_delegator.process(self.file):
+        for event, result in self.input_delegator.process(self.file):
+            if isinstance(result, Popen):
+                UpdaterWaiter(lambda: result.wait() == 0, self.output_writer).start()
+            elif callable(result):
+                UpdaterWaiter(result, self.output_writer).start()
+            elif result:
+                self.output_writer.update()
+
+
+class UpdaterWaiter(Thread):
+    def __init__(self, wait: Callable[[], bool], output_writer: OutputWriter) -> None:
+        super().__init__()
+        self.wait = wait
+        self.output_writer = output_writer
+
+    def run(self) -> None:
+        if self.wait():
             self.output_writer.update()
 
 

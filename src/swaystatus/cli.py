@@ -6,8 +6,8 @@ import tomllib
 from pathlib import Path
 
 from .config import Config
+from .daemon import start
 from .env import config_home, data_home, environ_path, environ_paths, self_name
-from .io import start
 from .logging import logger
 
 

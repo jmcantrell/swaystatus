@@ -16,7 +16,9 @@ from .block import Block
 from .click_event import ClickEvent
 from .logging import logger
 
-type ClickHandler[T: BaseElement] = str | list[str] | Callable[[T, ClickEvent], Popen | None]
+type ShellCommand = str | list[str]
+type ClickHandlerResult = Popen | Callable[[], bool] | bool | None
+type ClickHandler[T: BaseElement] = ShellCommand | Callable[[T, ClickEvent], ShellCommand | ClickHandlerResult]
 
 
 class BaseElement:
@@ -238,7 +240,7 @@ class BaseElement:
             kwargs["instance"] = self.instance
         return Block(name=self.name, full_text=full_text, **kwargs)
 
-    def on_click(self, event: ClickEvent) -> Popen | None:
+    def on_click(self, event: ClickEvent) -> ClickHandlerResult:
         """
         Delegate a click event to the handler corresponding to its button.
 
@@ -255,43 +257,60 @@ class BaseElement:
         Adds a method to this instance that calls `handler` when blocks from
         this element are clicked with the pointer `button`.
 
+        During execution of the handler, all attributes of the event will be
+        added to the environment.
+
         The `handler` can be one of the following:
 
-            - A function that accepts two positional arguments, this element
-              instance and a `ClickEvent`. It can return a `Popen` object which
-              will eventually be returned by the `on_click` method.
+            - A shell command compatible with `Popen`, i.e. a string or list of
+              strings. Output will be logged at the `DEBUG` level. It will be
+              allowed to finish in a separate thread, and if the return code is
+              zero, the status bar will be updated.
 
-            - A shell command compatible with `subprocess.run`, i.e. a string
-              or list of strings. Output will be logged at the `DEBUG` level.
-              During execution of the handler, all attributes of the event will
-              be added to the environment.
+            - A function that accepts two positional arguments (this element
+              instance and a `ClickEvent`) and returns one of the following:
+
+                  - A shell command. It will be handled like the first item.
+
+                  - A `Popen` object. It will be allowed to finish in a
+                    separate thread, and if the return code is zero, the status
+                    bar will be updated.
+
+                  - A function that returns a `bool`. It will be run in a
+                    separate thread, and if it returns `True`, the status bar
+                    will be updated.
+
+                  - A `bool`. If `True`, the status bar will be updated.
+
+                  - `None` and the status bar is not updated.
         """
         method_name = f"on_click_{button}"
         handler_kind = "function" if callable(handler) else "shell command"
         handler_desc = f"{self} {method_name} {handler_kind}"
 
-        handler_wrapped: Callable[[Self, ClickEvent], Popen | None]
+        def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
+            return lambda line: func(f"Output from {handler_desc}: {line.strip()}")
+
+        def handle_shell_command(cmd: str | list[str]) -> Popen:
+            return PopenStreamHandler(prefixed(logger.debug), prefixed(logger.error), cmd, shell=True, text=True)
+
+        handler_wrapped: Callable[[Self, ClickEvent], ClickHandlerResult]
 
         if callable(handler):
-            handler_wrapped = handler
+
+            def handler_wrapped(element: Self, event: ClickEvent) -> ClickHandlerResult:
+                result = handler(element, event)
+                return handle_shell_command(result) if isinstance(result, (str, list)) else result
+
         else:
 
-            def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
-                return lambda line: func(f"Output from {handler_desc}: {line.strip()}")
-
             def handler_wrapped(element: Self, event: ClickEvent) -> Popen:
-                return PopenStreamHandler(
-                    prefixed(logger.debug),
-                    prefixed(logger.error),
-                    handler,
-                    shell=True,
-                    text=True,
-                )
+                return handle_shell_command(handler)
 
-        def method_wrapped(self: Self, event: ClickEvent) -> Popen | None:
+        def method_wrapped(self: Self, event: ClickEvent) -> ClickHandlerResult:
             logger.debug(f"Executing {handler_desc} => {handler}")
             environ_save = os.environ.copy()
-            os.environ.update(self.env.copy())
+            os.environ.update(self.env)
             os.environ.update({k: str(v) for k, v in event.as_dict().items()})
             try:
                 return handler_wrapped(self, event)

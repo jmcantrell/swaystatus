@@ -37,7 +37,7 @@ def test_input_delegation(click_events_file) -> None:
     shuffle(expected_events)
     input_file = click_events_file(expected_events)
     input_delegator = InputDelegator(elements)
-    actual_events = list(input_delegator.process(input_file))
+    actual_events = [e for e, r in input_delegator.process(input_file)]
     assert actual_events == expected_events
     expected_clicks = [(e.name, e.instance, e.button) for e in expected_events]
     assert actual_clicks == expected_clicks

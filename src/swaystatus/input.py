@@ -3,7 +3,7 @@ from json import JSONDecoder
 from typing import IO, Iterable, Iterator
 
 from .click_event import ClickEvent
-from .element import BaseElement
+from .element import BaseElement, ClickHandlerResult
 from .logging import logger
 
 type Key = tuple[str, str | None]
@@ -22,17 +22,14 @@ class InputDelegator:
     def element_for_event(self, event: ClickEvent) -> BaseElement | None:
         if not event.name:
             return None
-        try:
-            return self.elements_by_key[(event.name, event.instance)]
-        except KeyError:
-            pass
-        try:
-            return self.elements_by_key[(event.name, None)]
-        except KeyError:
-            pass
+        for instance in (event.instance, None):
+            try:
+                return self.elements_by_key[(event.name, instance)]
+            except KeyError:
+                pass
         return None
 
-    def process(self, file: IO[str]) -> Iterator[ClickEvent]:
+    def process(self, file: IO[str]) -> Iterator[tuple[ClickEvent, ClickHandlerResult]]:
         decoder = Decoder()
         assert file.readline().strip() == "["
         for line in file:
@@ -44,8 +41,7 @@ class InputDelegator:
             logger.debug(f"Received click event: {event!r}")
             if element := self.element_for_event(event):
                 logger.info(f"Sending {event} to {element}")
-                element.on_click(event)
-                yield event
+                yield event, element.on_click(event)
             else:
                 logger.warning(f"Unable to identify source element for {event}")
 
