@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .app import App
 from .config import Config
+from .daemon import Daemon
 from .env import config_home, data_home, environ_path, environ_paths, self_name
 from .logging import logger
 
@@ -102,8 +103,13 @@ def main() -> int:
     args = parse_args()
     configure_logging(args.log_level)
     config = load_config(args)
+    daemon = Daemon(
+        config.elements,
+        config.interval,
+        config.click_events,
+    )
     try:
-        App(config).run()
+        App(daemon).run()
     except Exception:
         logger.exception("Unhandled exception in main")
         return 1
