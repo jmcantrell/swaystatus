@@ -1,11 +1,8 @@
-import locale
 import sys
-from signal import SIGCONT, SIGINT, SIGTERM, SIGUSR1, Signals, signal
 from subprocess import Popen
 from threading import Event, Thread
 from typing import Callable
 
-from .config import Config
 from .input import InputDelegator
 from .logging import logger
 from .output import OutputGenerator
@@ -68,38 +65,3 @@ class UpdaterWaiter(Thread):
     def run(self) -> None:
         if self.wait():
             self.output_writer.update()
-
-
-def start(config: Config) -> None:
-    locale.setlocale(locale.LC_ALL, "")
-
-    output_generator = OutputGenerator(config.elements, config.click_events)
-    output_writer = OutputWriter(output_generator, config.interval)
-
-    if config.click_events:
-        input_delegator = InputDelegator(config.elements)
-        input_reader = InputReader(input_delegator, output_writer)
-
-    def update(sig, frame):
-        logger.info(f"Signal was sent to update: {Signals(sig).name} ({sig})")
-        logger.debug(f"Current stack frame: {frame!r}")
-        output_writer.update()
-
-    signal(SIGUSR1, update)
-    signal(SIGCONT, update)
-
-    def shutdown(sig, frame):
-        logger.info(f"Signal was sent to shutdown: {Signals(sig).name} ({sig})")
-        logger.debug(f"Current stack frame: {frame!r}")
-        output_writer.stop()
-
-    signal(SIGINT, shutdown)
-    signal(SIGTERM, shutdown)
-
-    if config.click_events:
-        input_reader.start()
-
-    output_writer.start()
-
-
-__all__ = [start.__name__]

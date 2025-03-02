@@ -5,8 +5,8 @@ import logging
 import tomllib
 from pathlib import Path
 
+from .app import App
 from .config import Config
-from .daemon import start
 from .env import config_home, data_home, environ_path, environ_paths, self_name
 from .logging import logger
 
@@ -101,8 +101,9 @@ def load_config(args: argparse.Namespace) -> Config:
 def main() -> int:
     args = parse_args()
     configure_logging(args.log_level)
+    config = load_config(args)
     try:
-        start(load_config(args))
+        App(config).run()
     except Exception:
         logger.exception("Unhandled exception in main")
         return 1
