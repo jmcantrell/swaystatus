@@ -6,7 +6,6 @@ from swaystatus.output import OutputGenerator
 
 def test_output_multiple_blocks() -> None:
     """Ensure that a single element is able to output multiple blocks."""
-    texts = ["foo", "bar", "baz"]
 
     class Element(BaseElement):
         name = "test"
@@ -15,6 +14,7 @@ def test_output_multiple_blocks() -> None:
             for text in texts:
                 yield self.block(text)
 
+    texts = ["foo", "bar", "baz"]
     output_generator = OutputGenerator([Element()])
     actual_blocks = list(output_generator.blocks())
     expected_blocks = [Block(name="test", full_text=text) for text in texts]

@@ -96,6 +96,7 @@ class Config:
         registry = ModuleRegistry(self.include)
         for key in self.order:
             name, instance = decode_key(key)
+            logger.info(f"Loading element {name=!r} {instance=!r}")
             Element = registry.element_class(name)
             kwargs = deep_merge_dicts(
                 self.settings.get(name, {}),

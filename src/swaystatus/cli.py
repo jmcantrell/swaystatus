@@ -101,15 +101,10 @@ def load_config(args: argparse.Namespace) -> Config:
 
 def main() -> int:
     args = parse_args()
-    configure_logging(args.log_level)
     config = load_config(args)
-    daemon = Daemon(
-        config.elements,
-        config.interval,
-        config.click_events,
-    )
+    configure_logging(args.log_level)
     try:
-        App(daemon).run()
+        App(Daemon(config)).run()
     except Exception:
         logger.exception("Unhandled exception in main")
         return 1

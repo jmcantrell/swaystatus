@@ -18,14 +18,16 @@ class OutputWriter:
         self._running = Event()
 
     def update(self) -> None:
+        logger.info("Updating status bar")
         self._tick.set()
 
     def stop(self) -> None:
+        logger.info("Stopping output")
         self._running.clear()
         self._tick.set()
 
     def start(self) -> None:
-        logger.info("Starting to write output...")
+        logger.info("Starting output")
         self._running.set()
         for blocks in self.output_generator.process(self.file):
             self._tick.clear()
@@ -44,11 +46,13 @@ class InputReader(Thread):
         self.output_writer = output_writer
 
     def run(self) -> None:
-        logger.info("Starting to read input...")
+        logger.info("Starting input")
         for event, result in self.input_delegator.process(self.file):
             if isinstance(result, Popen):
+                logger.debug(f"Waiting for process on {event}")
                 UpdaterWaiter(lambda: result.wait() == 0, self.output_writer).start()
             elif callable(result):
+                logger.debug(f"Waiting for function on {event}")
                 UpdaterWaiter(result, self.output_writer).start()
             elif result:
                 self.output_writer.update()

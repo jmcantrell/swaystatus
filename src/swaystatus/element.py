@@ -316,7 +316,7 @@ class BaseElement:
                 os.environ.update(environ_save)
             return None
 
-        logger.info(f"Setting {handler_desc} => {handler}")
+        logger.debug(f"Setting {handler_desc} => {handler}")
         setattr(self, method_name, MethodType(method_wrapped, self))
 
 
