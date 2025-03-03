@@ -93,6 +93,7 @@ class Config:
 
     @cached_property
     def elements(self) -> list[BaseElement]:
+        """Return all status bar content producers in order."""
         result = []
         registry = ModuleRegistry(self.include)
         for key in self.order:
@@ -111,10 +112,12 @@ class Config:
 
     @classmethod
     def from_file(cls, file: Path) -> Self:
+        """Instantiate a configuration object from a toml file."""
         return cls(**tomllib.load(file.open("rb")))
 
 
 def decode_key(key: str) -> tuple[str, str | None]:
+    """Parse a name and instance from a string like "name" or "name:instance"."""
     try:
         name, instance = key.split(":", maxsplit=1)
     except ValueError:

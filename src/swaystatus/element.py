@@ -6,16 +6,15 @@ blocks at the configured interval. Once every element has replied, all of the
 collected blocks are encoded and sent to the bar via stdout.
 """
 
-import os
-from contextlib import contextmanager
-from subprocess import PIPE, Popen
-from threading import Thread
+from subprocess import Popen
 from types import MethodType
-from typing import IO, Callable, Iterator, Self
+from typing import Callable, Iterator, Self
 
 from .block import Block
 from .click_event import ClickEvent
+from .env import environ_update
 from .logging import logger
+from .subprocess import PopenStreamHandler
 
 type ShellCommand = str | list[str]
 type ClickHandlerResult = Popen | Callable[[], bool] | bool | None
@@ -253,8 +252,9 @@ class BaseElement:
         Add a method to this instance that calls `handler` when blocks from
         this element are clicked with the pointer `button`.
 
-        During execution of the handler, all attributes of the event will be
-        added to the environment.
+        During execution of the handler, additions from any `env` configuration
+        and all attributes of the event will be added to the execution
+        environment.
 
         The `handler` can be one of the following:
 
@@ -314,42 +314,6 @@ class BaseElement:
 
         logger.debug(f"setting {handler_desc} => {handler}")
         setattr(self, method_name, MethodType(method_wrapped, self))
-
-
-class ProxyThread(Thread):
-    """Thread that sends it's input to a function."""
-
-    def __init__(self, source: IO[str], handler: Callable[[str], None]) -> None:
-        super().__init__()
-        self.source = source
-        self.handler = handler
-
-    def run(self) -> None:
-        with self.source as lines:
-            for line in lines:
-                self.handler(line.strip())
-
-
-class PopenStreamHandler(Popen):
-    """Just like `Popen`, but handle stdout and stderr output in dedicated threads."""
-
-    def __init__(self, stdout_handler, stderr_handler, *args, **kwargs) -> None:
-        kwargs["stdout"] = kwargs["stderr"] = PIPE
-        super().__init__(*args, **kwargs)
-        assert self.stdout and self.stderr
-        ProxyThread(self.stdout, stdout_handler).start()
-        ProxyThread(self.stderr, stderr_handler).start()
-
-
-@contextmanager
-def environ_update(**kwargs):
-    environ_save = os.environ.copy()
-    os.environ.update({k: str(v) for k, v in kwargs.items()})
-    try:
-        yield
-    finally:
-        os.environ.clear()
-        os.environ.update(environ_save)
 
 
 __all__ = [BaseElement.__name__]

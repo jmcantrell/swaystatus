@@ -16,6 +16,7 @@ class OutputGenerator:
         self.click_events = click_events
 
     def blocks(self) -> Iterator[Block]:
+        """Yield blocks from every element."""
         for element in self.elements:
             try:
                 yield from element.blocks()
@@ -23,6 +24,7 @@ class OutputGenerator:
                 logger.exception(f"exception while getting blocks for {element}")
 
     def process(self, file: IO[str]) -> Iterator[list[Block]]:
+        """Send status lines to output and yield the contained blocks."""
         encoder = Encoder()
         send = partial(print, file=file, flush=True)
         send(

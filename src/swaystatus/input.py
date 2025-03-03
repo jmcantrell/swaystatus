@@ -15,9 +15,17 @@ class InputDelegator:
 
     @cached_property
     def elements_by_key(self) -> dict[tuple[str, str | None], BaseElement]:
+        """Provide fast lookup of elements by name and instance."""
         return {(e.name, e.instance): e for e in self.elements}
 
-    def element_for_event(self, event: ClickEvent) -> BaseElement | None:
+    def find_element_for_event(self, event: ClickEvent) -> BaseElement | None:
+        """
+        Return the handler for a click event.
+
+        Try to find an element matching the click event's name and instance.
+        If a matching element is not found, look for one with the same name.
+        Otherwise, return `None`.
+        """
         if not event.name:
             return None
         for instance in (event.instance, None):
@@ -28,6 +36,7 @@ class InputDelegator:
         return None
 
     def process(self, file: IO[str]) -> Iterator[tuple[ClickEvent, ClickHandlerResult]]:
+        """Handle each line of input, yielding the parsed click event and the result of its handler."""
         decoder = Decoder()
         assert file.readline().strip() == "["
         for line in file:
@@ -37,7 +46,7 @@ class InputDelegator:
                 logger.exception("exception while decoding input: {line!r}")
                 continue
             logger.debug(f"received click event: {event!r}")
-            if element := self.element_for_event(event):
+            if element := self.find_element_for_event(event):
                 logger.info(f"sending {event} to {element}")
                 yield event, element.on_click(event)
             else:

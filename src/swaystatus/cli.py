@@ -100,8 +100,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    configure_logging(args.log_level)
     config = load_config(args)
+    configure_logging(args.log_level)
     daemon = Daemon(
         config.elements,
         config.interval,
