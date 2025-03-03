@@ -50,15 +50,15 @@ class InputReader(Thread):
         for event, handler_result in self.input_delegator.process(self.file):
             if isinstance(handler_result, Popen):
                 logger.debug(f"Waiting for process on {event}")
-                UpdaterWaiter(lambda: handler_result.wait() == 0, self.output_writer).start()
+                UpdateWaiter(lambda: handler_result.wait() == 0, self.output_writer).start()
             elif callable(handler_result):
                 logger.debug(f"Waiting for function on {event}")
-                UpdaterWaiter(handler_result, self.output_writer).start()
+                UpdateWaiter(handler_result, self.output_writer).start()
             elif handler_result:
                 self.output_writer.update()
 
 
-class UpdaterWaiter(Thread):
+class UpdateWaiter(Thread):
     daemon = True
 
     def __init__(self, wait: Callable[[], bool], output_writer: OutputWriter) -> None:
