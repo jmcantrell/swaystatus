@@ -1,4 +1,6 @@
-from .config import Config
+from typing import Iterable
+
+from .element import BaseElement
 from .input import InputDelegator
 from .logging import logger
 from .output import OutputGenerator
@@ -6,10 +8,10 @@ from .threading import InputReader, OutputWriter
 
 
 class Daemon:
-    def __init__(self, config: Config) -> None:
-        self.output_writer = OutputWriter(OutputGenerator(config.elements, config.click_events), config.interval)
-        if config.click_events:
-            self.input_reader = InputReader(InputDelegator(config.elements), self.output_writer)
+    def __init__(self, elements: Iterable[BaseElement], interval: float, click_events: bool) -> None:
+        self.output_writer = OutputWriter(OutputGenerator(elements, click_events), interval)
+        if click_events:
+            self.input_reader = InputReader(InputDelegator(elements), self.output_writer)
 
     def update(self) -> None:
         logger.info("Updating status line")
