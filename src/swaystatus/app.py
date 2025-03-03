@@ -10,13 +10,13 @@ class App:
         self.daemon = daemon
 
     def update(self, sig: int, frame: FrameType | None) -> None:
-        logger.info(f"Signal was sent to update: {Signals(sig).name} ({sig})")
-        logger.debug(f"Current stack frame: {frame!r}")
+        logger.info(f"signaled to update: {Signals(sig).name} ({sig})")
+        logger.debug(f"current stack frame: {frame!r}")
         self.daemon.update()
 
     def shutdown(self, sig: int, frame: FrameType | None) -> None:
-        logger.info(f"Signal was sent to shutdown: {Signals(sig).name} ({sig})")
-        logger.debug(f"Current stack frame: {frame!r}")
+        logger.info(f"signaled to shutdown: {Signals(sig).name} ({sig})")
+        logger.debug(f"current stack frame: {frame!r}")
         self.daemon.stop()
 
     def run(self) -> None:

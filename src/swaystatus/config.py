@@ -97,7 +97,7 @@ class Config:
         registry = ModuleRegistry(self.include)
         for key in self.order:
             name, instance = decode_key(key)
-            logger.info(f"Loading element {name=!r} {instance=!r}")
+            logger.info(f"loading element {name=!r} {instance=!r}")
             Element = registry.element_class(name)
             kwargs = deep_merge_dicts(
                 self.settings.get(name, {}),
@@ -105,7 +105,7 @@ class Config:
             )
             kwargs["env"] = self.env | kwargs.get("env", {})
             kwargs["instance"] = instance
-            logger.debug(f"Initializing element {name=!r}: {kwargs=!r}")
+            logger.debug(f"initializing element {name=!r}: {kwargs=!r}")
             result.append(Element(**kwargs))
         return result
 

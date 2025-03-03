@@ -303,20 +303,20 @@ class BaseElement:
                 return handle_shell_command(handler)
 
         def method_wrapped(self: Self, event: ClickEvent) -> ClickHandlerResult:
-            logger.debug(f"Executing {handler_desc} => {handler}")
+            logger.debug(f"executing {handler_desc} => {handler}")
             environ_save = os.environ.copy()
             os.environ.update(self.env)
             os.environ.update({k: str(v) for k, v in event.as_dict().items()})
             try:
                 return handler_wrapped(self, event)
             except Exception:
-                logger.exception(f"Unhandled exception in {handler_desc}")
+                logger.exception(f"unhandled exception in {handler_desc}")
             finally:
                 os.environ.clear()
                 os.environ.update(environ_save)
             return None
 
-        logger.debug(f"Setting {handler_desc} => {handler}")
+        logger.debug(f"setting {handler_desc} => {handler}")
         setattr(self, method_name, MethodType(method_wrapped, self))
 
 

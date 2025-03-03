@@ -34,14 +34,14 @@ class InputDelegator:
             try:
                 event = decoder.decode(line.strip().lstrip(","))
             except Exception:
-                logger.exception("Exception while decoding input: {line!r}")
+                logger.exception("exception while decoding input: {line!r}")
                 continue
-            logger.debug(f"Received click event: {event!r}")
+            logger.debug(f"received click event: {event!r}")
             if element := self.element_for_event(event):
-                logger.info(f"Sending {event} to {element}")
+                logger.info(f"sending {event} to {element}")
                 yield event, element.on_click(event)
             else:
-                logger.warning(f"Unable to identify source element for {event}")
+                logger.warning(f"unable to identify source element for {event}")
 
 
 class Decoder(JSONDecoder):

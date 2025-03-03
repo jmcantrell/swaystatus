@@ -14,15 +14,14 @@ class Daemon:
             self.input_reader = InputReader(InputDelegator(elements), self.output_writer)
 
     def update(self) -> None:
-        logger.info("Updating status line")
         self.output_writer.update()
 
     def stop(self) -> None:
-        logger.info("Stopping daemon")
+        logger.info("stopping daemon")
         self.output_writer.stop()
 
     def start(self) -> None:
-        logger.info("Starting daemon")
+        logger.info("starting daemon")
         if self.input_reader:
             self.input_reader.start()
         self.output_writer.start()

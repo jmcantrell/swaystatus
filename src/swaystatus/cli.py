@@ -110,7 +110,7 @@ def main() -> int:
     try:
         App(daemon).run()
     except Exception:
-        logger.exception("Unhandled exception in main")
+        logger.exception("unhandled exception in main")
         return 1
     return 0
 

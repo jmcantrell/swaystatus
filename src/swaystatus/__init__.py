@@ -11,7 +11,7 @@ Typical usage consists of the following:
         - See `swaystatus.config` about enabling and configuring elements.
 
     3. Produce content for swaybar with the `swaystatus` command.
-        - See `swaystatus --help` about command line usage.
+        - See `swaystatus --help` for command line usage.
         - See `status_command` in sway-bar(5) to set the status command.
 
 See swaybar-protocol(7) for a full description of the status bar protocol.

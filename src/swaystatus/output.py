@@ -20,7 +20,7 @@ class OutputGenerator:
             try:
                 yield from element.blocks()
             except Exception:
-                logger.exception(f"Exception while getting blocks for {element}")
+                logger.exception(f"exception while getting blocks for {element}")
 
     def process(self, file: IO[str]) -> Iterator[list[Block]]:
         encoder = Encoder()
