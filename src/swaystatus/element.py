@@ -18,7 +18,7 @@ from .logging import logger
 
 type ShellCommand = str | list[str]
 type ClickHandlerResult = Popen | Callable[[], bool] | bool | None
-type ClickHandler[T: BaseElement] = ShellCommand | Callable[[T, ClickEvent], ShellCommand | ClickHandlerResult]
+type ClickHandler[E: BaseElement] = ShellCommand | Callable[[E, ClickEvent], ShellCommand | ClickHandlerResult]
 
 
 class BaseElement:

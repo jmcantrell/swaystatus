@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-import tomllib
 from pathlib import Path
 
 from .app import App
@@ -16,6 +15,27 @@ def configure_logging(level: str) -> None:
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(logging.Formatter("%(name)s: %(levelname)s: %(message)s"))
     logging.basicConfig(level=level.upper(), handlers=[stream_handler])
+
+
+def load_config(args: argparse.Namespace) -> Config:
+    data_dir: Path = args.data_dir or environ_path("SWAYSTATUS_DATA_DIR") or (data_home / self_name)
+    config_dir: Path = args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR") or (config_home / self_name)
+    config_file: Path = args.config_file or environ_path("SWAYSTATUS_CONFIG_FILE") or (config_dir / "config.toml")
+    config = Config.from_file(config_file) if config_file.is_file() else Config()
+    include = []
+    if args.include:
+        include.extend(args.include)
+    if config.include:
+        include.extend(config.include)
+    if paths := environ_paths("SWAYSTATUS_PACKAGE_PATH"):
+        include.extend(paths)
+    include.append(data_dir / "modules")
+    config.include = include
+    if args.interval:
+        config.interval = args.interval
+    if args.click_events:
+        config.click_events = True
+    return config
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,27 +96,6 @@ def parse_args() -> argparse.Namespace:
         help="override default minimum logging level (default: %(default)s)",
     )
     return parser.parse_args()
-
-
-def load_config(args: argparse.Namespace) -> Config:
-    data_dir: Path = args.data_dir or environ_path("SWAYSTATUS_DATA_DIR") or (data_home / self_name)
-    config_dir: Path = args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR") or (config_home / self_name)
-    config_file: Path = args.config_file or environ_path("SWAYSTATUS_CONFIG_FILE") or (config_dir / "config.toml")
-    config = Config(**(tomllib.load(config_file.open("rb")) if config_file.is_file() else {}))
-    include = []
-    if args.include:
-        include.extend(args.include)
-    if config.include:
-        include.extend(config.include)
-    if paths := environ_paths("SWAYSTATUS_PACKAGE_PATH"):
-        include.extend(paths)
-    include.append(data_dir / "modules")
-    config.include = include
-    if args.interval:
-        config.interval = args.interval
-    if args.click_events:
-        config.click_events = True
-    return config
 
 
 def main() -> int:

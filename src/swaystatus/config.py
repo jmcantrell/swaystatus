@@ -68,10 +68,11 @@ A typical configuration file might look like the following:
     TZ = 'Asia/Tokyo'
 """
 
+import tomllib
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 from .element import BaseElement
 from .logging import logger
@@ -107,6 +108,10 @@ class Config:
             logger.debug(f"Initializing element {name=!r}: {kwargs=!r}")
             result.append(Element(**kwargs))
         return result
+
+    @classmethod
+    def from_file(cls, file: Path) -> Self:
+        return cls(**tomllib.load(file.open("rb")))
 
 
 def decode_key(key: str) -> tuple[str, str | None]:

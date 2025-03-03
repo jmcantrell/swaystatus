@@ -47,14 +47,14 @@ class InputReader(Thread):
 
     def run(self) -> None:
         logger.info("Starting input")
-        for event, result in self.input_delegator.process(self.file):
-            if isinstance(result, Popen):
+        for event, handler_result in self.input_delegator.process(self.file):
+            if isinstance(handler_result, Popen):
                 logger.debug(f"Waiting for process on {event}")
-                UpdaterWaiter(lambda: result.wait() == 0, self.output_writer).start()
-            elif callable(result):
+                UpdaterWaiter(lambda: handler_result.wait() == 0, self.output_writer).start()
+            elif callable(handler_result):
                 logger.debug(f"Waiting for function on {event}")
-                UpdaterWaiter(result, self.output_writer).start()
-            elif result:
+                UpdaterWaiter(handler_result, self.output_writer).start()
+            elif handler_result:
                 self.output_writer.update()
 
 
