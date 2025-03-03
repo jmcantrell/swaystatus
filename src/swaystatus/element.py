@@ -7,6 +7,7 @@ collected blocks are encoded and sent to the bar via stdout.
 """
 
 import os
+from contextlib import contextmanager
 from subprocess import PIPE, Popen
 from threading import Thread
 from types import MethodType
@@ -284,7 +285,7 @@ class BaseElement:
         handler_desc = f"{self} {method_name} {handler_kind}"
 
         def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
-            return lambda line: func(f"Output from {handler_desc}: {line.strip()}")
+            return lambda line: func(f"output from {handler_desc}: {line.strip()}")
 
         def handle_shell_command(cmd: str | list[str]) -> Popen:
             return PopenStreamHandler(prefixed(logger.debug), prefixed(logger.error), cmd, shell=True, text=True)
@@ -304,16 +305,11 @@ class BaseElement:
 
         def method_wrapped(self: Self, event: ClickEvent) -> ClickHandlerResult:
             logger.debug(f"executing {handler_desc} => {handler}")
-            environ_save = os.environ.copy()
-            os.environ.update(self.env)
-            os.environ.update({k: str(v) for k, v in event.as_dict().items()})
-            try:
-                return handler_wrapped(self, event)
-            except Exception:
-                logger.exception(f"unhandled exception in {handler_desc}")
-            finally:
-                os.environ.clear()
-                os.environ.update(environ_save)
+            with environ_update(**self.env, **event.as_dict()):
+                try:
+                    return handler_wrapped(self, event)
+                except Exception:
+                    logger.exception(f"unhandled exception in {handler_desc}")
             return None
 
         logger.debug(f"setting {handler_desc} => {handler}")
@@ -343,6 +339,17 @@ class PopenStreamHandler(Popen):
         assert self.stdout and self.stderr
         ProxyThread(self.stdout, stdout_handler).start()
         ProxyThread(self.stderr, stderr_handler).start()
+
+
+@contextmanager
+def environ_update(**kwargs):
+    environ_save = os.environ.copy()
+    os.environ.update({k: str(v) for k, v in kwargs.items()})
+    try:
+        yield
+    finally:
+        os.environ.clear()
+        os.environ.update(environ_save)
 
 
 __all__ = [BaseElement.__name__]
