@@ -31,6 +31,8 @@ def load_config(args: argparse.Namespace) -> Config:
         include.extend(paths)
     include.append(data_dir / "modules")
     config.include = include
+    if args.order:
+        config.order = args.order
     if args.interval:
         config.interval = args.interval
     if args.click_events:
@@ -94,6 +96,12 @@ def parse_args() -> argparse.Namespace:
         default="warning",
         choices=["debug", "info", "warning", "error", "critical"],
         help="override default minimum logging level (default: %(default)s)",
+    )
+    parser.add_argument(
+        "order",
+        metavar="NAME[:INSTANCE]",
+        nargs="*",
+        help="override configured element order",
     )
     return parser.parse_args()
 
