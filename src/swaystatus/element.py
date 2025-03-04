@@ -298,10 +298,12 @@ class BaseElement:
                 result = handler(element, event)
                 return handle_shell_command(result) if isinstance(result, (str, list)) else result
 
-        else:
+        elif isinstance(handler, (str, list)):
 
             def handler_wrapped(element: Self, event: ClickEvent) -> Popen:
                 return handle_shell_command(handler)
+        else:
+            raise ValueError(f"invalid handler: {handler!r}")
 
         def method_wrapped(self: Self, event: ClickEvent) -> ClickHandlerResult:
             logger.debug(f"executing {handler_desc} => {handler}")

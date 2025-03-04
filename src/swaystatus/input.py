@@ -18,7 +18,7 @@ class InputDelegator:
         """Provide fast lookup of elements by name and instance."""
         return {(e.name, e.instance): e for e in self.elements}
 
-    def find_element_for_event(self, event: ClickEvent) -> BaseElement | None:
+    def find_element(self, event: ClickEvent) -> BaseElement | None:
         """
         Return the handler for a click event.
 
@@ -46,7 +46,7 @@ class InputDelegator:
                 logger.exception("exception while decoding input: {line!r}")
                 continue
             logger.debug(f"received click event: {event!r}")
-            if element := self.find_element_for_event(event):
+            if element := self.find_element(event):
                 logger.info(f"sending {event} to {element}")
                 yield event, element.on_click(event)
             else:

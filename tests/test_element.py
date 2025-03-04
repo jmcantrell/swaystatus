@@ -49,6 +49,10 @@ def test_element_on_click_function() -> None:
 
 def test_element_on_click_shell_command(tmp_path) -> None:
     """Ensure that shell command handlers can be set at initialization."""
+
+    class Element(BaseElement):
+        name = "test"
+
     button = 1
     cases = {
         "${foo}": "some string",  # environment variables added
@@ -58,10 +62,6 @@ def test_element_on_click_shell_command(tmp_path) -> None:
     env = {"foo": cases["${foo}"]}
     event = replace(click_event, button=button)
     stdout_file = tmp_path / "stdout"
-
-    class Element(BaseElement):
-        name = "test"
-
     for s, expected_output in cases.items():
         handler = f"echo {s} >{stdout_file}"  # shell redirection
         element = Element(on_click={1: handler}, env=env)
@@ -72,7 +72,7 @@ def test_element_on_click_shell_command(tmp_path) -> None:
         assert actual_output == expected_output
 
 
-def test_element_on_click_function_return_passthru() -> None:
+def test_element_on_click_function_return_passthrough() -> None:
     """Ensure that a function handler's return value is preserved sometimes."""
 
     class Element(BaseElement):
@@ -81,9 +81,7 @@ def test_element_on_click_function_return_passthru() -> None:
     def waiter() -> bool:
         return True
 
-    process = Popen("true")
-
-    for expected_value in (None, False, True, waiter, process):
+    for expected_value in (None, False, True, waiter, Popen("true")):
 
         def handler(element: BaseElement, event: ClickEvent) -> ClickHandlerResult:
             return expected_value
@@ -93,7 +91,7 @@ def test_element_on_click_function_return_passthru() -> None:
         assert actual_value is expected_value
 
 
-def test_element_on_click_function_return_shell_command() -> None:
+def test_element_on_click_function_return_shell_command_run() -> None:
     """Ensure that a function handler's return value is run if it's a shell command."""
 
     class Element(BaseElement):

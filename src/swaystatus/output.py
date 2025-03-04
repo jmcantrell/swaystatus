@@ -1,4 +1,3 @@
-from functools import partial
 from json import JSONEncoder
 from signal import SIGCONT, SIGSTOP
 from typing import IO, Any, Iterable, Iterator
@@ -25,8 +24,11 @@ class OutputGenerator:
 
     def process(self, file: IO[str]) -> Iterator[list[Block]]:
         """Send status lines to output and yield the contained blocks."""
+
+        def send(line: str) -> None:
+            print(line, file=file, flush=True)
+
         encoder = Encoder()
-        send = partial(print, file=file, flush=True)
         send(
             encoder.encode(
                 dict(

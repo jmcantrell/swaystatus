@@ -10,6 +10,7 @@ from .fake import click_event
 
 def test_input_delegation(click_events_file) -> None:
     """Ensure that clicks are sent to the correct element in the same order."""
+    actual_clicks: list[tuple[str, str | None, int]] = []
 
     class Element(BaseElement):
         def on_click_1(self, event: ClickEvent):
@@ -20,7 +21,6 @@ def test_input_delegation(click_events_file) -> None:
 
     elements: list[BaseElement] = []
     expected_events: list[ClickEvent] = []
-    actual_clicks: list[tuple[str, str | None, int]] = []
     for name, instance, button in product(["test1", "test2"], [None, "variant"], [1, 2]):
         element = Element()
         element.name = name
