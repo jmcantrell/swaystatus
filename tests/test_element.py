@@ -78,10 +78,7 @@ def test_element_on_click_function_return_passthrough() -> None:
     class Element(BaseElement):
         name = "test"
 
-    def waiter() -> bool:
-        return True
-
-    for expected_value in (None, False, True, waiter, Popen("true")):
+    for expected_value in (None, False, True, lambda: True, Popen("true")):
 
         def handler(element: BaseElement, event: ClickEvent) -> ClickHandlerResult:
             return expected_value
