@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         metavar="DIRECTORY",
         type=Path,
-        help="include an additional modules package",
+        help="include an additional element package",
     )
     parser.add_argument(
         "-i",

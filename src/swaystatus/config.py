@@ -14,9 +14,10 @@ Configuration is defined in a toml file located in one of the following places
 The following keys are recognized in the configuration file:
 
     `order` (type: `list[str]`, default: `[]`)
-        The desired modules to display and their order. Each item can be of the
-        form "name" or "name:instance". The latter form allows the same module
-        to be used multiple times with different settings.
+        The desired elements to display and their order. Each item can be of
+        the form "name" or "name:instance". The latter form allows the same
+        element to be used multiple times with different settings for each
+        "instance".
 
     `interval` (type: `float`, default: `5.0`)
         How often (in seconds) to update the status bar.
@@ -25,7 +26,7 @@ The following keys are recognized in the configuration file:
         Whether or not to listen for status bar clicks.
 
     `include` (type: `list[str]`, default: `[]`)
-        Additional directories to treat as module packages.
+        Additional directories to treat as element packages.
 
     `env` (type: `dict[str, str]`, default: `{}`)
         Additional environment variables visible to click handlers.
@@ -35,7 +36,7 @@ The following keys are recognized in the configuration file:
         response to a click by that button.
 
     `settings` (type: `dict[str, dict[str, Any]]`, default: `{}`)
-        Maps module specifiers (as defined in `order`) to keyword arguments
+        Maps element specifiers (as defined in `order`) to keyword arguments
         that will be passed to the element constructor.
 
 A typical configuration file might look like the following:

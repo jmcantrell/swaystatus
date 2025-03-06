@@ -3,7 +3,7 @@ Framework for creating an interactive status line for swaybar.
 
 Typical usage consists of the following:
 
-    1. Define modules by subclassing `BaseElement` to produce blocks.
+    1. Create elements by subclassing `BaseElement` to produce blocks.
         - See `swaystatus.element` about creating elements.
         - See `swaystatus.modules` about where to put element modules.
 

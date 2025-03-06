@@ -27,14 +27,14 @@ class BaseElement:
 
     The subclass must be named `Element` and be contained in a module file
     whose name will be used by swaystatus to identify it. For example, if there
-    is a file named `clock.py` in a modules package, the class will have an
-    attribute `name` set to "clock".
+    is a module file named `clock.py`, the class will have an attribute `name`
+    set to "clock".
 
     The `blocks` method is called to generate output at every interval and must
     be overridden. There is no requirement regarding the number of blocks that
     are yielded, however if no blocks are yielded, nothing will be visible in
     the status bar for that element. This may be desirable if, for example, the
-    module yields a block for every mounted disk and there are none mounted.
+    element yields a block for every mounted disk and there are none mounted.
 
     A hypothetical clock module file might contain the following:
 
@@ -45,13 +45,13 @@ class BaseElement:
         >>>     def blocks(self) -> Iterator[Block]:
         >>>         yield self.block(strftime("%c"))
 
-    Enable the module by adding it to the configuration file:
+    Enable the element by adding it to the configuration file:
 
         order = ["clock"]
 
     Let's make the clock respond to a left mouse button click by running a
     shell command. Enable click events and add a click handler to the settings
-    for that module:
+    for that element:
 
         order = ["clock"]
 
@@ -74,7 +74,7 @@ class BaseElement:
         TZ = 'Asia/Tokyo'
 
     The "name:instance" form in `order` allows multiple instances of the same
-    module, each having their own settings.
+    element, each having their own settings.
 
     Because the module is named `clock.py`, swaystatus will set the class
     attribute `name` to "clock" for the first element ("clock" in `order`) as
@@ -107,7 +107,7 @@ class BaseElement:
         on_click: dict[int, ClickHandler[Self]] | None = None,
     ) -> None:
         """
-        Intialize a new status bar content producer.
+        Intialize a new status bar content producer, i.e. an element.
 
         The `instance` argument will be provided by swaystatus when the element
         is created. This should not be provided by the subclass.
@@ -148,7 +148,7 @@ class BaseElement:
             [settings.clock]
             full_text = "The time here is: %r"
 
-        If there are other instances of the module, they will inherit the
+        If there are other instances of the element, they will inherit the
         settings, but they can be overridden:
 
             [settings."clock:home"]
@@ -192,17 +192,17 @@ class BaseElement:
         element yielding it, i.e. the name and instance attributes are set
         correctly, which allows click events to be sent to this element.
 
-        One potential issue happens when a module instance has been declared in
-        the configuration `order` with the "name:instance" form and the
-        module's element class is also yielding blocks with dynamic instance
-        attributes. When swaybar sends click events from these blocks,
-        swaystatus is unable to match it with any of the elements it knows
-        about and falls back to sending it to the "name" module, which may or
-        may not exist, and is definitely not the sender.
+        One potential issue happens when an element instance has been declared
+        in the configuration `order` with the "name:instance" form and the
+        element class is also yielding blocks with dynamic instance attributes.
+        When swaybar sends click events from these blocks, swaystatus is unable
+        to match it with any of the elements it knows about and falls back to
+        sending it to the "name" element, which may or may not exist, and is
+        definitely not the sender.
 
         To illustrate the problem, consider an element that yields blocks that
-        could be different at every update. For example, there could be a
-        module that shows network interfaces:
+        could be different at every update. For example, there could be an
+        element that shows network interfaces:
 
             >>> from pathlib import Path
             >>> from typing import Iterator
@@ -220,16 +220,16 @@ class BaseElement:
         instances at every update, so swaystatus can only reach this element by
         the module name.
 
-        The consequence is that a module's instances can either be declared
+        The consequence is that an element's instances can either be declared
         statically in the configuration or the blocks created with instances at
-        runtime, but not both. Trying to yield a block from the element in
-        module "foo" with its instance set to "a" when the module was already
-        declared in the configuration `order` as "foo:b" will mean that click
-        events will be lost, or worse, sent to the wrong element.
+        runtime, but not both. Trying to yield a block from the element "foo"
+        with its instance set to "a" when the element was already declared in
+        the configuration `order` as "foo:b" will mean that click events will
+        be lost, or worse, sent to the wrong element.
 
         Using the `block` method will ensure that the returned `Block` has the
         name and instance set correctly. If the block's instance is set
-        dynamically and the module's instance was declared in the
+        dynamically and the element's instance was declared in the
         configuration, an exception will be raised.
 
         See the documentation for `swaystatus.block` for a full specification
