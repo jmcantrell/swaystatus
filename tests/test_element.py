@@ -55,11 +55,11 @@ def test_element_on_click_shell_command(tmp_path) -> None:
 
     button = 1
     cases = {
-        "${foo}": "some string",  # environment variables added
+        "$foo": "some string",  # environment variables added
         "${button}": str(button),  # environment variables from event
         "~": str(Path.home()),  # shell tilde expansion
     }
-    env = {"foo": cases["${foo}"]}
+    env = {"foo": cases["$foo"]}
     event = replace(click_event, button=button)
     stdout_file = tmp_path / "stdout"
     for s, expected_output in cases.items():
