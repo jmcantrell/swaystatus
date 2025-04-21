@@ -4,6 +4,7 @@ import argparse
 import logging
 from pathlib import Path
 
+from . import __version__
 from .app import App
 from .config import Config
 from .daemon import Daemon
@@ -47,6 +48,12 @@ def parse_args() -> argparse.Namespace:
             prog, indent_increment=4, max_help_position=45
         ),
         epilog="See `pydoc swaystatus` for full documentation.",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=__version__,
     )
     parser.add_argument(
         "-c",

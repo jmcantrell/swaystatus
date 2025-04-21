@@ -21,6 +21,8 @@ from .block import Block
 from .click_event import ClickEvent
 from .element import BaseElement
 
+__version__ = "v0.8.0"
+
 __all__ = [
     Block.__name__,
     ClickEvent.__name__,
