@@ -1,5 +1,3 @@
 #!/usr/bin/env sh
 
-root_dir=$PWD
-
-exec uv run ruff format "$root_dir"/src "$root_dir"/tests
+exec uv run ruff format ./src ./tests
