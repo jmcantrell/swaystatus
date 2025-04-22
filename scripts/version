@@ -11,7 +11,8 @@ git add ./pyproject.toml
 sed -i "/^__version__[[:space:]]=/s/=.*/= \"$version\"/" ./src/*/__init__.py
 git add ./src/*/__init__.py
 
+uv sync
+git add uv.lock
+
 git commit -m "Bump version"
 git tag "v$version"
-
-uv sync
