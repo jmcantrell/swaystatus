@@ -1,3 +1,5 @@
 #!/usr/bin/env sh
 
-exec uv run ruff check --fix ./src ./tests
+root_dir=$PWD
+
+exec uv run ruff check --fix "$root_dir"/src "$root_dir"/tests

@@ -1,16 +1,17 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-set -euo pipefail
-shopt -s nullglob
+set -eu
+
+root_dir=$PWD
 
 version=${1:?missing version}
 version=v${version##v}
 
-sed -i "/^version[[:space:]]=/s/=.*/= \"${version##v}\"/" ./pyproject.toml
-git add ./pyproject.toml
+sed -i "/^version[[:space:]]=/s/=.*/= \"${version##v}\"/" "$root_dir"/pyproject.toml
+git add "$root_dir"/pyproject.toml
 
-sed -i "/^__version__[[:space:]]=/s/=.*/= \"$version\"/" ./src/*/__init__.py
-git add ./src/*/__init__.py
+sed -i "/^__version__[[:space:]]=/s/=.*/= \"$version\"/" "$root_dir"/src/*/__init__.py
+git add "$root_dir"/src/*/__init__.py
 
 git commit -m "Bump version"
 git tag "$version"
