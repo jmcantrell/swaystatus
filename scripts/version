@@ -13,3 +13,5 @@ git add ./src/*/__init__.py
 
 git commit -m "Bump version"
 git tag "v$version"
+
+uv sync
