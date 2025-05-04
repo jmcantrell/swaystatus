@@ -26,7 +26,7 @@ from .element import BaseElement
 # Locale is set to "C" by default.
 locale.setlocale(locale.LC_ALL, "")
 
-__version__ = "0.9.3"
+__version__ = "0.10.0"
 
 __all__ = [
     Block.__name__,
