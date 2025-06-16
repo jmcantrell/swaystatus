@@ -2,17 +2,29 @@
 
 set -euo pipefail
 
-version=${1:?missing version}
-version=${version##v}
+unset bump
 
-sed -i "/^version[[:space:]]=/s/=.*/= \"$version\"/" ./pyproject.toml
-git add ./pyproject.toml
+while getopts "Mmp" opt; do
+    case $opt in
+    M) bump='major' ;;
+    m) bump='minor' ;;
+    p) bump='patch' ;;
+    *) exit 2 ;;
+    esac
+done
+shift $((OPTIND - 1))
 
-sed -i "/^__version__[[:space:]]=/s/=.*/= \"$version\"/" ./src/*/__init__.py
-git add ./src/*/__init__.py
+if [[ -v bump ]]; then
+    uv version --bump "$bump"
+    git add pyproject.toml uv.lock
+fi
 
-uv sync
-git add uv.lock
+version=$(uv version --short)
+printf "%s\n" "$version"
 
-git commit -m "Bump version"
-git tag "v$version"
+if [[ -v bump ]]; then
+    sed -i "/^__version__[[:space:]]=/s/=.*/= \"$version\"/" ./src/*/__init__.py
+    git add ./src/*/__init__.py
+    git commit -m "Bump $bump version"
+    git tag "v$version"
+fi
