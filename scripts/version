@@ -14,17 +14,18 @@ while getopts "Mmp" opt; do
 done
 shift $((OPTIND - 1))
 
+name=$(uv version | cut -d' ' -f1)
+file=./src/$name/version
+
 if [[ -v bump ]]; then
     uv version --bump "$bump"
-    git add pyproject.toml uv.lock
 fi
 
 version=$(uv version --short)
-printf "%s\n" "$version"
+printf "%s\n" "$version" >"$file"
 
 if [[ -v bump ]]; then
-    sed -i "/^__version__[[:space:]]=/s/=.*/= \"$version\"/" ./src/*/__init__.py
-    git add ./src/*/__init__.py
+    git add "$file" uv.lock pyproject.toml
     git commit -m "Bump $bump version"
     git tag "v$version"
 fi

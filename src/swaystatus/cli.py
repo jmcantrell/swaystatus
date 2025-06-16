@@ -4,12 +4,12 @@ import argparse
 import logging
 from pathlib import Path
 
-from . import __version__
 from .app import App
 from .config import Config
 from .daemon import Daemon
 from .env import config_home, data_home, environ_path, environ_paths, self_name
 from .logging import logger
+from .version import version
 
 
 def configure_logging(level: str) -> None:
@@ -53,7 +53,7 @@ def parse_args() -> argparse.Namespace:
         "-v",
         "--version",
         action="version",
-        version=__version__,
+        version=version(),
     )
     parser.add_argument(
         "-c",
