@@ -1,4 +1,4 @@
-from functools import cached_property
+from functools import cache, cached_property
 from json import JSONDecoder
 from typing import IO, Iterable, Iterator
 
@@ -14,23 +14,22 @@ class InputDelegator:
         self.elements = list(elements)
 
     @cached_property
-    def elements_by_key(self) -> dict[tuple[str, str | None], BaseElement]:
+    def elements_by_key(self) -> dict[tuple[str | None, str | None], BaseElement]:
         """Provide fast lookup of elements by name and instance."""
         return {(e.name, e.instance): e for e in self.elements}
 
-    def find_element(self, event: ClickEvent) -> BaseElement | None:
+    @cache
+    def find_element(self, name: str | None, instance: str | None) -> BaseElement | None:
         """
-        Return the handler for a click event.
+        Return the handler for element identifiers.
 
-        Try to find an element matching the click event's name and instance.
+        Try to find an element matching the given name and instance.
         If a matching element is not found, look for one with the same name.
         Otherwise, return `None`.
         """
-        if not event.name:
-            return None
-        for instance in (event.instance, None):
+        for instance in (instance, None):
             try:
-                return self.elements_by_key[(event.name, instance)]
+                return self.elements_by_key[(name, instance)]
             except KeyError:
                 pass
         return None
@@ -46,7 +45,7 @@ class InputDelegator:
                 logger.exception("exception while decoding input: {line!r}")
                 continue
             logger.debug(f"received click event: {event!r}")
-            if element := self.find_element(event):
+            if element := self.find_element(event.name, event.instance):
                 logger.info(f"sending {event} to {element}")
                 yield event, element.on_click(event)
             else:
