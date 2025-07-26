@@ -1,3 +1,4 @@
+from random import shuffle
 from typing import Any
 
 from swaystatus import Block
@@ -24,6 +25,7 @@ def test_block_dict_minimal() -> None:
         ("separator_block_width", 2),
         ("markup", "pango"),
     ]
+    shuffle(kwarg_pairs)
     for i in range(len(kwarg_pairs)):
         kwargs = dict(kwarg_pairs[:i])
         assert Block(**kwargs).as_dict() == kwargs
