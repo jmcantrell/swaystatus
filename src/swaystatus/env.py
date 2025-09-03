@@ -16,6 +16,7 @@ def environ_path(name: str) -> Path | None:
 
 
 def environ_paths(name: str) -> list[Path]:
+    """Return a list of paths from and environment variable."""
     return [Path(p).expanduser() for p in os.environ[name].split(":")] if name in os.environ else []
 
 
