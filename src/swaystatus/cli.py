@@ -1,37 +1,21 @@
 """Generate a status line for swaybar."""
 
 import argparse
-import logging
 from pathlib import Path
 
 from .app import App
 from .config import Config
 from .daemon import Daemon
-from .env import config_home, data_home, environ_path, environ_paths, self_name
+from .env import config_file, package_path
+from .logging import configure as configure_logging
 from .logging import logger
 from .version import version
 
 
-def configure_logging(level: str) -> None:
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter("%(name)s: %(levelname)s: %(message)s"))
-    logging.basicConfig(level=level.upper(), handlers=[stream_handler])
-
-
 def load_config(args: argparse.Namespace) -> Config:
-    data_dir: Path = args.data_dir or environ_path("SWAYSTATUS_DATA_DIR") or (data_home / self_name)
-    config_dir: Path = args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR") or (config_home / self_name)
-    config_file: Path = args.config_file or environ_path("SWAYSTATUS_CONFIG_FILE") or (config_dir / "config.toml")
-    config = Config.from_file(config_file) if config_file.is_file() else Config()
-    include = []
-    if args.include:
-        include.extend(args.include)
-    if config.include:
-        include.extend(config.include)
-    if paths := environ_paths("SWAYSTATUS_PACKAGE_PATH"):
-        include.extend(paths)
-    include.append(data_dir / "modules")
-    config.include = include
+    file = args.config_file or config_file
+    config = Config.from_file(file) if file.is_file() else Config()
+    config.include = args.include + config.include + package_path
     if args.order:
         config.order = args.order
     if args.interval:
@@ -79,21 +63,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-I",
         "--include",
-        action="append",
         metavar="DIRECTORY",
         type=Path,
+        action="append",
+        default=[],
         help="include an additional element package",
     )
     parser.add_argument(
         "-i",
         "--interval",
-        type=float,
         metavar="SECONDS",
+        type=float,
         help="override default update interval",
     )
     parser.add_argument(
         "--click-events",
-        dest="click_events",
         action="store_true",
         help="enable click events",
     )

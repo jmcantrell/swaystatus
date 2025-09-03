@@ -3,12 +3,9 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-self_name = os.path.basename(sys.argv[0])
+from .xdg import config_home, data_home
 
-cache_home = Path(os.environ.get("XDG_CACHE_HOME", "~/.cache")).expanduser()
-config_home = Path(os.environ.get("XDG_CONFIG_HOME", "~/.config")).expanduser()
-data_home = Path(os.environ.get("XDG_DATA_HOME", "~/.local/share")).expanduser()
-state_home = Path(os.environ.get("XDG_STATE_HOME", "~/.local/state")).expanduser()
+self_name = os.path.basename(sys.argv[0])
 
 
 def environ_path(name: str) -> Path | None:
@@ -18,11 +15,8 @@ def environ_path(name: str) -> Path | None:
     return None
 
 
-def environ_paths(name: str) -> list[Path] | None:
-    """Return paths from a colon-separated environment variable (if set)."""
-    if value := os.environ.get(name):
-        return [Path(p).expanduser() for p in value.split(":")]
-    return None
+def environ_paths(name: str) -> list[Path]:
+    return [Path(p).expanduser() for p in os.environ[name].split(":")] if name in os.environ else []
 
 
 @contextmanager
@@ -35,3 +29,9 @@ def environ_update(**kwargs):
     finally:
         os.environ.clear()
         os.environ.update(environ_save)
+
+
+data_dir = environ_path("SWAYSTATUS_DATA_DIR") or (data_home / self_name)
+config_dir = environ_path("SWAYSTATUS_CONFIG_DIR") or (config_home / self_name)
+config_file = environ_path("SWAYSTATUS_CONFIG_FILE") or (config_dir / "config.toml")
+package_path = environ_paths("SWAYSTATUS_PACKAGE_PATH") + [data_dir / "modules"]
