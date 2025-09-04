@@ -12,19 +12,6 @@ from .logging import logger
 from .version import version
 
 
-def load_config(args: argparse.Namespace) -> Config:
-    file = args.config_file or config_file
-    config = Config.from_file(file) if file.is_file() else Config()
-    config.include = args.include + config.include + package_path
-    if args.order:
-        config.order = args.order
-    if args.interval:
-        config.interval = args.interval
-    if args.click_events:
-        config.click_events = True
-    return config
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -37,7 +24,7 @@ def parse_args() -> argparse.Namespace:
         "-v",
         "--version",
         action="version",
-        version=version(),
+        version=version,
     )
     parser.add_argument(
         "-c",
@@ -95,6 +82,19 @@ def parse_args() -> argparse.Namespace:
         help="override configured element order",
     )
     return parser.parse_args()
+
+
+def load_config(args: argparse.Namespace) -> Config:
+    file = args.config_file or config_file
+    config = Config.from_file(file) if file.is_file() else Config()
+    config.include = args.include + config.include + package_path
+    if args.order:
+        config.order = args.order
+    if args.interval:
+        config.interval = args.interval
+    if args.click_events:
+        config.click_events = True
+    return config
 
 
 def main() -> int:
