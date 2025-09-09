@@ -6,10 +6,11 @@ from pathlib import Path
 from .app import App
 from .config import Config
 from .daemon import Daemon
-from .env import config_file, package_path
+from .env import environ_path, environ_paths, self_name
 from .logging import configure as configure_logging
 from .logging import logger
 from .version import version
+from .xdg import config_home, data_home
 
 
 def parse_args() -> argparse.Namespace:
@@ -85,8 +86,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_config(args: argparse.Namespace) -> Config:
-    file = args.config_file or config_file
-    config = Config.from_file(file) if file.is_file() else Config()
+    config_dir = environ_path("SWAYSTATUS_CONFIG_DIR") or args.config_dir or (config_home / self_name)
+    config_file = environ_path("SWAYSTATUS_CONFIG_FILE") or args.config_file or (config_dir / "config.toml")
+    config = Config.from_file(config_file) if config_file.is_file() else Config()
+    data_dir = environ_path("SWAYSTATUS_DATA_DIR") or (data_home / self_name)
+    package_path = environ_paths("SWAYSTATUS_PACKAGE_PATH") + [data_dir / "modules"]
     config.include = args.include + config.include + package_path
     if args.order:
         config.order = args.order

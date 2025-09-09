@@ -3,8 +3,6 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from .xdg import config_home, data_home
-
 self_name = os.path.basename(sys.argv[0])
 
 
@@ -30,9 +28,3 @@ def environ_update(**kwargs):
     finally:
         os.environ.clear()
         os.environ.update(environ_save)
-
-
-data_dir = environ_path("SWAYSTATUS_DATA_DIR") or (data_home / self_name)
-config_dir = environ_path("SWAYSTATUS_CONFIG_DIR") or (config_home / self_name)
-config_file = environ_path("SWAYSTATUS_CONFIG_FILE") or (config_dir / "config.toml")
-package_path = environ_paths("SWAYSTATUS_PACKAGE_PATH") + [data_dir / "modules"]
