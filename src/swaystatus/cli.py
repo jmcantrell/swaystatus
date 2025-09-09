@@ -97,7 +97,7 @@ def load_config(args: argparse.Namespace) -> Config:
     return config
 
 
-def main() -> int:
+def main() -> None:
     args = parse_args()
     config = load_config(args)
     configure_logging(args.log_level)
@@ -110,8 +110,6 @@ def main() -> int:
         App(daemon).run()
     except Exception:
         logger.exception("unhandled exception in main")
-        return 1
-    return 0
 
 
 __all__ = [main.__name__]

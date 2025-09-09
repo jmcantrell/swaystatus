@@ -1,4 +1,7 @@
 from .cli import main
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        main()
+    except KeyboardInterrupt:
+        raise SystemExit(130)
