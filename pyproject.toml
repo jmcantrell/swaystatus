@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name="Jeremy Cantrell", email="jmcantrell@gmail.com" }
 ]
-license-files = { paths = ["LICENSE"] }
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 keywords = ["sway", "wm", "status"]
 classifiers = [
@@ -42,14 +42,11 @@ dev = [
 swaystatus = "swaystatus.cli:main"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build"]
+build-backend = "uv_build"
 
-[tool.hatch.build]
-include = ["/src", "/tests"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/swaystatus"]
+[tool.uv.build-backend]
+source-include = ["tests/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
