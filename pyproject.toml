@@ -1,6 +1,6 @@
 [project]
 name = "swaystatus"
-version = "0.10.1"
+version = "0.10.2"
 description = "Generate a status line for swaybar"
 readme = "README.md"
 authors = [
