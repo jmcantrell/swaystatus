@@ -288,6 +288,7 @@ class BaseElement:
             return lambda line: func(f"output from {handler_desc}: {line.strip()}")
 
         def handle_shell_command(cmd: str | list[str]) -> Popen:
+            logger.debug(f"executing in shell command={cmd!r} environment={self.env}")
             return PopenStreamHandler(prefixed(logger.debug), prefixed(logger.error), cmd, shell=True, text=True)
 
         handler_wrapped: Callable[[Self, ClickEvent], ClickHandlerResult]
