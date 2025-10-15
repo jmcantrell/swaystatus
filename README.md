@@ -8,7 +8,7 @@ Generate a status line for [swaybar][swaybar-protocol].
 
 Install as a python package:
 
-    $ pip install swaystatus
+    pip install swaystatus
 
 ### Arch User Repository (AUR)
 
