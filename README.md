@@ -12,17 +12,20 @@ Install as a python package:
 
 ### Arch User Repository (AUR)
 
-There are two packages available for Arch Linux, available via the AUR.
+There are two packages available for Arch Linux, available via the AUR:
 
-Stable, based on the latest tagged release: [swaystatus][pkg-aur]
-
-Unstable, based on the latest commit to the main branch: [swaystatus-git][pkg-aur-git]
+- [swaystatus][pkg-aur] (stable, based on the latest tag)
+- [swaystatus-git][pkg-aur-git] (unstable, based on the latest commit)
 
 ## Usage
 
-See `pydoc swaystatus` for details on package usage.
+To see documentation for the python package:
 
-See `swaystatus --help` for command line interface help.
+    pydoc swaystatus
+
+To see documentation for the command line interface:
+
+    swaystatus --help
 
 See [sway-bar(5)][sway-bar] for details on setting `status_command`.
 
