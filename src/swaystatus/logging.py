@@ -3,9 +3,10 @@ from logging import Formatter, StreamHandler, basicConfig, getLogger
 from .env import self_name
 
 logger = getLogger(self_name)
+log_format = "%(name)s: %(levelname)s: %(message)s"
 
 
-def configure(level: str) -> None:
-    stream_handler = StreamHandler()
-    stream_handler.setFormatter(Formatter("%(name)s: %(levelname)s: %(message)s"))
-    basicConfig(level=level.upper(), handlers=[stream_handler])
+def configure_logging(level_name: str) -> None:
+    handler = StreamHandler()
+    handler.setFormatter(Formatter(log_format))
+    basicConfig(level=level_name.upper(), handlers=[handler])
