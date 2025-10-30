@@ -2,4 +2,4 @@
 
 set -euo pipefail
 
-exec uv build
+exec uv build --clear
