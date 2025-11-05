@@ -7,8 +7,7 @@ from .app import App
 from .config import Config
 from .daemon import Daemon
 from .env import environ_path, environ_paths, self_name
-from .logging import configure as configure_logging
-from .logging import logger
+from .logging import configure_logging, logger
 from .version import version
 from .xdg import config_home, data_home
 
