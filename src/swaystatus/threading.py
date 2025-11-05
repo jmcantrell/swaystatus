@@ -30,6 +30,7 @@ class OutputWriter:
         logger.info("starting output")
         self._running.set()
         for blocks in self.output_generator.process(self.file):
+            logger.debug(f"processed output: {blocks}")
             self._tick.clear()
             self._tick.wait(self.interval)
             if not self._running.is_set():
