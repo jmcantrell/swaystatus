@@ -23,10 +23,10 @@ fi
 
 uv version --bump "$bump"
 
-file=./src/$name/version
+version_file=./src/$name/version
 version=$(uv version --short)
-printf "%s\n" "$version" >"$file"
+printf "%s\n" "$version" >"$version_file"
 
-git add "$file" uv.lock pyproject.toml
+git add "$version_file" uv.lock pyproject.toml
 git commit -m "Bump $bump version"
 git tag "v$version"
