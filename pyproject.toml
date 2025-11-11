@@ -28,9 +28,9 @@ classifiers = [
 [dependency-groups]
 dev = [
     "jedi>=0.19.2",
-    "mypy>=1.17.1",
+    "mypy>=1.18.2",
     "pytest>=9.0.0",
-    "ruff>=0.12.12",
+    "ruff>=0.14.4",
 ]
 
 [project.urls]
