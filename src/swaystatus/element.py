@@ -287,7 +287,7 @@ class BaseElement:
         def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
             return lambda line: func(f"output from {handler_desc}: {line.strip()}")
 
-        def handle_shell_command(cmd: str | list[str]) -> Popen:
+        def handle_shell_command(cmd: ShellCommand) -> Popen:
             logger.debug(f"executing in shell command={cmd!r} environment={self.env}")
             return PopenStreamHandler(prefixed(logger.debug), prefixed(logger.error), cmd, shell=True, text=True)
 
