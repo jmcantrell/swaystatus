@@ -46,6 +46,7 @@ def test_modules_entry_points(tmp_module, monkeypatch) -> None:
         assert kwargs["group"] == "swaystatus.modules"
         return [EntryPoint()]
 
+    assert hasattr(importlib, "metadata")
     monkeypatch.setattr(importlib.metadata, "entry_points", entry_points)
     registry = ModuleRegistry([tmp_module().parent])
     assert len(registry.packages) == 2  # tmp_path and the fake entry point

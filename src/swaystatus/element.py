@@ -287,7 +287,7 @@ class BaseElement:
         def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
             return lambda line: func(f"output from {handler_desc}: {line.strip()}")
 
-        def handle_shell_command(cmd: ShellCommand) -> Popen:
+        def handler_inner(cmd: ShellCommand | ClickHandlerResult) -> Popen:
             logger.debug(f"executing in shell command={cmd!r} environment={self.env}")
             return PopenStreamHandler(prefixed(logger.debug), prefixed(logger.error), cmd, shell=True, text=True)
 
@@ -297,12 +297,12 @@ class BaseElement:
 
             def handler_wrapped(element: Self, event: ClickEvent) -> ClickHandlerResult:
                 result = handler(element, event)
-                return handle_shell_command(result) if isinstance(result, (str, list)) else result
+                return handler_inner(result) if isinstance(result, (str, list)) else result
 
         else:
 
             def handler_wrapped(element: Self, event: ClickEvent) -> Popen:
-                return handle_shell_command(handler)
+                return handler_inner(handler)
 
         def method_wrapped(self: Self, event: ClickEvent) -> ClickHandlerResult:
             logger.debug(f"executing {handler_desc} => {handler}")

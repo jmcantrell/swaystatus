@@ -1,6 +1,6 @@
 from json import JSONEncoder
 from signal import SIGCONT, SIGSTOP
-from typing import IO, Any, Iterable, Iterator
+from typing import IO, Iterable, Iterator
 
 from .block import Block
 from .element import BaseElement
@@ -47,8 +47,8 @@ class OutputGenerator:
 
 
 class Encoder(JSONEncoder):
-    def default(self, block: Block) -> dict[str, Any]:
-        return block.as_dict()
+    def default(self, o):
+        return o.as_dict()
 
 
 __all__ = [OutputGenerator.__name__]
