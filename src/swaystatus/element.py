@@ -17,8 +17,8 @@ from .logging import logger
 from .subprocess import PopenStreamHandler
 
 type ShellCommand = str | list[str]
-type ClickHandlerResult = Popen | Callable[[], bool] | bool | None
 type ClickHandler[E: BaseElement] = ShellCommand | Callable[[E, ClickEvent], ShellCommand | ClickHandlerResult]
+type ClickHandlerResult = Popen | Callable[[], bool] | bool | None
 
 
 class BaseElement:
