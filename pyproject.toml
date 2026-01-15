@@ -28,10 +28,10 @@ classifiers = [
 [dependency-groups]
 dev = [
     "jedi>=0.19.2",
-    "mypy>=1.18.2",
-    "pytest>=9.0.0",
-    "ruff>=0.14.4",
-    "ty>=0.0.10",
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "ruff>=0.14.11",
+    "ty>=0.0.12",
 ]
 
 [project.urls]
