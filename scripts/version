@@ -29,4 +29,4 @@ printf "%s\n" "$version" >"$version_file"
 
 git add "$version_file" uv.lock pyproject.toml
 git commit -m "Bump $bump version"
-git tag "v$version"
+git tag -a -m "Release version $version" v"$version"
