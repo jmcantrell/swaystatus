@@ -51,22 +51,22 @@ class InputReader(Thread):
         for event, handler_result in self.input_delegator.process(self.file):
             if isinstance(handler_result, Popen):
                 logger.debug(f"waiting on handler process for {event}")
-                UpdateWaiter(lambda: handler_result.wait() == 0, self.output_writer).start()
+                DelayedHandler(lambda: handler_result.wait() == 0, self.output_writer.update).start()
             elif callable(handler_result):
                 logger.debug(f"waiting on handler function for {event}")
-                UpdateWaiter(handler_result, self.output_writer).start()
+                DelayedHandler(handler_result, self.output_writer.update).start()
             elif handler_result:
                 self.output_writer.update()
 
 
-class UpdateWaiter(Thread):
+class DelayedHandler(Thread):
     daemon = True
 
-    def __init__(self, wait: Callable[[], bool], output_writer: OutputWriter) -> None:
+    def __init__(self, wait: Callable[[], bool], handle: Callable[[], None]) -> None:
         super().__init__(name="update")
         self.wait = wait
-        self.output_writer = output_writer
+        self.handle = handle
 
     def run(self) -> None:
         if self.wait():
-            self.output_writer.update()
+            self.handle()
