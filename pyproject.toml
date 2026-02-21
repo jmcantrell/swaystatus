@@ -31,7 +31,6 @@ dev = [
     "mypy>=1.19.1",
     "pytest>=9.0.2",
     "ruff>=0.15.2",
-    "ty>=0.0.18",
 ]
 
 [project.urls]

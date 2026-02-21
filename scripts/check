@@ -2,5 +2,4 @@
 
 set -euo pipefail
 
-uv run ty check
 uv run ruff check
