@@ -49,7 +49,7 @@ def test_element_on_click_function() -> None:
 
     clicked_element: BaseElement | None = None
 
-    def handler(element: BaseElement, event: ClickEvent):
+    def handler(element: Element, event: ClickEvent):
         nonlocal clicked_element
         clicked_element = element
 
@@ -92,7 +92,7 @@ def test_element_on_click_function_return_passthrough() -> None:
 
     for expected_value in (None, False, True, lambda: True, Popen("true")):
 
-        def handler(element: BaseElement, event: ClickEvent) -> ClickHandlerResult:
+        def handler(element: Element, event: ClickEvent) -> ClickHandlerResult:
             return expected_value
 
         button = randint(1, 5)
@@ -109,7 +109,7 @@ def test_element_on_click_function_return_shell_command_run() -> None:
 
     for expected_args in ("true", ["true"]):
 
-        def handler(element: BaseElement, event: ClickEvent) -> ShellCommand:
+        def handler(element: Element, event: ClickEvent, /) -> ShellCommand | ClickHandlerResult:
             return expected_args
 
         button = randint(1, 5)
