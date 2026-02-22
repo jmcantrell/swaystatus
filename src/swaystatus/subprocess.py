@@ -2,6 +2,23 @@ from subprocess import PIPE, Popen
 from threading import Thread
 from typing import IO, Callable
 
+from .logging import logger
+
+
+class ProxyThread[T: (str, bytes)](Thread):
+    source: IO[T]
+    handler: Callable[[T], None]
+
+    def __init__(self, source: IO[T], handler: Callable[[T], None]) -> None:
+        super().__init__()
+        self.source = source
+        self.handler = handler
+
+    def run(self) -> None:
+        with self.source as lines:
+            for line in lines:
+                self.handler(line)
+
 
 class PopenStreamHandler(Popen):
     """Just like `Popen`, but handle stdout and stderr output in dedicated threads."""
@@ -14,15 +31,20 @@ class PopenStreamHandler(Popen):
         ProxyThread(self.stderr, stderr_handler).start()
 
 
-class ProxyThread(Thread):
-    """Thread that sends it's input to a function."""
+class PopenLogged(PopenStreamHandler):
+    """Just like `Popen`, but log stdout and stderr using dedicated threads."""
 
-    def __init__(self, source: IO[str], handler: Callable[[str], None]) -> None:
-        super().__init__()
-        self.source = source
-        self.handler = handler
+    def __init__(self, prefix: str, *args, **kwargs) -> None:
+        def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
+            def inner(line: str) -> None:
+                func(f"{prefix}: {line.strip()}")
 
-    def run(self) -> None:
-        with self.source as lines:
-            for line in lines:
-                self.handler(line.strip())
+            return inner
+
+        super().__init__(
+            prefixed(logger.debug),
+            prefixed(logger.error),
+            *args,
+            **kwargs,
+            text=True,
+        )

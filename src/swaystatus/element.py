@@ -14,7 +14,7 @@ from .block import Block
 from .click_event import ClickEvent
 from .env import environ_update
 from .logging import logger
-from .subprocess import PopenStreamHandler
+from .subprocess import PopenLogged
 
 type ShellCommand = str | list[str]
 type ClickHandler[E: BaseElement] = ShellCommand | Callable[[E, ClickEvent], ShellCommand | ClickHandlerResult]
@@ -284,25 +284,20 @@ class BaseElement:
         handler_kind = "function" if callable(handler) else "shell command"
         handler_desc = f"{self} {method_name} {handler_kind}"
 
-        def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
-            return lambda line: func(f"output from {handler_desc}: {line.strip()}")
-
-        def handler_inner(cmd: ShellCommand | ClickHandlerResult) -> Popen:
+        def handle_shell_command(cmd: ShellCommand) -> Popen:
             logger.debug(f"executing in shell command={cmd!r} environment={self.env}")
-            return PopenStreamHandler(prefixed(logger.debug), prefixed(logger.error), cmd, shell=True, text=True)
-
-        handler_wrapped: Callable[[Self, ClickEvent], ClickHandlerResult]
+            return PopenLogged(f"output from {handler_desc}", cmd, shell=True)
 
         if callable(handler):
 
             def handler_wrapped(element: Self, event: ClickEvent) -> ClickHandlerResult:
                 result = handler(element, event)
-                return handler_inner(result) if isinstance(result, (str, list)) else result
+                return handle_shell_command(result) if isinstance(result, (str, list)) else result
 
         else:
 
-            def handler_wrapped(element: Self, event: ClickEvent) -> Popen:
-                return handler_inner(handler)
+            def handler_wrapped(element: Self, event: ClickEvent) -> ClickHandlerResult:
+                return handle_shell_command(handler)
 
         def method_wrapped(self: Self, event: ClickEvent) -> ClickHandlerResult:
             logger.debug(f"executing {handler_desc} => {handler}")
