@@ -47,7 +47,7 @@ from .logging import logger
 
 
 class ModuleRegistry:
-    """Provide a way to locate and import swaystatus elements."""
+    """Track, locate, and import status bar elements."""
 
     def __init__(self, include: Iterable[str | Path]) -> None:
         self.include = [Path(i).expanduser() for i in include or []]

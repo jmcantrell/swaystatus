@@ -1,18 +1,20 @@
 import sys
 from subprocess import Popen
 from threading import Event, Thread
-from typing import Callable
 
+from .element import ClickHandlerResult
 from .input import InputDelegator
 from .logging import logger
-from .output import OutputGenerator
+from .output import OutputDelegator
 
 
 class OutputWriter:
+    """Write status lines to an output file at a regular interval and when requested."""
+
     file = sys.stdout
 
-    def __init__(self, output_generator: OutputGenerator, interval: float) -> None:
-        self.output_generator = output_generator
+    def __init__(self, output_delegator: OutputDelegator, interval: float) -> None:
+        self.output_delegator = output_delegator
         self.interval = interval
         self._tick = Event()
         self._running = Event()
@@ -29,7 +31,7 @@ class OutputWriter:
     def start(self) -> None:
         logger.info("starting output")
         self._running.set()
-        for blocks in self.output_generator.process(self.file):
+        for blocks in self.output_delegator.process(self.file):
             logger.debug(f"processed output: {blocks}")
             self._tick.clear()
             self._tick.wait(self.interval)
@@ -38,6 +40,8 @@ class OutputWriter:
 
 
 class InputReader(Thread):
+    """Send click events from an input file to a targed element and handle results."""
+
     daemon = True
     file = sys.stdin
 
@@ -48,25 +52,28 @@ class InputReader(Thread):
 
     def run(self) -> None:
         logger.info("starting input")
-        for event, handler_result in self.input_delegator.process(self.file):
-            if isinstance(handler_result, Popen):
-                logger.debug(f"waiting on handler process for {event}")
-                DelayedHandler(lambda: handler_result.wait() == 0, self.output_writer.update).start()
-            elif callable(handler_result):
-                logger.debug(f"waiting on handler function for {event}")
-                DelayedHandler(handler_result, self.output_writer.update).start()
-            elif handler_result:
-                self.output_writer.update()
+        for click_event, handler_result in self.input_delegator.process(self.file):
+            logger.debug(f"handled {click_event} with result: {handler_result!r}")
+            UpdateHandler(self.output_writer, handler_result).start()
 
 
-class DelayedHandler(Thread):
+class UpdateHandler(Thread):
+    """Update the status line only after successful handler completion."""
+
     daemon = True
 
-    def __init__(self, wait: Callable[[], bool], handle: Callable[[], None]) -> None:
+    def __init__(self, output_writer: OutputWriter, handler_result: ClickHandlerResult) -> None:
         super().__init__(name="update")
-        self.wait = wait
-        self.handle = handle
+        self.output_writer = output_writer
+        self.handler_result = handler_result
+
+    def wait(self) -> bool:
+        return (
+            (isinstance(self.handler_result, Popen) and self.handler_result.wait() == 0)
+            or (callable(self.handler_result) and self.handler_result())
+            or bool(self.handler_result)
+        )
 
     def run(self) -> None:
         if self.wait():
-            self.handle()
+            self.output_writer.update()

@@ -35,21 +35,21 @@ class InputDelegator:
         return None
 
     def process(self, file: IO[str]) -> Iterator[tuple[ClickEvent, ClickHandlerResult]]:
-        """Handle each line of input, yielding the parsed click event and the result of its handler."""
+        """Process each line of the file, yielding the parsed click event and the result of its handler."""
         decoder = Decoder()
         assert file.readline().strip() == "["
         for line in file:
             try:
-                event = decoder.decode(line.strip().lstrip(","))
+                click_event = decoder.decode(line.strip().lstrip(","))
             except Exception:
-                logger.exception("exception while decoding input: {line!r}")
+                logger.exception(f"exception while decoding input: {line!r}")
                 continue
-            logger.debug(f"received click event: {event!r}")
-            if element := self.find_element(event.name, event.instance):
-                logger.info(f"sending {event} to {element}")
-                yield event, element.on_click(event)
+            logger.debug(f"received click event: {click_event!r}")
+            if element := self.find_element(click_event.name, click_event.instance):
+                logger.info(f"sending {click_event} to {element}")
+                yield click_event, element.on_click(click_event)
             else:
-                logger.warning(f"unable to identify source element for {event}")
+                logger.warning(f"unable to identify source element for {click_event}")
 
 
 class Decoder(JSONDecoder):

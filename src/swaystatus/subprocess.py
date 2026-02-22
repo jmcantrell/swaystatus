@@ -1,50 +1,43 @@
 from subprocess import PIPE, Popen
 from threading import Thread
-from typing import IO, Callable
+from typing import Callable, Iterator
 
 from .logging import logger
+from .typing import ShellCommand
 
 
-class ProxyThread[T: (str, bytes)](Thread):
-    source: IO[T]
+class ProxyThread[T](Thread):
+    """Dedicated thread for handling items from a generator."""
+
+    source: Iterator[T]
     handler: Callable[[T], None]
 
-    def __init__(self, source: IO[T], handler: Callable[[T], None]) -> None:
+    def __init__(self, source: Iterator[T], handler: Callable[[T], None]) -> None:
         super().__init__()
         self.source = source
         self.handler = handler
 
     def run(self) -> None:
-        with self.source as lines:
-            for line in lines:
-                self.handler(line)
+        for item in self.source:
+            self.handler(item)
 
 
-class PopenStreamHandler(Popen):
-    """Just like `Popen`, but handle stdout and stderr output in dedicated threads."""
-
-    def __init__(self, stdout_handler, stderr_handler, *args, **kwargs) -> None:
-        kwargs["stdout"] = kwargs["stderr"] = PIPE
-        super().__init__(*args, **kwargs)
-        assert self.stdout and self.stderr
-        ProxyThread(self.stdout, stdout_handler).start()
-        ProxyThread(self.stderr, stderr_handler).start()
-
-
-class PopenLogged(PopenStreamHandler):
+class ShellCommandProcess(Popen):
     """Just like `Popen`, but log stdout and stderr using dedicated threads."""
 
-    def __init__(self, prefix: str, *args, **kwargs) -> None:
-        def prefixed(func: Callable[[str], None]) -> Callable[[str], None]:
-            def inner(line: str) -> None:
-                func(f"{prefix}: {line.strip()}")
+    def __init__(self, command: ShellCommand, prefix="output from shell command") -> None:
+        def prefixed(line: str) -> str:
+            return f"{prefix}: {line.strip()}"
 
-            return inner
+        def stdout_handler(line: str) -> None:
+            logger.debug(prefixed(line))
 
-        super().__init__(
-            prefixed(logger.debug),
-            prefixed(logger.error),
-            *args,
-            **kwargs,
-            text=True,
-        )
+        def stderr_handler(line: str) -> None:
+            logger.error(prefixed(line))
+
+        super().__init__(command, stdout=PIPE, stderr=PIPE, shell=True, text=True)
+
+        assert self.stdout and self.stderr
+
+        ProxyThread(self.stdout, stdout_handler).start()
+        ProxyThread(self.stderr, stderr_handler).start()

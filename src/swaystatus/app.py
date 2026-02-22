@@ -6,6 +6,8 @@ from .logging import logger
 
 
 class App:
+    """Manager for the daemon's lifecycle."""
+
     def __init__(self, daemon: Daemon) -> None:
         self.daemon = daemon
 

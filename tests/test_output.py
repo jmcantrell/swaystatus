@@ -1,7 +1,7 @@
 from typing import Iterator
 
 from swaystatus import BaseElement, Block
-from swaystatus.output import OutputGenerator
+from swaystatus.output import OutputDelegator
 
 
 def test_output_multiple_blocks() -> None:
@@ -15,8 +15,8 @@ def test_output_multiple_blocks() -> None:
             for text in texts:
                 yield self.block(text)
 
-    output_generator = OutputGenerator([Element()])
-    actual_blocks = list(output_generator.blocks())
+    output_delegator = OutputDelegator([Element()])
+    actual_blocks = list(output_delegator.blocks())
     expected_blocks = [Block(name="test", full_text=text) for text in texts]
     assert actual_blocks == expected_blocks
 
@@ -36,8 +36,8 @@ def test_output_multiple_elements() -> None:
         def blocks(self) -> Iterator[Block]:
             yield self.block("bar")
 
-    output_generator = OutputGenerator([Element1(), Element2()])
-    actual_blocks = list(output_generator.blocks())
+    output_delegator = OutputDelegator([Element1(), Element2()])
+    actual_blocks = list(output_delegator.blocks())
     expected_blocks = [
         Block(name="test1", full_text="foo"),
         Block(name="test2", full_text="bar"),

@@ -8,22 +8,19 @@ collected blocks are encoded and sent to the bar via stdout.
 
 from subprocess import Popen
 from types import MethodType
-from typing import Callable, Iterator, Self
+from typing import Iterator, Self
 
 from .block import Block
 from .click_event import ClickEvent
 from .env import environ_update
 from .logging import logger
-from .subprocess import PopenLogged
-
-type ShellCommand = str | list[str]
-type ClickHandler[E: BaseElement] = ShellCommand | Callable[[E, ClickEvent], ShellCommand | ClickHandlerResult]
-type ClickHandlerResult = Popen | Callable[[], bool] | bool | None
+from .subprocess import ShellCommandProcess
+from .typing import ClickHandler, ClickHandlerResult, ShellCommand
 
 
 class BaseElement:
     """
-    A base class for constructing elements for the status bar.
+    Base class for constructing elements for the status bar.
 
     The subclass must be named `Element` and be contained in a module file
     whose name will be used by swaystatus to identify it. For example, if there
@@ -281,12 +278,12 @@ class BaseElement:
                   - `None` and the status bar is not updated.
         """
         method_name = f"on_click_{button}"
+        handler_desc = f"{self} {method_name} handler"
         handler_kind = "function" if callable(handler) else "shell command"
-        handler_desc = f"{self} {method_name} {handler_kind}"
 
-        def handle_shell_command(cmd: ShellCommand) -> Popen:
-            logger.debug(f"executing in shell command={cmd!r} environment={self.env}")
-            return PopenLogged(f"output from {handler_desc}", cmd, shell=True)
+        def handle_shell_command(command: ShellCommand) -> Popen:
+            logger.debug(f"executing in shell command={command!r} environment={self.env}")
+            return ShellCommandProcess(command, prefix=f"output from {handler_desc}")
 
         if callable(handler):
 
@@ -300,7 +297,7 @@ class BaseElement:
                 return handle_shell_command(handler)
 
         def method_wrapped(self: Self, event: ClickEvent) -> ClickHandlerResult:
-            logger.debug(f"executing {handler_desc} => {handler}")
+            logger.debug(f"executing {handler_desc} => {handler_kind}: {handler}")
             with environ_update(**self.env | event.as_dict()):
                 try:
                     return handler_wrapped(self, event)
@@ -308,7 +305,7 @@ class BaseElement:
                     logger.exception(f"unhandled exception in {handler_desc}")
             return None
 
-        logger.debug(f"setting {handler_desc} => {handler}")
+        logger.debug(f"setting {handler_desc} => {handler_kind}: {handler}")
         setattr(self, method_name, MethodType(method_wrapped, self))
 
 
