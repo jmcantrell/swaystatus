@@ -2,4 +2,6 @@
 
 set -euo pipefail
 
+source ./.env.local
+
 uv publish
