@@ -1,3 +1,4 @@
+from functools import cache
 from json import JSONEncoder
 from signal import SIGCONT, SIGSTOP
 from typing import IO, Iterable, Iterator
@@ -12,15 +13,21 @@ class OutputDelegator:
 
     def __init__(self, elements: Iterable[BaseElement], click_events=False) -> None:
         self.elements = list(elements)
-        self.click_events = click_events
+        self.click_events = bool(click_events)
+
+    @cache
+    def element_blocks(self, element: BaseElement) -> list[Block]:
+        try:
+            return list(element.blocks())
+        except Exception:
+            logger.exception(f"exception while getting blocks for {element}")
+            return []
 
     def blocks(self) -> Iterator[Block]:
         """Yield blocks from every element."""
+        self.element_blocks.cache_clear()
         for element in self.elements:
-            try:
-                yield from element.blocks()
-            except Exception:
-                logger.exception(f"exception while getting blocks for {element}")
+            yield from self.element_blocks(element)
 
     def process(self, file: IO[str]) -> Iterator[list[Block]]:
         """Send status lines to output and yield the originating blocks."""
