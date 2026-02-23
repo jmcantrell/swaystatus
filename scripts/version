@@ -9,7 +9,7 @@ while getopts "Mmp" opt; do
     M) bump='major' ;;
     m) bump='minor' ;;
     p) bump='patch' ;;
-    *) exit 2 ;;
+    *) exit 64 ;;
     esac
 done
 shift $((OPTIND - 1))
@@ -22,11 +22,11 @@ if [[ ! -v bump ]]; then
 fi
 
 uv version --bump "$bump"
-
-version_file=./src/$name/version
 version=$(uv version --short)
-printf "%s\n" "$version" >"$version_file"
 
-git add "$version_file" uv.lock pyproject.toml
+package_file=./src/$name/__init__.py
+sed -i "/^__version__\b/s/=.*/= \"$version\"/" "$package_file"
+
+git add "$package_file" uv.lock pyproject.toml
 git commit -m "Bump $bump version"
 git tag -a -m "Release version $version" v"$version"

@@ -3,12 +3,12 @@
 import argparse
 from pathlib import Path
 
+from . import __version__
 from .app import App
 from .config import Config
 from .daemon import Daemon
 from .env import environ_path, environ_paths, self_name
 from .logging import configure_logging, logger
-from .version import version
 from .xdg import config_home, data_home
 
 
@@ -24,7 +24,7 @@ def parse_args() -> argparse.Namespace:
         "-v",
         "--version",
         action="version",
-        version=version,
+        version=__version__,
     )
     parser.add_argument(
         "-c",
