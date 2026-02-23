@@ -47,8 +47,8 @@ class OutputDelegator:
 
 
 class Encoder(JSONEncoder):
-    def default(self, o):
-        return o.as_dict()
+    def default(self, block: Block):
+        return block.as_dict()
 
 
 __all__ = [OutputDelegator.__name__]
