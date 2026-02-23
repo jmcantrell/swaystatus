@@ -71,7 +71,7 @@ A typical configuration file might look like the following:
 
 import tomllib
 from dataclasses import dataclass, field
-from functools import cached_property
+from functools import cache, cached_property
 from pathlib import Path
 from typing import Any, Self
 
@@ -95,23 +95,31 @@ class Config:
     env: dict[str, str] = field(default_factory=dict)
 
     @cached_property
+    def module_registry(self) -> ModuleRegistry:
+        return ModuleRegistry(self.include)
+
+    @cache
+    def element_class(self, name: str) -> type[BaseElement]:
+        return self.module_registry.element_class(name)
+
+    @cache
+    def element(self, key: str) -> BaseElement:
+        """Return an element instance for a configuration key."""
+        logger.info(f"loading element {key=!r}")
+        name, instance = decode_element_key(key)
+        Element = self.element_class(name)
+        kwargs = self.settings.get(name, {})
+        if instance:
+            kwargs = deep_merge_dicts(kwargs, self.settings.get(key, {}))
+        kwargs["env"] = self.env | kwargs.get("env", {})
+        kwargs["instance"] = instance
+        logger.debug(f"initializing element {name=!r}: {kwargs=!r}")
+        return Element(**kwargs)
+
+    @cached_property
     def elements(self) -> list[BaseElement]:
         """Return all status bar content producers in order."""
-        result = []
-        registry = ModuleRegistry(self.include)
-        for key in self.order:
-            name, instance = decode_key(key)
-            logger.info(f"loading element {name=!r} {instance=!r}")
-            Element = registry.element_class(name)
-            kwargs = deep_merge_dicts(
-                self.settings.get(name, {}),
-                self.settings.get(key, {}),
-            )
-            kwargs["env"] = self.env | kwargs.get("env", {})
-            kwargs["instance"] = instance
-            logger.debug(f"initializing element {name=!r}: {kwargs=!r}")
-            result.append(Element(**kwargs))
-        return result
+        return list(map(self.element, self.order))
 
     @classmethod
     def from_file(cls, file: Path) -> Self:
@@ -119,12 +127,13 @@ class Config:
         return cls(**tomllib.load(file.open("rb")))
 
 
-def decode_key(key: str) -> tuple[str, str | None]:
-    """Parse a name and instance from a string like "name" or "name:instance"."""
+def decode_element_key(key: str) -> tuple[str, str | None]:
+    """Parse an element name and instance from a string like "name" or "name:instance"."""
     try:
         name, instance = key.split(":", maxsplit=1)
     except ValueError:
         name, instance = key, None
+    assert name
     return name, instance
 
 
