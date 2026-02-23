@@ -256,9 +256,10 @@ class BaseElement:
         The `handler` can be one of the following:
 
             - A shell command compatible with `Popen`, i.e. a string or list of
-              strings. Output will be logged at the `DEBUG` level. It will be
-              allowed to finish in a separate thread, and if the return code is
-              zero, the status bar will be updated.
+              strings. The stdout and stderr streams will be logged at the
+              `DEBUG` and `ERROR` levels, respectively. It will be allowed to
+              finish in a separate thread, and if the return code is zero, the
+              status bar will be updated.
 
             - A function that accepts two positional arguments (this element
               instance and a `ClickEvent`) and returns one of the following:
@@ -278,12 +279,12 @@ class BaseElement:
                   - `None` and the status bar is not updated.
         """
         method_name = f"on_click_{button}"
-        handler_desc = f"{self} {method_name} handler"
         handler_kind = "function" if callable(handler) else "shell command"
+        handler_desc = f"{self} {method_name} {handler_kind} handler"
 
         def handle_shell_command(command: ShellCommand) -> Popen:
-            logger.debug(f"executing in shell command={command!r} environment={self.env}")
-            return ShellCommandProcess(command, prefix=f"output from {handler_desc}")
+            logger.debug(f"executing shell command={command!r}")
+            return ShellCommandProcess(command)
 
         if callable(handler):
 
@@ -297,7 +298,7 @@ class BaseElement:
                 return handle_shell_command(handler)
 
         def method_wrapped(self: Self, event: ClickEvent) -> ClickHandlerResult:
-            logger.debug(f"executing {handler_desc} => {handler_kind}: {handler}")
+            logger.debug(f"executing {handler_desc} => {handler}")
             with environ_update(**self.env | event.as_dict()):
                 try:
                     return handler_wrapped(self, event)
@@ -305,7 +306,7 @@ class BaseElement:
                     logger.exception(f"unhandled exception in {handler_desc}")
             return None
 
-        logger.debug(f"setting {handler_desc} => {handler_kind}: {handler}")
+        logger.debug(f"setting {handler_desc} => {handler}")
         setattr(self, method_name, MethodType(method_wrapped, self))
 
 

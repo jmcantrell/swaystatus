@@ -6,7 +6,7 @@ from typing import Any
 
 @dataclass(slots=True, kw_only=True)
 class Block:
-    """Data class for units of status bar content."""
+    """Data class representing a unit of status bar content."""
 
     full_text: str | None = None
     short_text: str | None = None

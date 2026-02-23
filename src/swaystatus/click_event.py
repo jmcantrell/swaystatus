@@ -6,7 +6,7 @@ from typing import Any
 
 @dataclass(slots=True, kw_only=True)
 class ClickEvent:
-    """Data class for events generated when clicking on status bar blocks."""
+    """Data class representing an event generated when clicking on a status bar block."""
 
     name: str | None = None
     instance: str | None = None

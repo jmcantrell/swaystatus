@@ -84,7 +84,7 @@ default_interval = 5.0
 
 @dataclass(kw_only=True, eq=False)
 class Config:
-    """Data class for runtime configuration."""
+    """Data class representing runtime configuration."""
 
     order: list[str] = field(default_factory=list)
     interval: float = default_interval

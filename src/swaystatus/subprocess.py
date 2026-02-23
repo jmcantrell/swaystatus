@@ -23,21 +23,10 @@ class ProxyThread[T](Thread):
 
 
 class ShellCommandProcess(Popen):
-    """Just like `Popen`, but log stdout and stderr using dedicated threads."""
+    """Run a shell command, logging stdout and stderr."""
 
-    def __init__(self, command: ShellCommand, prefix="output from shell command") -> None:
-        def prefixed(line: str) -> str:
-            return f"{prefix}: {line.strip()}"
-
-        def stdout_handler(line: str) -> None:
-            logger.debug(prefixed(line))
-
-        def stderr_handler(line: str) -> None:
-            logger.error(prefixed(line))
-
+    def __init__(self, command: ShellCommand) -> None:
         super().__init__(command, stdout=PIPE, stderr=PIPE, shell=True, text=True)
-
         assert self.stdout and self.stderr
-
-        ProxyThread(self.stdout, stdout_handler).start()
-        ProxyThread(self.stderr, stderr_handler).start()
+        ProxyThread(self.stdout, logger.debug).start()
+        ProxyThread(self.stderr, logger.error).start()
