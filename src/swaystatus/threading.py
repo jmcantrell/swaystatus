@@ -3,9 +3,9 @@ from subprocess import Popen
 from threading import Event, Thread
 
 from .element import ClickHandlerResult
-from .input import InputDelegator
+from .input import InputProcessor
 from .logging import logger
-from .output import OutputDelegator
+from .output import OutputProcessor
 
 
 class OutputWriter:
@@ -13,8 +13,8 @@ class OutputWriter:
 
     file = sys.stdout
 
-    def __init__(self, output_delegator: OutputDelegator, interval: float) -> None:
-        self.output_delegator = output_delegator
+    def __init__(self, output_processor: OutputProcessor, interval: float) -> None:
+        self.output_processor = output_processor
         self.interval = interval
         self._tick = Event()
         self._running = Event()
@@ -31,7 +31,7 @@ class OutputWriter:
     def start(self) -> None:
         logger.info("starting output")
         self._running.set()
-        for blocks in self.output_delegator.process(self.file):
+        for blocks in self.output_processor.process(self.file):
             logger.debug(f"processed output: {blocks}")
             self._tick.clear()
             self._tick.wait(self.interval)
@@ -45,14 +45,14 @@ class InputReader(Thread):
     daemon = True
     file = sys.stdin
 
-    def __init__(self, input_delegator: InputDelegator, output_writer: OutputWriter) -> None:
+    def __init__(self, input_processor: InputProcessor, output_writer: OutputWriter) -> None:
         super().__init__(name="input")
-        self.input_delegator = input_delegator
+        self.input_processor = input_processor
         self.output_writer = output_writer
 
     def run(self) -> None:
         logger.info("starting input")
-        for click_event, handler_result in self.input_delegator.process(self.file):
+        for click_event, handler_result in self.input_processor.process(self.file):
             logger.debug(f"handled {click_event} with result: {handler_result!r}")
             UpdateHandler(self.output_writer, handler_result).start()
 

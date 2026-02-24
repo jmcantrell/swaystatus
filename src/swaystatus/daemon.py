@@ -1,9 +1,9 @@
 from typing import Iterable
 
 from .element import BaseElement
-from .input import InputDelegator
+from .input import InputProcessor
 from .logging import logger
-from .output import OutputDelegator
+from .output import OutputProcessor
 from .threading import InputReader, OutputWriter
 
 
@@ -11,8 +11,8 @@ class Daemon:
     """Coordinator of input and output."""
 
     def __init__(self, elements: Iterable[BaseElement], interval: float, click_events: bool) -> None:
-        self.output_writer = OutputWriter(OutputDelegator(elements, click_events), interval)
-        self.input_reader = InputReader(InputDelegator(elements), self.output_writer) if click_events else None
+        self.output_writer = OutputWriter(OutputProcessor(elements, click_events), interval)
+        self.input_reader = InputReader(InputProcessor(elements), self.output_writer) if click_events else None
 
     def update(self) -> None:
         self.output_writer.update()

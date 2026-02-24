@@ -7,7 +7,7 @@ from .element import BaseElement, ClickHandlerResult
 from .logging import logger
 
 
-class InputDelegator:
+class InputProcessor:
     """Handle click events, sending them to the appropriate element's handler."""
 
     def __init__(self, elements: Iterable[BaseElement]) -> None:
@@ -57,4 +57,4 @@ class Decoder(JSONDecoder):
         super().__init__(object_hook=lambda kwargs: ClickEvent(**kwargs))
 
 
-__all__ = [InputDelegator.__name__]
+__all__ = [InputProcessor.__name__]

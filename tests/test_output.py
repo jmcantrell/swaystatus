@@ -5,7 +5,7 @@ from signal import SIGCONT, SIGSTOP
 from typing import Iterator
 
 from swaystatus import BaseElement, Block
-from swaystatus.output import OutputDelegator
+from swaystatus.output import OutputProcessor
 
 
 def test_output_multiple_blocks() -> None:
@@ -19,8 +19,8 @@ def test_output_multiple_blocks() -> None:
             for text in texts:
                 yield self.block(text)
 
-    output_delegator = OutputDelegator([Element()])
-    actual_blocks = list(output_delegator.blocks())
+    output_processor = OutputProcessor([Element()])
+    actual_blocks = list(output_processor.blocks())
     expected_blocks = [Block(name="test", full_text=text) for text in texts]
     assert actual_blocks == expected_blocks
 
@@ -40,8 +40,8 @@ def test_output_multiple_elements() -> None:
         def blocks(self) -> Iterator[Block]:
             yield self.block("bar")
 
-    output_delegator = OutputDelegator([Element1(), Element2()])
-    actual_blocks = list(output_delegator.blocks())
+    output_processor = OutputProcessor([Element1(), Element2()])
+    actual_blocks = list(output_processor.blocks())
     expected_blocks = [
         Block(name="test1", full_text="foo"),
         Block(name="test2", full_text="bar"),
@@ -65,14 +65,14 @@ def test_output_identical_elements_cached() -> None:
     # Show that separate polls produce different blocks.
     assert list(element.blocks()) != list(element.blocks())
 
-    output_delegator = OutputDelegator([element, element])
+    output_processor = OutputProcessor([element, element])
 
     # Show that the blocks produced by the element are reused.
-    blocks_first = list(output_delegator.blocks())
+    blocks_first = list(output_processor.blocks())
     assert blocks_first[0] == blocks_first[1]
 
     # Show that the blocks produced by the last call are not reused.
-    blocks_second = list(output_delegator.blocks())
+    blocks_second = list(output_processor.blocks())
     assert blocks_first != blocks_second
 
 
@@ -88,8 +88,8 @@ def test_output_process() -> None:
             yield self.block(f"iteration {self.count}")
 
     output_file = StringIO()
-    output_delegator = OutputDelegator([Element()])
-    status = output_delegator.process(output_file)
+    output_processor = OutputProcessor([Element()])
+    status = output_processor.process(output_file)
 
     def next_iteration() -> tuple[list[Block], list[str]]:
         pos = output_file.tell()
@@ -128,10 +128,10 @@ def test_output_process_header_click_events() -> None:
         if click_events is not None:
             kwargs["click_events"] = click_events
 
-        output_delegator = OutputDelegator([], click_events=click_events)
+        output_processor = OutputProcessor([], click_events=click_events)
 
         file = StringIO()
-        next(output_delegator.process(file))
+        next(output_processor.process(file))
 
         file.seek(0)
         header = json.loads(file.readline())

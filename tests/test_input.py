@@ -3,7 +3,7 @@ from itertools import product
 from random import shuffle
 
 from swaystatus import BaseElement, ClickEvent
-from swaystatus.input import InputDelegator
+from swaystatus.input import InputProcessor
 
 from .fake import click_event
 
@@ -36,8 +36,8 @@ def test_input_delegation(click_events_file) -> None:
         )
     shuffle(expected_events)
     input_file = click_events_file(expected_events)
-    input_delegator = InputDelegator(elements)
-    actual_events = [e for e, r in input_delegator.process(input_file)]
+    input_processor = InputProcessor(elements)
+    actual_events = [e for e, r in input_processor.process(input_file)]
     assert actual_events == expected_events
     expected_clicks = [(e.name, e.instance, e.button) for e in expected_events]
     assert actual_clicks == expected_clicks
