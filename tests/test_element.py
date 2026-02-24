@@ -8,7 +8,7 @@ import pytest
 from swaystatus import BaseElement, ClickEvent
 from swaystatus.element import ClickHandlerResult, ShellCommand
 
-from .fake import click_event
+from .fake import fake_click_event
 
 
 def test_base_element_blocks_not_implemented() -> None:
@@ -27,17 +27,17 @@ def test_element_on_click_method() -> None:
             nonlocal actual_button
             actual_button = button
 
-        def on_click_1(self, event: ClickEvent):
+        def on_click_1(self, click_event: ClickEvent):
             self.register_click(1)
 
-        def on_click_2(self, event: ClickEvent):
+        def on_click_2(self, click_event: ClickEvent):
             self.register_click(2)
 
-        def on_click_3(self, event: ClickEvent):
+        def on_click_3(self, click_event: ClickEvent):
             self.register_click(3)
 
     element = Element()
-    element.on_click(replace(click_event, button=expected_button))
+    element.on_click(replace(fake_click_event, button=expected_button))
     assert expected_button == actual_button
 
 
@@ -49,13 +49,13 @@ def test_element_on_click_function() -> None:
 
     clicked_element: BaseElement | None = None
 
-    def handler(element: Element, event: ClickEvent):
+    def handler(element: Element, click_event: ClickEvent):
         nonlocal clicked_element
         clicked_element = element
 
     button = randint(1, 5)
     element = Element(on_click={button: handler})
-    element.on_click(replace(click_event, button=button))
+    element.on_click(replace(fake_click_event, button=button))
     assert clicked_element is element
 
 
@@ -68,16 +68,16 @@ def test_element_on_click_shell_command(tmp_path) -> None:
     button = randint(1, 5)
     cases = {
         "$foo": "some string",  # environment variables added
-        "${button}": str(button),  # environment variables from event
+        "${button}": str(button),  # environment variables from click event
         "~": str(Path.home()),  # shell tilde expansion
     }
     env = {"foo": cases["$foo"]}
-    event = replace(click_event, button=button)
+    click_event = replace(fake_click_event, button=button)
     stdout_file = tmp_path / "stdout"
     for s, expected_output in cases.items():
         handler = f"echo {s} >{stdout_file}"  # shell redirection
         element = Element(on_click={button: handler}, env=env)
-        process = element.on_click(event)
+        process = element.on_click(click_event)
         assert isinstance(process, Popen)
         process.wait()
         actual_output = stdout_file.read_text().strip()
@@ -92,12 +92,12 @@ def test_element_on_click_function_return_passthrough() -> None:
 
     for expected_value in (None, False, True, lambda: True, Popen("true")):
 
-        def handler(element: Element, event: ClickEvent) -> ClickHandlerResult:
+        def handler(element: Element, click_event: ClickEvent) -> ClickHandlerResult:
             return expected_value
 
         button = randint(1, 5)
         element = Element(on_click={button: handler})
-        actual_value = element.on_click(replace(click_event, button=button))
+        actual_value = element.on_click(replace(fake_click_event, button=button))
         assert actual_value is expected_value
 
 
@@ -109,11 +109,11 @@ def test_element_on_click_function_return_shell_command_run() -> None:
 
     for expected_args in ("true", ["true"]):
 
-        def handler(element: Element, event: ClickEvent, /) -> ShellCommand | ClickHandlerResult:
+        def handler(element: Element, click_event: ClickEvent, /) -> ShellCommand | ClickHandlerResult:
             return expected_args
 
         button = randint(1, 5)
         element = Element(on_click={button: handler})
-        process = element.on_click(replace(click_event, button=button))
+        process = element.on_click(replace(fake_click_event, button=button))
         assert isinstance(process, Popen)
         assert process.args is expected_args

@@ -1,6 +1,6 @@
-from swaystatus import ClickEvent
+from swaystatus.click_event import ClickEvent
 
-click_event = ClickEvent(
+fake_click_event = ClickEvent(
     x=0,
     y=0,
     button=0,

@@ -237,10 +237,10 @@ class BaseElement:
             kwargs["instance"] = self.instance
         return Block(name=self.name, full_text=full_text, **kwargs)
 
-    def on_click(self, event: ClickEvent) -> ClickHandlerResult:
+    def on_click(self, click_event: ClickEvent) -> ClickHandlerResult:
         """Delegate a click event to the handler corresponding to its button."""
         try:
-            return getattr(self, f"on_click_{event.button}")(event)
+            return getattr(self, f"on_click_{click_event.button}")(click_event)
         except AttributeError:
             return None
 
@@ -288,20 +288,20 @@ class BaseElement:
 
         if callable(handler):
 
-            def handler_wrapped(element: Self, event: ClickEvent) -> ClickHandlerResult:
-                result = handler(element, event)
+            def handler_wrapped(element: Self, click_event: ClickEvent) -> ClickHandlerResult:
+                result = handler(element, click_event)
                 return handle_shell_command(result) if isinstance(result, (str, list)) else result
 
         else:
 
-            def handler_wrapped(element: Self, event: ClickEvent) -> ClickHandlerResult:
+            def handler_wrapped(element: Self, click_event: ClickEvent) -> ClickHandlerResult:
                 return handle_shell_command(handler)
 
-        def method_wrapped(self: Self, event: ClickEvent) -> ClickHandlerResult:
+        def method_wrapped(self: Self, click_event: ClickEvent) -> ClickHandlerResult:
             logger.debug(f"executing {handler_desc} => {handler}")
-            with environ_update(**self.env | event.as_dict()):
+            with environ_update(**self.env | click_event.as_dict()):
                 try:
-                    return handler_wrapped(self, event)
+                    return handler_wrapped(self, click_event)
                 except Exception:
                     logger.exception(f"unhandled exception in {handler_desc}")
             return None
