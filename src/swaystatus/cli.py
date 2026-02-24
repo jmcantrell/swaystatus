@@ -112,7 +112,7 @@ def main() -> None:
     try:
         App(daemon).run()
     except Exception:
-        logger.exception("unhandled exception in main")
+        logger.exception("unhandled exception in app")
 
 
 __all__ = [main.__name__]
