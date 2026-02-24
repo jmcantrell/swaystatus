@@ -99,15 +99,11 @@ class Config:
         return ModuleRegistry(self.include)
 
     @cache
-    def element_class(self, name: str) -> type[BaseElement]:
-        return self.module_registry.element_class(name)
-
-    @cache
     def element(self, key: str) -> BaseElement:
         """Return an element instance for a configuration key."""
         logger.info(f"loading element {key=!r}")
         name, instance = decode_element_key(key)
-        Element = self.element_class(name)
+        Element = self.module_registry.element_class(name)
         kwargs = self.settings.get(name, {})
         if instance:
             kwargs = deep_merge_dicts(kwargs, self.settings.get(key, {}))

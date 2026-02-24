@@ -2,6 +2,7 @@ import pytest
 
 from swaystatus.config import Config, decode_element_key
 from swaystatus.element import BaseElement
+from swaystatus.modules import ModuleRegistry
 
 
 def test_decode_element_key() -> None:
@@ -31,10 +32,10 @@ def test_config_element_singleton(monkeypatch) -> None:
     class Element(BaseElement):
         pass
 
-    def element_class(config: Config, name: str) -> type[BaseElement]:
+    def element_class(self, name: str) -> type[BaseElement]:
         return Element
 
-    monkeypatch.setattr(Config, "element_class", element_class)
+    monkeypatch.setattr(ModuleRegistry, "element_class", element_class)
 
     config = Config()
 
