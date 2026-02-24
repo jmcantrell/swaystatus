@@ -25,7 +25,7 @@ from .element import BaseElement
 
 locale.setlocale(locale.LC_ALL, "")
 
-__version__ = "0.13.0"
+__version__ = "0.13.1"
 
 __all__ = [
     Block.__name__,
