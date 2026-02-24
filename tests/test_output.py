@@ -8,24 +8,7 @@ from swaystatus import BaseElement, Block
 from swaystatus.output import OutputProcessor
 
 
-def test_output_multiple_blocks() -> None:
-    """Ensure that a single element is able to output multiple blocks."""
-    texts = ["foo", "bar", "baz"]
-
-    class Element(BaseElement):
-        name = "test"
-
-        def blocks(self) -> Iterator[Block]:
-            for text in texts:
-                yield self.block(text)
-
-    output_processor = OutputProcessor([Element()])
-    actual_blocks = list(output_processor.blocks())
-    expected_blocks = [Block(name="test", full_text=text) for text in texts]
-    assert actual_blocks == expected_blocks
-
-
-def test_output_multiple_elements() -> None:
+def test_output_blocks_multiple_elements() -> None:
     """Ensure that multiple elements output their blocks in the correct order."""
 
     class Element1(BaseElement):
@@ -49,7 +32,24 @@ def test_output_multiple_elements() -> None:
     assert actual_blocks == expected_blocks
 
 
-def test_output_identical_elements_cached() -> None:
+def test_output_blocks_multiple_blocks_per_element() -> None:
+    """Ensure that a single element is able to output multiple blocks."""
+    texts = ["foo", "bar", "baz"]
+
+    class Element(BaseElement):
+        name = "test"
+
+        def blocks(self) -> Iterator[Block]:
+            for text in texts:
+                yield self.block(text)
+
+    output_processor = OutputProcessor([Element()])
+    actual_blocks = list(output_processor.blocks())
+    expected_blocks = [Block(name="test", full_text=text) for text in texts]
+    assert actual_blocks == expected_blocks
+
+
+def test_output_blocks_identical_elements_cached() -> None:
     """Ensure that identical elements are only polled once per iteration."""
 
     class Element(BaseElement):
@@ -76,7 +76,18 @@ def test_output_identical_elements_cached() -> None:
     assert blocks_first != blocks_second
 
 
-def test_output_process() -> None:
+def test_output_header_click_events() -> None:
+    """Ensure that the click events setting is reflected in output header."""
+
+    for click_events in [None, False, True]:
+        kwargs = {}
+        if click_events is not None:
+            kwargs["click_events"] = click_events
+        output_processor = OutputProcessor([], click_events=click_events)
+        assert output_processor.header["click_events"] == bool(click_events)
+
+
+def test_output_process_encoded() -> None:
     """Ensure that output is written in the expected format."""
 
     class Element(BaseElement):
@@ -118,22 +129,3 @@ def test_output_process() -> None:
         blocks, lines = next_iteration()
         assert blocks == [block(i)]
         assert lines == [body_line(i)]
-
-
-def test_output_process_header_click_events() -> None:
-    """Ensure that click events setting is reflected in output header."""
-
-    for click_events in [None, False, True]:
-        kwargs = {}
-        if click_events is not None:
-            kwargs["click_events"] = click_events
-
-        output_processor = OutputProcessor([], click_events=click_events)
-
-        file = StringIO()
-        next(output_processor.process(file))
-
-        file.seek(0)
-        header = json.loads(file.readline())
-
-        assert header["click_events"] == bool(click_events)

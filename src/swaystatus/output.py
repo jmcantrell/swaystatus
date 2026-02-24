@@ -1,7 +1,7 @@
-from functools import cache
+from functools import cache, cached_property
 from json import JSONEncoder
 from signal import SIGCONT, SIGSTOP
-from typing import IO, Iterable, Iterator
+from typing import IO, Any, Iterable, Iterator
 
 from .block import Block
 from .element import BaseElement
@@ -15,19 +15,24 @@ class OutputProcessor:
         self.elements = list(elements)
         self.click_events = bool(click_events)
 
-    @cache
-    def element_blocks(self, element: BaseElement) -> list[Block]:
-        try:
-            return list(element.blocks())
-        except Exception:
-            logger.exception(f"exception while getting blocks for {element}")
-            return []
-
     def blocks(self) -> Iterator[Block]:
         """Yield blocks from every element."""
-        self.element_blocks.cache_clear()
+        element_blocks.cache_clear()
         for element in self.elements:
-            yield from self.element_blocks(element)
+            yield from element_blocks(element)
+
+    @cached_property
+    def header(self) -> dict[str, Any]:
+        return dict(
+            version=1,
+            stop_signal=SIGSTOP,
+            cont_signal=SIGCONT,
+            click_events=self.click_events,
+        )
+
+    def status_lines(self) -> Iterator[list[Block]]:
+        while True:
+            yield list(self.blocks())
 
     def process(self, file: IO[str]) -> Iterator[list[Block]]:
         """Send status lines to output and yield the originating blocks."""
@@ -36,21 +41,20 @@ class OutputProcessor:
             print(line, file=file, flush=True)
 
         encoder = Encoder()
-        send(
-            encoder.encode(
-                dict(
-                    version=1,
-                    stop_signal=SIGSTOP,
-                    cont_signal=SIGCONT,
-                    click_events=self.click_events,
-                )
-            )
-        )
+        send(encoder.encode(self.header))
         send("[[]")
-        while True:
-            blocks = list(self.blocks())
-            send(",{}".format(encoder.encode(blocks)))
-            yield blocks
+        for status_line in self.status_lines():
+            send(",{}".format(encoder.encode(status_line)))
+            yield status_line
+
+
+@cache
+def element_blocks(element: BaseElement) -> list[Block]:
+    try:
+        return list(element.blocks())
+    except Exception:
+        logger.exception(f"exception while getting blocks for {element}")
+        return []
 
 
 class Encoder(JSONEncoder):

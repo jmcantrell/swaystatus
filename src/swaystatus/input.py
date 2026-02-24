@@ -19,37 +19,45 @@ class InputProcessor:
         return {(e.name, e.instance): e for e in self.elements}
 
     @cache
-    def find_element(self, name: str | None, instance: str | None) -> BaseElement | None:
+    def element(self, name: str | None, instance: str | None) -> BaseElement:
         """
         Return the handler for element identifiers.
 
         Try to find an element matching the given name and instance.
         If a matching element is not found, look for one with the same name.
-        Otherwise, return `None`.
+        Otherwise, raise `KeyError`.
         """
         for instance in (instance, None):
             try:
                 return self.elements_by_key[(name, instance)]
             except KeyError:
                 pass
-        return None
+        raise KeyError((name, instance))
 
-    def process(self, file: IO[str]) -> Iterator[tuple[ClickEvent, ClickHandlerResult]]:
-        """Process each line of the file, yielding the parsed click event and the result of its handler."""
-        decoder = Decoder()
-        assert file.readline().strip() == "["
-        for line in file:
-            try:
-                click_event = decoder.decode(line.strip().lstrip(","))
-            except Exception:
-                logger.exception(f"exception while decoding input: {line!r}")
-                continue
+    def process(self, file: IO[str]) -> Iterator[tuple[ClickEvent, BaseElement, ClickHandlerResult]]:
+        """Yield click events and their corresponding element handler results."""
+        for click_event in click_events(file):
             logger.debug(f"received click event: {click_event!r}")
-            if element := self.find_element(click_event.name, click_event.instance):
-                logger.info(f"sending {click_event} to {element}")
-                yield click_event, element.on_click(click_event)
-            else:
-                logger.warning(f"unable to identify source element for {click_event}")
+            try:
+                element = self.element(click_event.name, click_event.instance)
+            except KeyError:
+                logger.warn(f"no element to handle {click_event}")
+                continue
+            logger.info(f"sending {click_event} to {element}")
+            handler_result = element.on_click(click_event)
+            logger.debug(f"{element} handled {click_event} with result: {handler_result!r}")
+            yield click_event, element, handler_result
+
+
+def click_events(file: IO[str]) -> Iterator[ClickEvent]:
+    """Yield decoded click events from a file."""
+    decoder = Decoder()
+    assert file.readline().strip() == "["
+    for line in file:
+        try:
+            yield decoder.decode(line.strip().lstrip(","))
+        except Exception:
+            logger.exception(f"exception while decoding input: {line!r}")
 
 
 class Decoder(JSONDecoder):

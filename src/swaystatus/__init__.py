@@ -23,7 +23,6 @@ from .block import Block
 from .click_event import ClickEvent
 from .element import BaseElement
 
-# Locale is set to "C" by default.
 locale.setlocale(locale.LC_ALL, "")
 
 __version__ = "0.13.0"
