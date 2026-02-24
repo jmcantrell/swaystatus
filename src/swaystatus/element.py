@@ -237,13 +237,6 @@ class BaseElement:
             kwargs["instance"] = self.instance
         return Block(name=self.name, full_text=full_text, **kwargs)
 
-    def on_click(self, click_event: ClickEvent) -> ClickHandlerResult:
-        """Delegate a click event to the handler corresponding to its button."""
-        try:
-            return getattr(self, f"on_click_{click_event.button}")(click_event)
-        except AttributeError:
-            return None
-
     def set_click_handler(self, button: int, handler: ClickHandler[Self]) -> None:
         """
         Add a method to this instance that calls `handler` when blocks from
@@ -308,6 +301,13 @@ class BaseElement:
 
         logger.debug(f"setting {handler_desc} => {handler}")
         setattr(self, method_name, MethodType(method_wrapped, self))
+
+    def on_click(self, click_event: ClickEvent) -> ClickHandlerResult:
+        """Delegate a click event to the handler corresponding to its button."""
+        try:
+            return getattr(self, f"on_click_{click_event.button}")(click_event)
+        except AttributeError:
+            return None
 
 
 __all__ = [BaseElement.__name__]

@@ -15,12 +15,6 @@ class OutputProcessor:
         self.elements = list(elements)
         self.click_events = bool(click_events)
 
-    def blocks(self) -> Iterator[Block]:
-        """Yield blocks from every element."""
-        element_blocks.cache_clear()
-        for element in self.elements:
-            yield from element_blocks(element)
-
     @cached_property
     def header(self) -> dict[str, Any]:
         return dict(
@@ -30,7 +24,13 @@ class OutputProcessor:
             click_events=self.click_events,
         )
 
-    def status_lines(self) -> Iterator[list[Block]]:
+    def blocks(self) -> Iterator[Block]:
+        """Yield blocks from every element."""
+        element_blocks.cache_clear()
+        for element in self.elements:
+            yield from element_blocks(element)
+
+    def lines(self) -> Iterator[list[Block]]:
         while True:
             yield list(self.blocks())
 
@@ -43,9 +43,9 @@ class OutputProcessor:
         encoder = Encoder()
         send(encoder.encode(self.header))
         send("[[]")
-        for status_line in self.status_lines():
-            send(",{}".format(encoder.encode(status_line)))
-            yield status_line
+        for line in self.lines():
+            send(",{}".format(encoder.encode(line)))
+            yield line
 
 
 @cache

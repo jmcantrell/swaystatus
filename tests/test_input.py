@@ -24,7 +24,7 @@ def create_input_file(click_events: Iterable[ClickEvent]) -> IO[str]:
 
 def test_input_process_click_handler_delegation() -> None:
     """Ensure that clicks are sent to the correct handler."""
-    actual_clicks: list[ClickEvent] = []
+    actual_clicks = []
 
     def handler_func() -> bool:
         return True
@@ -84,7 +84,7 @@ def test_input_process_click_handler_delegation() -> None:
 
 
 def test_input_process_element_delegation() -> None:
-
+    """Ensure that clicks are sent to the correct element."""
     actual_clicks = []
 
     class Element(BaseElement):

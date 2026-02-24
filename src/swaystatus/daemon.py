@@ -11,7 +11,7 @@ class Daemon:
     """Coordinator of input and output."""
 
     def __init__(self, elements: Iterable[BaseElement], interval: float, click_events: bool) -> None:
-        self.output_writer = OutputWriter(OutputProcessor(elements, click_events), interval)
+        self.output_writer = OutputWriter(OutputProcessor(elements, click_events=click_events), interval)
         self.input_reader = InputReader(InputProcessor(elements), self.output_writer) if click_events else None
 
     def update(self) -> None:
