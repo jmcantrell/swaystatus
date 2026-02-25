@@ -1,68 +1,87 @@
-import importlib
 import shutil
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
+from importlib.metadata import EntryPoint
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest import TestCase, main
+from unittest.mock import MagicMock, patch
 
-import pytest
-
-from swaystatus.modules import ModuleRegistry
-
-
-@pytest.fixture
-def temp_module(tmp_path):
-    def copy(src_name: str | None = None, dst_name: str | None = None) -> Path:
-        src = Path(__file__).parent / "modules" / (src_name or "no_output.py")
-        dst = tmp_path / (dst_name or src.name)
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        (dst.parent / "__init__.py").touch()
-        shutil.copyfile(src, dst)
-        return dst
-
-    return copy
+from swaystatus.modules import ModuleNotFound, Registry
 
 
-def test_modules_load_module_not_found() -> None:
-    """Ensure that requesting a non-existent module will raise an error."""
-    with pytest.raises(ModuleNotFoundError, match="foo"):
-        registry = ModuleRegistry([])
-        registry.packages = []
-        registry.element_class("foo")
+class TestRegistry(TestCase):
+    def test_repr(self) -> None:
+        modules = Registry([])
+        modules.packages = ["package1", "package2", "package3"]
+        self.assertEqual(repr(modules), repr(modules.packages))
+
+    def test_find_empty(self) -> None:
+        modules = Registry([])
+        with self.assertRaises(ModuleNotFound):
+            modules.find("foo")
+
+    def test_find_missing(self) -> None:
+        with temp_package() as package:
+            modules = Registry([package.directory])
+            with self.assertRaises(ModuleNotFound):
+                modules.find("foo")
+
+    def test_find_found(self) -> None:
+        with temp_package() as package:
+            module_path = package.add_module("foo")
+            modules = Registry([package.directory])
+            Element = modules.find("foo")
+            self.assertEqual(sys.modules[Element.__module__].__file__, str(module_path))
+
+    def test_find_prefer_early(self) -> None:
+        with temp_package() as package1, temp_package() as package2:
+            module_path1 = package1.add_module("foo")
+            package2.add_module("foo")
+            modules = Registry([package1.directory, package2.directory])
+            Element = modules.find("foo")
+            self.assertEqual(sys.modules[Element.__module__].__file__, str(module_path1))
+
+    def test_entry_points(self) -> None:
+        class Package:
+            __name__ = "test"
+
+        entry_point_mock = MagicMock(spec=EntryPoint)
+        entry_point_mock.load.return_value = Package()
+
+        with (
+            temp_package() as package,
+            patch("importlib.metadata.entry_points", return_value=[entry_point_mock]) as group_mock,
+        ):
+            modules = Registry([package.directory])
+            self.assertEqual(len(modules.packages), 2)
+            group_mock.assert_called_once_with(group="swaystatus.modules")
+            self.assertEqual(modules.packages[-1], "test")
+            entry_point_mock.load.assert_called_once()
 
 
-def test_modules_load(temp_module) -> None:
-    """Ensure that an existing module will be found in a valid package."""
-    path = temp_module(dst_name="foo.py")
-    modules = ModuleRegistry([path.parent])
-    Element = modules.element_class("foo")
-    assert sys.modules[Element.__module__].__file__ == str(path)
+class TemporaryPackage:
+    def __init__(self, directory: Path) -> None:
+        self.directory = directory
+        self.directory.mkdir(parents=True, exist_ok=True)
+        (self.directory / "__init__.py").touch()
+
+    def __str__(self) -> str:
+        return str(self.directory)
+
+    def add_module(self, name: str) -> Path:
+        src_path = Path(__file__).parent / "data/modules/test.py"
+        dst_path = self.directory / f"{name}.py"
+        shutil.copyfile(src_path, dst_path)
+        return dst_path
 
 
-def test_modules_load_first_found(temp_module) -> None:
-    """Ensure packages included earlier have preference when looking for a module."""
-    name = "foo"
-    path1 = temp_module(dst_name=f"a/{name}.py")
-    path2 = temp_module(dst_name=f"b/{name}.py")
-    registry = ModuleRegistry([path1.parent, path2.parent])
-    Element = registry.element_class(name)
-    assert sys.modules[Element.__module__].__file__ == str(path1)
+@contextmanager
+def temp_package() -> Iterator[TemporaryPackage]:
+    with TemporaryDirectory() as temp_dir:
+        yield TemporaryPackage(Path(temp_dir))
 
 
-def test_modules_entry_points(temp_module, monkeypatch) -> None:
-    """Ensure that module packages defined as an entry point are recognized."""
-
-    class Package:
-        __name__ = "entry"
-
-    class EntryPoint:
-        def load(self):
-            return Package()
-
-    def entry_points(**kwargs):
-        assert kwargs["group"] == "swaystatus.modules"
-        return [EntryPoint()]
-
-    assert hasattr(importlib, "metadata")
-    monkeypatch.setattr(importlib.metadata, "entry_points", entry_points)
-    registry = ModuleRegistry([temp_module().parent])
-    assert len(registry.packages) == 2  # tmp_path and the fake entry point
-    assert registry.packages[-1] == "entry"  # the fake entry point is after tmp_path
+if __name__ == "__main__":
+    main()

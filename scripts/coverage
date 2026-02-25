@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ ! -f ./.coverage ]] || ! find . -type f -newer ./.coverage -exec false {} + -quit; then
+    uv run coverage run -m unittest discover -q -s ./tests
+fi
+
+uv run coverage report "$@"

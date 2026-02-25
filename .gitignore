@@ -1,5 +1,6 @@
-*.egg-info/
-.pytest_cache/
+.coverage
+.env
+.ruff_cache/
 .venv/
 __pycache__/
 dist/

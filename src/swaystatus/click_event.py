@@ -1,12 +1,15 @@
 """A click event describes a block that was clicked by a pointer."""
 
-from dataclasses import asdict, dataclass
-from typing import Any
+from dataclasses import dataclass
 
 
-@dataclass(slots=True, kw_only=True)
+@dataclass(slots=True, kw_only=True, frozen=True)
 class ClickEvent:
-    """Data class representing an event generated when clicking on a status bar block."""
+    """
+    Data class representing an event generated when clicking on a status bar block.
+
+    Follows the event specification described in the CLICK EVENTS section of swaybar-protocol(7).
+    """
 
     name: str | None = None
     instance: str | None = None
@@ -21,8 +24,7 @@ class ClickEvent:
     scale: float
 
     def __str__(self) -> str:
-        return f"click event button={self.button}"
+        return f"click event button={self.button} name={self.name!r} instance={self.instance!r}"
 
-    def as_dict(self) -> dict[str, Any]:
-        """Return a dict representation of this instance without any unset values."""
-        return {name: value for name, value in asdict(self).items() if value is not None}
+
+__all__ = [ClickEvent.__name__]

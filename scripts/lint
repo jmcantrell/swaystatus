@@ -2,6 +2,4 @@
 
 set -euo pipefail
 
-source ./.env
-
-uv publish "$@"
+uv run ruff check "$@" -- .

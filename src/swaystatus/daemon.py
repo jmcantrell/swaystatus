@@ -1,31 +1,79 @@
-from typing import Iterable
+"""
+The daemon manages input and output streams.
+
+After starting, the daemon responds to the following signals:
+
+SIGINT, SIGTERM
+    Shut down gracefully.
+
+SIGSTOP
+    Suspend output (sent by swaybar when hidden).
+
+SIGCONT
+    Resume and immediately refresh output (sent by swaybar when unhidden).
+
+SIGUSR1
+    Immediately refresh output.
+"""
+
+from collections.abc import Callable, Sequence
+from signal import SIGCONT, SIGINT, SIGTERM, SIGUSR1, Signals, signal
+from types import FrameType
+from typing import Any
 
 from .element import BaseElement
-from .input import InputProcessor
-from .logging import logger
-from .output import OutputProcessor
-from .threading import InputReader, OutputWriter
+from .input import InputDriver, InputProcessor
+from .logger import logger
+from .output import OutputDriver, OutputProcessor
+
+SIGNALS_UPDATE = [SIGCONT, SIGUSR1]
+SIGNALS_SHUTDOWN = [SIGINT, SIGTERM]
+
+
+type Seconds = float | int
 
 
 class Daemon:
-    """Coordinator of input and output."""
+    """Manager of input and output streams."""
 
-    def __init__(self, elements: Iterable[BaseElement], interval: float, click_events: bool) -> None:
-        self.output_writer = OutputWriter(OutputProcessor(elements, click_events=click_events), interval)
-        self.input_reader = InputReader(InputProcessor(elements), self.output_writer) if click_events else None
+    def __init__(self, elements: Sequence[BaseElement], interval: Seconds | None, click_events: bool) -> None:
+        self._output_driver = OutputDriver(OutputProcessor(elements, click_events), interval)
+        self._input_driver = InputDriver(InputProcessor(elements, self.update)) if click_events else None
+
+    def register_signals(self) -> None:
+        for signum in SIGNALS_UPDATE:
+            register_signal(signum, self.update)
+        for signum in SIGNALS_SHUTDOWN:
+            register_signal(signum, self.shutdown)
 
     def update(self) -> None:
-        self.output_writer.update()
-
-    def stop(self) -> None:
-        logger.info("stopping daemon")
-        self.output_writer.stop()
+        self._output_driver.next()
 
     def start(self) -> None:
-        logger.info("starting daemon")
-        if self.input_reader:
-            self.input_reader.start()
-        self.output_writer.start()
+        self.register_signals()
+        self._output_driver.next()
+        self._output_driver.start()
+        if self._input_driver:
+            self._input_driver.start()
+
+    def stop(self) -> None:
+        self._output_driver.stop()
+
+    def join(self, timeout: Seconds | None = None) -> None:
+        self._output_driver.join(timeout=timeout)
+
+    def shutdown(self) -> None:
+        self.stop()
+        self.join(timeout=5.0)
+
+
+def register_signal(signum: int, callback: Callable[..., Any]) -> None:
+    def handle_signal(sig: int, frame: FrameType | None) -> None:  # pragma: no cover
+        logger.info("received signal %s (%d)", Signals(sig).name, sig)
+        logger.debug("current stack frame %r", frame)
+        callback()
+
+    signal(signum, handle_signal)
 
 
 __all__ = [Daemon.__name__]

@@ -1,131 +1,131 @@
+import itertools
 import json
+import logging
 import random
+from collections.abc import Iterator, Sequence
 from io import StringIO
 from signal import SIGCONT, SIGSTOP
-from typing import Iterator
+from string import ascii_letters
+from threading import Barrier
+from unittest import TestCase, main
+from unittest.mock import patch
 
-from swaystatus import BaseElement, Block
-from swaystatus.output import OutputProcessor
-
-
-def test_output_blocks_multiple_elements() -> None:
-    """Ensure that multiple elements output their blocks in the correct order."""
-
-    class Element1(BaseElement):
-        name = "test1"
-
-        def blocks(self) -> Iterator[Block]:
-            yield self.block("foo")
-
-    class Element2(BaseElement):
-        name = "test2"
-
-        def blocks(self) -> Iterator[Block]:
-            yield self.block("bar")
-
-    output_processor = OutputProcessor([Element1(), Element2()])
-    actual_blocks = list(output_processor.blocks())
-    expected_blocks = [
-        Block(name="test1", full_text="foo"),
-        Block(name="test2", full_text="bar"),
-    ]
-    assert actual_blocks == expected_blocks
+from swaystatus.block import Block
+from swaystatus.element import BaseElement
+from swaystatus.logger import logger
+from swaystatus.output import OutputDriver, OutputProcessor
 
 
-def test_output_blocks_multiple_blocks_per_element() -> None:
-    """Ensure that a single element is able to output multiple blocks."""
-    texts = ["foo", "bar", "baz"]
+class TestOutputProcessor(TestCase):
+    def setUp(self) -> None:
+        self.stdout = StringIO()
+        stdout_patcher = patch("sys.stdout", self.stdout)
+        stdout_patcher.start()
+        self.addCleanup(stdout_patcher.stop)
 
-    class Element(BaseElement):
-        name = "test"
+    def test_header_click_events(self) -> None:
+        for click_events in [False, True]:
+            with self.subTest(click_events=click_events):
+                output_processor = OutputProcessor([], click_events)
+                self.assertEqual(output_processor.header["click_events"], bool(click_events))
 
-        def blocks(self) -> Iterator[Block]:
-            for text in texts:
-                yield self.block(text)
+    def test_status_line_multiple_elements(self) -> None:
+        num_elements = random.randint(2, 5)
+        element_names = ascii_letters[:num_elements]
 
-    output_processor = OutputProcessor([Element()])
-    actual_blocks = list(output_processor.blocks())
-    expected_blocks = [Block(name="test", full_text=text) for text in texts]
-    assert actual_blocks == expected_blocks
+        class Element(BaseElement):
+            def blocks(self) -> Iterator[Block]:
+                yield self.block(f"element {self.name}")
+
+        elements = list(map(Element, element_names))
+        self.assertEqual(
+            list(OutputProcessor(elements, False).status_line()),
+            [Block(full_text=f"element {n}", name=n) for n in element_names],
+        )
+
+    def test_status_line_multiple_per_element(self) -> None:
+        num_blocks = random.randint(2, 5)
+        block_names = ascii_letters[:num_blocks]
+
+        class Element(BaseElement):
+            def blocks(self) -> Iterator[Block]:
+                for name in block_names:
+                    yield self.block(f"block {name}")
+
+        elements = [Element("test")]
+        self.assertEqual(
+            list(OutputProcessor(elements, False).status_line()),
+            [Block(full_text=f"block {n}", name="test") for n in block_names],
+        )
+
+    def test_iter_encoded(self) -> None:
+        iteration = itertools.count(0)
+
+        class Element(BaseElement):
+            def blocks(self) -> Iterator[Block]:
+                yield self.block(f"i={next(iteration)}")
+
+        processed = iter(OutputProcessor([Element("clock")], False))
+
+        def next_iteration() -> tuple[Sequence[Block], list[str]]:
+            pos = self.stdout.tell()
+            blocks = next(processed)
+            self.stdout.seek(pos)
+            output_lines = self.stdout.readlines()
+            return blocks, output_lines
+
+        def block_ith(i: int) -> Block:
+            return Block(full_text=f"i={i}", name="clock")
+
+        def body_line_ith(i: int) -> str:
+            return f",[{json.dumps(block_ith(i).min_dict())}]\n"
+
+        blocks, output_lines = next_iteration()
+
+        self.assertEqual(len(output_lines), 3)
+        self.assertEqual(blocks, [block_ith(0)])
+        self.assertEqual(
+            json.loads(output_lines[0]),
+            {
+                "version": 1,
+                "stop_signal": SIGSTOP,
+                "cont_signal": SIGCONT,
+                "click_events": False,
+            },
+        )
+
+        self.assertEqual(output_lines[1], "[[]\n")
+        self.assertEqual(output_lines[2], body_line_ith(0))
+        for i in range(1, random.randint(5, 10)):
+            blocks, output_lines = next_iteration()
+            self.assertEqual(blocks, [block_ith(i)])
+            self.assertEqual(output_lines, [body_line_ith(i)])
 
 
-def test_output_blocks_identical_elements_cached() -> None:
-    """Ensure that identical elements are only polled once per iteration."""
+class TestOutputDriver(TestCase):
+    def test_iterate_on_tick(self) -> None:
+        yield_acquire = Barrier(2, timeout=1.0)
+        block = Block(full_text="test")
+        expected_calls = random.randint(2, 10)
+        expected_messages = ["processed 1 output block(s)"] * expected_calls
 
-    class Element(BaseElement):
-        name = "test"
-        count = 0
+        def fake_status_lines() -> Iterator[Sequence[Block]]:
+            while True:
+                yield_acquire.wait()
+                yield [block]
 
-        def blocks(self) -> Iterator[Block]:
-            self.count += 1
-            yield self.block(str(self.count))
+        with self.assertLogs(logger, logging.DEBUG) as logged:
+            output_driver = OutputDriver(fake_status_lines(), None)
+            output_driver.start()
+            for _ in range(expected_calls):
+                output_driver.next()
+                yield_acquire.wait()
+            output_driver.stop()
+            output_driver.join(timeout=1.0)
 
-    element = Element()
-
-    # Show that separate polls produce different blocks.
-    assert list(element.blocks()) != list(element.blocks())
-
-    output_processor = OutputProcessor([element, element])
-
-    # Show that the blocks produced by the element are reused.
-    blocks_first = list(output_processor.blocks())
-    assert blocks_first[0] == blocks_first[1]
-
-    # Show that the blocks produced by the last call are not reused.
-    blocks_second = list(output_processor.blocks())
-    assert blocks_first != blocks_second
+        self.assertFalse(output_driver.is_alive(), "output driver never died")
+        self.assertEqual([r.message for r in logged.records], expected_messages)
 
 
-def test_output_header_click_events() -> None:
-    """Ensure that the click events setting is reflected in output header."""
-
-    for click_events in [None, False, True]:
-        kwargs = {}
-        if click_events is not None:
-            kwargs["click_events"] = click_events
-        output_processor = OutputProcessor([], click_events=click_events)
-        assert output_processor.header["click_events"] == bool(click_events)
-
-
-def test_output_process_encoded() -> None:
-    """Ensure that output is written in the expected format."""
-
-    class Element(BaseElement):
-        name = "test"
-        count = 0
-
-        def blocks(self) -> Iterator[Block]:
-            self.count += 1
-            yield self.block(f"iteration {self.count}")
-
-    output_file = StringIO()
-    output_processor = OutputProcessor([Element()])
-    status = output_processor.process(output_file)
-
-    def next_iteration() -> tuple[list[Block], list[str]]:
-        pos = output_file.tell()
-        blocks = next(status)
-        output_file.seek(pos)
-        lines = output_file.readlines()
-        return blocks, lines
-
-    def block(i: int) -> Block:
-        return Block(full_text=f"iteration {i}", name="test")
-
-    def body_line(i: int) -> str:
-        return f",[{json.dumps(dict(full_text=f'iteration {i}', name='test'))}]\n"
-
-    blocks, lines = next_iteration()
-    assert len(lines) == 3
-    assert blocks == [block(1)]
-    header = json.loads(lines[0])
-    assert header["version"] == 1
-    assert header["stop_signal"] == SIGSTOP
-    assert header["cont_signal"] == SIGCONT
-    assert not header["click_events"]
-    assert lines[1] == "[[]\n"  # start of infinite body array
-    assert lines[2] == body_line(1)
-    for i in range(2, random.randint(5, 10)):
-        blocks, lines = next_iteration()
-        assert blocks == [block(i)]
-        assert lines == [body_line(i)]
+if __name__ == "__main__":
+    main()

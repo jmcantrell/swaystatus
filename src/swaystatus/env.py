@@ -1,30 +1,37 @@
 import os
-import sys
-from contextlib import contextmanager
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
-self_name = os.path.basename(sys.argv[0])
+from .paths import path_normalized
 
 
 def environ_path(name: str) -> Path | None:
     """Return a path from an environment variable (if set)."""
-    if value := os.environ.get(name):
-        return Path(value).expanduser()
-    return None
+    return path_normalized(value) if (value := os.environ.get(name)) else None
 
 
 def environ_paths(name: str) -> list[Path]:
     """Return a list of paths from and environment variable."""
-    return [Path(p).expanduser() for p in os.environ[name].split(":")] if name in os.environ else []
+    return list(map(path_normalized, value.split(":"))) if (value := os.environ.get(name)) else []
+
+
+def environ_alter(updates: Mapping[str, str | None]) -> None:
+    """Alter the environment by unsetting the `None` values and setting others."""
+    for name, value in updates.items():
+        if value is None:
+            with suppress(KeyError):
+                del os.environ[name]
+        else:
+            os.environ[name] = str(value)
 
 
 @contextmanager
-def environ_update(**kwargs):
+def environ_update(**kwargs: str | None) -> Iterator:
     """Alter the environment during execution of a block."""
-    environ_save = os.environ.copy()
-    os.environ.update({k: str(v) for k, v in kwargs.items()})
+    environ_save = {k: os.environ.get(k) for k in kwargs}
+    environ_alter(kwargs)
     try:
         yield
     finally:
-        os.environ.clear()
-        os.environ.update(environ_save)
+        environ_alter(environ_save)

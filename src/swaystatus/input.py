@@ -1,68 +1,102 @@
-from functools import cache, cached_property
+"""Input is described in the CLICK EVENTS section of swaybar-protocol(7)."""
+
+import sys
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from contextvars import copy_context
+from functools import cached_property
 from json import JSONDecoder
-from typing import IO, Iterable, Iterator
+from threading import Thread
+from typing import Any
 
 from .click_event import ClickEvent
-from .element import BaseElement, ClickHandlerResult
-from .logging import logger
+from .context import context_group
+from .element import BaseElement, UpdateHandler
+from .logger import logger
+
+type Callback = Callable[..., Any]
+type ElementKey = tuple[str, str | None]
 
 
 class InputProcessor:
-    """Handle click events, sending them to the appropriate element's handler."""
+    """Iterate handled click events received from stdin."""
 
-    def __init__(self, elements: Iterable[BaseElement]) -> None:
-        self.elements = list(elements)
+    def __init__(self, elements: Sequence[BaseElement], updater: Callback) -> None:
+        self._elements = elements
+        self._updater = updater
 
     @cached_property
-    def elements_by_key(self) -> dict[tuple[str | None, str | None], BaseElement]:
-        """Provide fast lookup of elements by name and instance."""
-        return {(e.name, e.instance): e for e in self.elements}
+    def _element_lookup(self) -> dict[ElementKey, BaseElement]:
+        return {(e.name, e.instance): e for e in self._elements}
 
-    @cache
-    def element(self, name: str | None, instance: str | None) -> BaseElement:
-        """
-        Return the handler for element identifiers.
-
-        Try to find an element matching the given name and instance.
-        If a matching element is not found, look for one with the same name.
-        Otherwise, raise `KeyError`.
-        """
-        for instance in (instance, None):
-            try:
-                return self.elements_by_key[(name, instance)]
-            except KeyError:
-                pass
-        raise KeyError((name, instance))
-
-    def process(self, file: IO[str]) -> Iterator[tuple[ClickEvent, BaseElement, ClickHandlerResult]]:
-        """Yield click events and their corresponding element handler results."""
-        for click_event in click_events(file):
-            logger.debug(f"received click event: {click_event!r}")
-            try:
-                element = self.element(click_event.name, click_event.instance)
-            except KeyError:
-                logger.warn(f"no element to handle {click_event}")
-                continue
-            logger.info(f"sending {click_event} to {element}")
-            handler_result = element.on_click(click_event)
-            logger.debug(f"{element} handled {click_event} with result: {handler_result!r}")
-            yield click_event, element, handler_result
-
-
-def click_events(file: IO[str]) -> Iterator[ClickEvent]:
-    """Yield decoded click events from a file."""
-    decoder = Decoder()
-    assert file.readline().strip() == "["
-    for line in file:
+    def click_target(self, name: str, instance: str | None = None) -> BaseElement:
         try:
-            yield decoder.decode(line.strip().lstrip(","))
-        except Exception:
-            logger.exception(f"exception while decoding input: {line!r}")
+            return self._element_lookup[(name, instance)]
+        except KeyError:
+            return self._element_lookup[(name, None)]
+
+    def update(self) -> None:
+        logger.info("updating")
+        self._updater()
+
+    def __iter__(self) -> Iterator[ClickEvent]:
+        decoder = InputDecoder()
+        lines = iter(sys.stdin)
+        assert next(lines).strip() == "["
+        for line in lines:
+            with context_group("click event"):
+                click_event = decoder.decode(line.strip().lstrip(","))
+                logger.info("received %s", click_event)
+                logger.debug("%r", click_event)
+                if not click_event.name:
+                    logger.warning("click event missing element name")
+                    continue
+                try:
+                    element = self.click_target(click_event.name, click_event.instance)
+                except KeyError:
+                    logger.warning("target element not found")
+                    continue
+                logger.info("sending to %s", element)
+                update_request = element.on_click(click_event)
+                if callable(update_request):
+                    UpdateDriver(update_request, self.update).start()
+                elif update_request:
+                    self.update()
+                yield click_event
 
 
-class Decoder(JSONDecoder):
+class InputDriver(Thread):
+    """Eagerly drive click event processing."""
+
+    def __init__(self, iterable: Iterable[ClickEvent]) -> None:
+        super().__init__(name="InputThread", daemon=True)
+        self._iterator = iter(iterable)
+
+    def run(self) -> None:
+        for click_event in self._iterator:
+            logger.debug("processed input %s", click_event)
+
+
+class InputDecoder(JSONDecoder):
+    """Deserialize a click event object from a JSON-encoded dictionary."""
+
     def __init__(self) -> None:
         super().__init__(object_hook=lambda kwargs: ClickEvent(**kwargs))
 
 
-__all__ = [InputProcessor.__name__]
+class UpdateDriver(Thread):
+    """Handle an update request concurrently with processing."""
+
+    def __init__(self, update_handler: UpdateHandler, updater: Callback) -> None:
+        super().__init__(name="UpdateThread", daemon=True, context=copy_context())
+        self._update_handler = update_handler
+        self._updater = updater
+
+    def run(self) -> None:
+        if self._update_handler():
+            self._updater()
+
+
+__all__ = [
+    InputProcessor.__name__,
+    InputDriver.__name__,
+]

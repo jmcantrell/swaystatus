@@ -1,147 +1,277 @@
 """
-Configuring swaystatus to do your bidding.
+Runtime configuration.
 
-Configuration is defined in a toml file located in one of the following places
-(in order of preference):
+Configuration is defined in one of the following TOML files (in order of preference):
 
-    1. `--config-file=<FILE>`
-    2. `$SWAYSTATUS_CONFIG_FILE`
-    3. `<DIRECTORY>/config.toml` where `<DIRECTORY>` is from `--config-dir=<DIRECTORY>`
-    4. `$SWAYSTATUS_CONFIG_DIR/config.toml`
-    5. `$XDG_CONFIG_HOME/swaystatus/config.toml`
-    6. `$HOME/.config/swaystatus/config.toml`
+    1. --config-file=<FILE>
 
-The following keys are recognized in the configuration file:
+    2. $SWAYSTATUS_CONFIG_FILE
 
-    `order` (type: `list[str]`, default: `[]`)
-        The desired elements to display and their order. Each item can be of
-        the form "name" or "name:instance". The latter form allows the same
-        element to be used multiple times with different settings for each
-        "instance".
+    3. <DIRECTORY>/config.toml where <DIRECTORY> is from --config-dir=<DIRECTORY>
 
-    `interval` (type: `float`, default: `5.0`)
+    4. $SWAYSTATUS_CONFIG_DIR/config.toml
+
+    5. $XDG_CONFIG_HOME/swaystatus/config.toml
+
+    6. $HOME/.config/swaystatus/config.toml
+
+The following keys are recognized at the top-level of the file:
+
+    `interval` (type: float | int | None, default: None)
         How often (in seconds) to update the status bar.
 
-    `click_events` (type: `bool`, default: `false`)
-        Whether or not to listen for status bar clicks.
+    `click_events` (type: bool, default: False)
+        Whether to listen for clicks on status bar blocks.
 
-    `include` (type: `list[str]`, default: `[]`)
-        Additional directories to treat as element packages.
+    `include` (type: list[str], default: [])
+        Additional directories to treat as module packages.
 
-    `env` (type: `dict[str, str]`, default: `{}`)
-        Additional environment variables visible to click handlers.
+    `env` (type: dict[str, str], default: {})
+        Environment changes for every module.
 
-    `on_click` (type: `dict[int, str | list[str]]`, default: `{}`)
-        Maps pointer button numbers to shell commands that should be run in
-        response to a click by that button.
+    `settings` (type: dict[str, dict], default: {})
+        Settings for all modules of the same name.
 
-    `settings` (type: `dict[str, dict[str, Any]]`, default: `{}`)
-        Maps element specifiers (as defined in `order`) to keyword arguments
-        that will be passed to the element constructor.
+    `modules` (type: list[dict], default: [])
+        The modules to be displayed in the status line.
 
-A typical configuration file might look like the following:
+Each item in the `modules` list recognizes the following keys:
 
-    order = [
-        'hostname',
-        'path_exists:/mnt/foo',
-        'memory',
-        'clock',
-        'clock:home'
-    ]
+    `name` (type: str, required)
+        Specify the module to be loaded.
 
-    click_events = true
+    `instance` (type: str | None, default: None)
+        Differentiate this module from others of the same `name`.
 
-    [env]
-    terminal = 'foot'
+    `settings` (type: dict | None, default: None)
+        Settings for this module only.
 
-    [settings.hostname]
-    full_text = "host: {}"
-    on_click.1 = '$terminal --hold hostnamectl'
+Each `settings[name]` and `modules[i].settings` dict recognizes the following keys:
 
-    [settings.path_exists]
-    on_click.1 = ['$terminal', '--working-directory=$instance']
-    on_click.2 = ['$terminal', '--hold', 'df', '$instance']
+    `on_click` (type: dict[int, str | list[str]], default: {})
+        Shell commands to run when the element is clicked by pointer buttons.
 
-    [settings.clock]
-    on_click.1 = '$terminal --hold cal'
+    `env` (type: dict[str, str], default: {})
+        Environment changes to make during click handler execution.
 
-    [settings."clock:home".env]
-    TZ = 'Asia/Tokyo'
+    `params` (type: dict[str, Any], default: {})
+        Extra keyword parameters passed to the element initializer.
 """
 
 import tomllib
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
-from functools import cache, cached_property
+from os import PathLike
 from pathlib import Path
-from typing import Any, Self
+from typing import Self
 
-from .element import BaseElement
-from .logging import logger
-from .modules import ModuleRegistry
+from .paths import path_normalized
 
-default_interval = 5.0
+type Seconds = float | int
+type EnvMapping = Mapping[str, str | None]
+type OnClickMapping = Mapping[int, str | Sequence[str] | None]
+type ParamsMapping = Mapping[str, object]
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(slots=True, kw_only=True)
+class ModuleSettings:
+    env: EnvMapping = field(default_factory=dict)
+    on_click: OnClickMapping = field(default_factory=dict)
+    params: ParamsMapping = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        self._validate_env()
+        self._validate_on_click()
+        self._validate_params()
+
+    def _validate_env(self) -> None:
+        if not isinstance(self.env, dict):
+            raise TypeError(f"`env` must be dict, got {type(self.env).__name__}")
+        for key, value in self.env.items():
+            if not isinstance(key, str):
+                raise TypeError(f"`env` keys must be str, got {type(key).__name__}")
+            if not key.strip():
+                raise ValueError("`env` keys must be non-empty")
+            if value is not None and not isinstance(value, str):
+                raise TypeError(f"`env[{key!r}]` must be str, got {type(value).__name__}")
+
+    def _validate_on_click(self) -> None:
+        if not isinstance(self.on_click, dict):
+            raise TypeError(f"`on_click` must be dict, got {type(self.on_click).__name__}")
+        for button, command in self.on_click.items():
+            if not isinstance(button, int):
+                raise TypeError(f"`on_click` keys must be int, got {type(button).__name__}")
+            if command is not None:
+                if isinstance(command, list):
+                    for i, token in enumerate(command):
+                        if not isinstance(token, str):
+                            raise TypeError(f"`on_click[{button!r}][{i}]` must be str, got {type(token).__name__}")
+                        if not token.strip():
+                            raise ValueError(f"`on_click[{button!r}][{i}] must be non-empty")
+                elif isinstance(command, str):
+                    if not command.strip():
+                        raise ValueError(f"`on_click[{button!r}] must be non-empty")
+                else:
+                    raise TypeError(f"`on_click[{button!r}] must be a str or list of str, got {type(command).__name__}")
+
+    def _validate_params(self) -> None:
+        if not isinstance(self.params, dict):
+            raise TypeError(f"must be dict, got {type(self.params).__name__}")
+        for key in self.params:
+            if not isinstance(key, str):
+                raise TypeError(f"`params` keys must be str, got {type(key).__name__}")
+            if not key.strip():
+                raise ValueError("`params` keys must be non-empty")
+
+    @classmethod
+    def parse(cls, data: dict) -> Self:
+        """Create a module settings object from a dictionary representation."""
+        if (on_click := data.get("on_click")) and isinstance(on_click, dict):
+            data["on_click"] = {int(k): v for k, v in on_click.items()}
+        return cls(**data)
+
+
+@dataclass(slots=True, kw_only=True)
+class Module:
+    name: str
+    instance: str | None = None
+    settings: ModuleSettings = field(default_factory=ModuleSettings)
+
+    def __post_init__(self) -> None:
+        self._validate_name()
+        self._validate_instance()
+        self._validate_settings()
+
+    def __str__(self) -> str:
+        return f"module name={self.name!r} instance={self.instance!r}"
+
+    def _validate_name(self) -> None:
+        if not isinstance(self.name, str):
+            raise TypeError(f"`name` must be str, got {type(self.name).__name__}")
+        if not self.name.strip():
+            raise ValueError("`name` must be non-empty")
+
+    def _validate_instance(self) -> None:
+        if self.instance is not None:
+            if not isinstance(self.instance, str):
+                raise TypeError(f"`instance` must be str, got {type(self.instance).__name__}")
+            if not self.instance.strip():
+                raise ValueError("`instance` must be non-empty, if set")
+
+    def _validate_settings(self) -> None:
+        if not isinstance(self.settings, ModuleSettings):
+            raise TypeError(f"`settings` must be Settings, got {type(self.settings).__name__}")
+
+    @classmethod
+    def parse(cls, data: dict) -> Self:
+        """Create a module object from a dictionary representation."""
+        if (settings := data.get("settings")) and isinstance(settings, dict):
+            data["settings"] = ModuleSettings.parse(settings)
+        return cls(**data)
+
+
+@dataclass(slots=True, kw_only=True)
 class Config:
     """Data class representing runtime configuration."""
 
-    order: list[str] = field(default_factory=list)
-    interval: float = default_interval
+    interval: Seconds | None = None
     click_events: bool = False
-    settings: dict[str, Any] = field(default_factory=dict)
-    include: list[str | Path] = field(default_factory=list)
-    on_click: dict[int, str | list[str]] = field(default_factory=dict)
-    env: dict[str, str] = field(default_factory=dict)
+    env: EnvMapping = field(default_factory=dict)
+    include: Sequence[Path] = field(default_factory=list)
+    settings: Mapping[str, ModuleSettings] = field(default_factory=dict)
+    modules: Sequence[Module] = field(default_factory=list)
 
-    @cached_property
-    def module_registry(self) -> ModuleRegistry:
-        return ModuleRegistry(self.include)
+    def __post_init__(self) -> None:
+        self._validate_interval()
+        self._validate_click_events()
+        self._validate_env()
+        self._validate_include()
+        self._validate_settings()
+        self._validate_modules()
 
-    @cache
-    def element(self, key: str) -> BaseElement:
-        """Return an element instance for a configuration key."""
-        logger.info(f"loading element {key=!r}")
-        name, instance = decode_element_key(key)
-        Element = self.module_registry.element_class(name)
-        kwargs = self.settings.get(name, {})
-        if instance:
-            kwargs = deep_merge_dicts(kwargs, self.settings.get(key, {}))
-        kwargs["env"] = self.env | kwargs.get("env", {})
-        kwargs["instance"] = instance
-        logger.debug(f"initializing element {name=!r}: {kwargs=!r}")
-        return Element(**kwargs)
+    def _validate_interval(self) -> None:
+        if self.interval is not None:
+            if not isinstance(self.interval, float | int):
+                raise TypeError(f"`interval` must be float or int, got {type(self.interval).__name__}")
+            if self.interval <= 0:
+                raise ValueError("`interval` must be greater than zero")
 
-    @cached_property
-    def elements(self) -> list[BaseElement]:
-        """Return all status bar content producers in order."""
-        return list(map(self.element, self.order))
+    def _validate_click_events(self) -> None:
+        if not isinstance(self.click_events, bool):
+            raise TypeError(f"`click_events` must be bool, got {type(self.click_events).__name__}")
+
+    def _validate_env(self) -> None:
+        if not isinstance(self.env, dict):
+            raise TypeError(f"`env` must be dict, got {type(self.env).__name__}")
+        for key, value in self.env.items():
+            if not isinstance(key, str):
+                raise TypeError(f"`env` keys must be str, got {type(key).__name__}")
+            if not key.strip():
+                raise ValueError("`env` keys must be non-empty")
+            if value is not None and not isinstance(value, str):
+                raise TypeError(f"`env[{key!r}]` must be str, got {type(value).__name__}")
+
+    def _validate_include(self) -> None:
+        if not isinstance(self.include, list):
+            raise TypeError(f"`include` must be list, got {type(self.include).__name__}")
+        for i, path in enumerate(self.include):
+            if not isinstance(path, Path):
+                raise TypeError(f"`include[{i!r}]` must be Path, got {type(path).__name__}")
+            if not path.is_absolute():
+                raise ValueError(f"`include[{i!r}]` must be an absolute path")
+
+    def _validate_settings(self) -> None:
+        if not isinstance(self.settings, dict):
+            raise TypeError(f"`settings` must be dict, got {type(self.settings).__name__}")
+        for key, module_settings in self.settings.items():
+            if not isinstance(key, str):
+                raise TypeError(f"`settings` keys must be str, got {type(key).__name__}")
+            if not key.strip():
+                raise ValueError("`settings` keys must be non-empty")
+            if not isinstance(module_settings, ModuleSettings):
+                raise TypeError(f"`settings[{key!r}]` must be Settings, got {type(module_settings).__name__}")
+
+    def _validate_modules(self) -> None:
+        if not isinstance(self.modules, list):
+            raise TypeError(f"`modules` must be list, got {type(self.modules).__name__}")
+        for i, module in enumerate(self.modules):
+            if not isinstance(module, Module):
+                raise TypeError(f"`modules[{i!r}]` must be Module, got {type(module).__name__}")
+
+    def modules_merged(self) -> Iterator[Module]:
+        empty_settings = ModuleSettings()
+        for module in self.modules:
+            settings = self.settings.get(module.name, empty_settings)
+            yield Module(
+                name=module.name,
+                instance=module.instance,
+                settings=ModuleSettings(
+                    env={**self.env, **settings.env, **module.settings.env},
+                    on_click={**settings.on_click, **module.settings.on_click},
+                    params={**settings.params, **module.settings.params},
+                ),
+            )
 
     @classmethod
-    def from_file(cls, file: Path) -> Self:
-        """Instantiate a configuration object from a toml file."""
-        return cls(**tomllib.load(file.open("rb")))
+    def parse(cls, data: dict) -> Self:
+        """Create a configuration object from a dictionary representation."""
+        if (include := data.get("include")) and isinstance(include, list):
+            data["include"] = [path_normalized(d) for d in include]
+        if (settings := data.get("settings")) and isinstance(settings, dict):
+            data["settings"] = {k: ModuleSettings.parse(v) if isinstance(v, dict) else v for k, v in settings.items()}
+        if (modules := data.get("modules")) and isinstance(modules, list):
+            data["modules"] = [Module.parse(m) if isinstance(m, dict) else m for m in modules]
+        return cls(**data)
+
+    @classmethod
+    def from_file(cls, path: str | PathLike[str]) -> Self:
+        """Instantiate a configuration object from a TOML file."""
+        with open(path, "rb") as file:
+            return cls.parse(tomllib.load(file))
 
 
-def decode_element_key(key: str) -> tuple[str, str | None]:
-    """Parse an element name and instance from a string like "name" or "name:instance"."""
-    try:
-        name, instance = key.split(":", maxsplit=1)
-    except ValueError:
-        name, instance = key, None
-    assert name
-    return name, instance
-
-
-def deep_merge_dicts(first: dict, second: dict) -> dict:
-    """Recursively merge the second dictionary into the first."""
-    result = first.copy()
-    for key, value in second.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge_dicts(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-__all__ = [Config.__name__]
+__all__ = [
+    Config.__name__,
+    Module.__name__,
+    ModuleSettings.__name__,
+]

@@ -15,7 +15,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3",
@@ -27,10 +26,9 @@ classifiers = [
 
 [dependency-groups]
 dev = [
-    "jedi>=0.19.2,<0.20.0",
-    "mypy>=1.19.1,<2.0.0",
-    "pytest>=9.0.2,<10.0.0",
-    "ruff>=0.15.2,<0.16.0",
+    "coverage>=7.13.5,<8.0.0",
+    "mypy>=1.20.0,<2.0.0",
+    "ruff>=0.15.9,<0.16.0",
 ]
 
 [project.urls]
@@ -42,17 +40,25 @@ dev = [
 swaystatus = "swaystatus.cli:main"
 
 [build-system]
-requires = ["uv_build"]
+requires = ["uv_build>=0.10.8,<0.12"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
 source-include = ["tests/**"]
 
-[tool.pytest]
-testpaths = ["tests"]
+[tool.coverage.run]
+source = ["src/"]
+omit = ["src/*/__main__.py"]
 
 [tool.ruff]
 line-length = 120
 
 [tool.ruff.lint]
-extend-select = ["I"]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "I",   # isort
+]

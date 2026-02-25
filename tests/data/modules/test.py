@@ -1,8 +1,8 @@
-from typing import Iterator
+from collections.abc import Iterator
 
 from swaystatus import BaseElement, Block
 
 
 class Element(BaseElement):
     def blocks(self) -> Iterator[Block]:
-        yield from []
+        yield self.block("test")
