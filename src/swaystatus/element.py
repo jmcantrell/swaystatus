@@ -10,8 +10,7 @@ from subprocess import Popen
 from types import MethodType
 from typing import Iterator, Self
 
-from .block import Block
-from .click_event import ClickEvent
+from .dataclasses import Block, ClickEvent
 from .env import environ_update
 from .logging import logger
 from .subprocess import ShellCommandProcess

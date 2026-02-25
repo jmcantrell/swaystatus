@@ -6,7 +6,7 @@ from random import shuffle
 from subprocess import Popen
 from typing import IO, Callable, Iterable
 
-from swaystatus.click_event import ClickEvent
+from swaystatus.dataclasses import ClickEvent
 from swaystatus.element import BaseElement
 from swaystatus.input import InputProcessor
 

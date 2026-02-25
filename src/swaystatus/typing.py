@@ -1,7 +1,7 @@
 from subprocess import Popen
 from typing import Callable
 
-from .click_event import ClickEvent
+from .dataclasses import ClickEvent
 
 type ShellCommand = str | list[str]
 type ClickHandlerResult = Popen | Callable[[], bool] | bool | None

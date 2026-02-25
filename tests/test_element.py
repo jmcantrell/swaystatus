@@ -5,8 +5,9 @@ from subprocess import Popen
 
 import pytest
 
-from swaystatus import BaseElement, ClickEvent
-from swaystatus.element import ClickHandlerResult, ShellCommand
+from swaystatus.dataclasses import ClickEvent
+from swaystatus.element import BaseElement
+from swaystatus.typing import ClickHandlerResult, ShellCommand
 
 from .fake import fake_click_event
 

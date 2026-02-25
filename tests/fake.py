@@ -1,4 +1,4 @@
-from swaystatus.click_event import ClickEvent
+from swaystatus.dataclasses import ClickEvent
 
 fake_click_event = ClickEvent(
     x=0,

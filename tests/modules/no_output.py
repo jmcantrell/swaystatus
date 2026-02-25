@@ -1,6 +1,7 @@
 from typing import Iterator
 
-from swaystatus import BaseElement, Block
+from swaystatus.dataclasses import Block
+from swaystatus.element import BaseElement
 
 
 class Element(BaseElement):

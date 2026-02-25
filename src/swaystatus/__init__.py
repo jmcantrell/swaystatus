@@ -19,8 +19,7 @@ See swaybar-protocol(7) for a full description of the status bar protocol.
 
 import locale
 
-from .block import Block
-from .click_event import ClickEvent
+from .dataclasses import Block, ClickEvent
 from .element import BaseElement
 
 locale.setlocale(locale.LC_ALL, "")

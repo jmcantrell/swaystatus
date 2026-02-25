@@ -3,7 +3,7 @@ from json import JSONEncoder
 from signal import SIGCONT, SIGSTOP
 from typing import IO, Any, Iterable, Iterator
 
-from .block import Block
+from .dataclasses import Block
 from .element import BaseElement
 from .logging import logger
 

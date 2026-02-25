@@ -4,7 +4,8 @@ from io import StringIO
 from signal import SIGCONT, SIGSTOP
 from typing import Iterator
 
-from swaystatus import BaseElement, Block
+from swaystatus.dataclasses import Block
+from swaystatus.element import BaseElement
 from swaystatus.output import OutputProcessor
 
 

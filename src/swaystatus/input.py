@@ -2,9 +2,10 @@ from functools import cache, cached_property
 from json import JSONDecoder
 from typing import IO, Iterable, Iterator
 
-from .click_event import ClickEvent
-from .element import BaseElement, ClickHandlerResult
+from .dataclasses import ClickEvent
+from .element import BaseElement
 from .logging import logger
+from .typing import ClickHandlerResult
 
 
 class InputProcessor:

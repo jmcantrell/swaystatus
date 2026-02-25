@@ -1,7 +1,7 @@
 from random import shuffle
 from typing import Any
 
-from swaystatus import Block
+from swaystatus.dataclasses import Block
 
 
 def test_block_dict_minimal() -> None:
