@@ -1,4 +1,3 @@
-import dataclasses
 import json
 from io import StringIO
 from operator import itemgetter
@@ -10,8 +9,6 @@ from swaystatus.dataclasses import ClickEvent
 from swaystatus.element import BaseElement
 from swaystatus.input import InputProcessor
 
-from .fakes.click_event import fake_click_event
-
 
 def create_input_file(click_events: Iterable[ClickEvent]) -> IO[str]:
     input_file = StringIO()
@@ -22,7 +19,7 @@ def create_input_file(click_events: Iterable[ClickEvent]) -> IO[str]:
     return input_file
 
 
-def test_input_process_click_handler_delegation() -> None:
+def test_input_process_click_handler_delegation(fake_click_event) -> None:
     """Ensure that clicks are sent to the correct handler."""
     actual_clicks = []
 
@@ -56,8 +53,7 @@ def test_input_process_click_handler_delegation() -> None:
     element = Element()
     expected_processed = [
         (
-            dataclasses.replace(
-                fake_click_event,
+            fake_click_event(
                 name="test",
                 button=button,
             ),
@@ -83,7 +79,7 @@ def test_input_process_click_handler_delegation() -> None:
     assert actual_processed == expected_processed
 
 
-def test_input_process_element_delegation() -> None:
+def test_input_process_element_delegation(fake_click_event) -> None:
     """Ensure that clicks are sent to the correct element."""
     actual_clicks = []
 
@@ -108,8 +104,7 @@ def test_input_process_element_delegation() -> None:
     ]
     expected_processed = [
         (
-            dataclasses.replace(
-                fake_click_event,
+            fake_click_event(
                 name=element.name,
                 instance=element.instance,
                 button=1,

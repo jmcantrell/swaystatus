@@ -1,4 +1,3 @@
-from dataclasses import replace
 from pathlib import Path
 from random import randint
 from subprocess import Popen
@@ -9,8 +8,6 @@ from swaystatus.dataclasses import ClickEvent
 from swaystatus.element import BaseElement
 from swaystatus.typing import ClickHandlerResult, ShellCommand
 
-from .fakes.click_event import fake_click_event
-
 
 def test_base_element_blocks_not_implemented() -> None:
     """Ensure that the block generator is implemented on subclasses."""
@@ -18,7 +15,7 @@ def test_base_element_blocks_not_implemented() -> None:
         BaseElement().blocks()
 
 
-def test_element_on_click_method() -> None:
+def test_element_on_click_method(fake_click_event) -> None:
     """Ensure that handlers can be defined as a method."""
     actual_button: int | None = None
     expected_button = randint(1, 3)
@@ -38,11 +35,11 @@ def test_element_on_click_method() -> None:
             self.register_click(3)
 
     element = Element()
-    element.on_click(replace(fake_click_event, button=expected_button))
+    element.on_click(fake_click_event(button=expected_button))
     assert expected_button == actual_button
 
 
-def test_element_on_click_function() -> None:
+def test_element_on_click_function(fake_click_event) -> None:
     """Ensure that function handlers can be set at initialization."""
 
     class Element(BaseElement):
@@ -56,11 +53,11 @@ def test_element_on_click_function() -> None:
 
     button = randint(1, 5)
     element = Element(on_click={button: handler})
-    element.on_click(replace(fake_click_event, button=button))
+    element.on_click(fake_click_event(button=button))
     assert clicked_element is element
 
 
-def test_element_on_click_shell_command(tmp_path) -> None:
+def test_element_on_click_shell_command(fake_click_event, tmp_path) -> None:
     """Ensure that shell command handlers can be set at initialization."""
 
     class Element(BaseElement):
@@ -73,7 +70,7 @@ def test_element_on_click_shell_command(tmp_path) -> None:
         "~": str(Path.home()),  # shell tilde expansion
     }
     env = {"foo": cases["$foo"]}
-    click_event = replace(fake_click_event, button=button)
+    click_event = fake_click_event(button=button)
     stdout_file = tmp_path / "stdout"
     for s, expected_output in cases.items():
         handler = f"echo {s} >{stdout_file}"  # shell redirection
@@ -85,7 +82,7 @@ def test_element_on_click_shell_command(tmp_path) -> None:
         assert actual_output == expected_output
 
 
-def test_element_on_click_function_return_passthrough() -> None:
+def test_element_on_click_function_return_passthrough(fake_click_event) -> None:
     """Ensure that a function handler's return value is preserved sometimes."""
 
     class Element(BaseElement):
@@ -98,11 +95,11 @@ def test_element_on_click_function_return_passthrough() -> None:
 
         button = randint(1, 5)
         element = Element(on_click={button: handler})
-        actual_value = element.on_click(replace(fake_click_event, button=button))
+        actual_value = element.on_click(fake_click_event(button=button))
         assert actual_value is expected_value
 
 
-def test_element_on_click_function_return_shell_command_run() -> None:
+def test_element_on_click_function_return_shell_command_run(fake_click_event) -> None:
     """Ensure that a function handler's return value is run if it's a shell command."""
 
     class Element(BaseElement):
@@ -115,6 +112,6 @@ def test_element_on_click_function_return_shell_command_run() -> None:
 
         button = randint(1, 5)
         element = Element(on_click={button: handler})
-        process = element.on_click(replace(fake_click_event, button=button))
+        process = element.on_click(fake_click_event(button=button))
         assert isinstance(process, Popen)
         assert process.args is expected_args
