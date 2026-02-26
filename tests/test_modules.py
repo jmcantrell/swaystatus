@@ -1,24 +1,9 @@
 import importlib
-import shutil
 import sys
-from pathlib import Path
 
 import pytest
 
 from swaystatus.modules import ModuleRegistry
-
-
-@pytest.fixture
-def temp_module(tmp_path):
-    def copy(src_name: str | None = None, dst_name: str | None = None) -> Path:
-        src = Path(__file__).parent / "modules" / (src_name or "no_output.py")
-        dst = tmp_path / (dst_name or src.name)
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        (dst.parent / "__init__.py").touch()
-        shutil.copyfile(src, dst)
-        return dst
-
-    return copy
 
 
 def test_modules_load_module_not_found() -> None:

@@ -1,3 +1,5 @@
+import shutil
+from pathlib import Path
 from typing import Callable
 
 import pytest
@@ -23,3 +25,16 @@ def fake_click_event() -> Callable[[], ClickEvent]:
         return ClickEvent(**default_kwargs | kwargs)
 
     return create
+
+
+@pytest.fixture
+def temp_module(tmp_path):
+    def copy(src_name: str | None = None, dst_name: str | None = None) -> Path:
+        src = Path(__file__).parent / "modules" / (src_name or "no_output.py")
+        dst = tmp_path / (dst_name or src.name)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        (dst.parent / "__init__.py").touch()
+        shutil.copyfile(src, dst)
+        return dst
+
+    return copy
