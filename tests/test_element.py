@@ -9,7 +9,7 @@ from swaystatus.dataclasses import ClickEvent
 from swaystatus.element import BaseElement
 from swaystatus.typing import ClickHandlerResult, ShellCommand
 
-from .fake import fake_click_event
+from .fakes.click_event import fake_click_event
 
 
 def test_base_element_blocks_not_implemented() -> None:

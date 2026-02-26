@@ -4,6 +4,9 @@ from types import FrameType
 from .daemon import Daemon
 from .logging import logger
 
+SIGNALS_UPDATE = [SIGUSR1, SIGCONT]
+SIGNALS_SHUTDOWN = [SIGINT, SIGTERM]
+
 
 class App:
     """Manager for the daemon's lifecycle."""
@@ -22,10 +25,10 @@ class App:
         self.daemon.stop()
 
     def run(self) -> None:
-        signal(SIGUSR1, self.update)
-        signal(SIGCONT, self.update)
-        signal(SIGINT, self.shutdown)
-        signal(SIGTERM, self.shutdown)
+        for signum in SIGNALS_UPDATE:
+            signal(signum, self.update)
+        for signum in SIGNALS_SHUTDOWN:
+            signal(signum, self.shutdown)
         self.daemon.start()
 
 

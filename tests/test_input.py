@@ -10,7 +10,7 @@ from swaystatus.dataclasses import ClickEvent
 from swaystatus.element import BaseElement
 from swaystatus.input import InputProcessor
 
-from .fake import fake_click_event
+from .fakes.click_event import fake_click_event
 
 
 def create_input_file(click_events: Iterable[ClickEvent]) -> IO[str]:
