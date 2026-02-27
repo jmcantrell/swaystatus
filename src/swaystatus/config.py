@@ -101,7 +101,7 @@ class Config:
     @cache
     def element(self, key: str) -> BaseElement:
         """Return an element instance for a configuration key."""
-        logger.info(f"loading element {key=!r}")
+        logger.info("loading element %r", key)
         name, instance = decode_element_key(key)
         Element = self.module_registry.element_class(name)
         kwargs = self.settings.get(name, {})
@@ -109,7 +109,7 @@ class Config:
             kwargs = deep_merge_dicts(kwargs, self.settings.get(key, {}))
         kwargs["env"] = self.env | kwargs.get("env", {})
         kwargs["instance"] = instance
-        logger.debug(f"initializing element {name=!r}: {kwargs=!r}")
+        logger.debug("initializing element %r: %r", name, kwargs)
         return Element(**kwargs)
 
     @cached_property

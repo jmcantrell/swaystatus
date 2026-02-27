@@ -53,7 +53,7 @@ def element_blocks(element: BaseElement) -> list[Block]:
     try:
         return list(element.blocks())
     except Exception:
-        logger.exception(f"exception while getting blocks for {element}")
+        logger.exception("exception while getting blocks for %s", element)
         return []
 
 

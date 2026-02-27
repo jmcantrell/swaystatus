@@ -275,7 +275,7 @@ class BaseElement:
         handler_desc = f"{self} {method_name} {handler_kind} handler"
 
         def handle_shell_command(command: ShellCommand) -> Popen:
-            logger.debug(f"executing shell command={command!r}")
+            logger.debug("executing shell command=%r", command)
             return ShellCommandProcess(command)
 
         if callable(handler):
@@ -290,15 +290,15 @@ class BaseElement:
                 return handle_shell_command(handler)
 
         def method_wrapped(self: Self, click_event: ClickEvent) -> ClickHandlerResult:
-            logger.debug(f"executing {handler_desc} => {handler}")
+            logger.debug("executing %s => %s", handler_desc, handler)
             with environ_update(**self.env | click_event.as_dict()):
                 try:
                     return handler_wrapped(self, click_event)
                 except Exception:
-                    logger.exception(f"unhandled exception in {handler_desc}")
+                    logger.exception("unhandled exception in %s", handler_desc)
             return None
 
-        logger.debug(f"setting {handler_desc} => {handler}")
+        logger.debug("setting %s => %s", handler_desc, handler)
         setattr(self, method_name, MethodType(method_wrapped, self))
 
     def on_click(self, click_event: ClickEvent) -> ClickHandlerResult:

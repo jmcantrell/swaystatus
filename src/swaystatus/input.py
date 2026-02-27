@@ -38,15 +38,15 @@ class InputProcessor:
     def process(self, file: IO[str]) -> Iterator[tuple[ClickEvent, BaseElement, ClickHandlerResult]]:
         """Yield click events and their corresponding element handler results."""
         for click_event in click_events(file):
-            logger.debug(f"received click event: {click_event!r}")
+            logger.debug("received click event: %r", click_event)
             try:
                 element = self.element(click_event.name, click_event.instance)
             except KeyError:
-                logger.warn(f"no element to handle {click_event}")
+                logger.warn("no element to handle %s", click_event)
                 continue
-            logger.info(f"sending {click_event} to {element}")
+            logger.info("sending %s to %s", click_event, element)
             handler_result = element.on_click(click_event)
-            logger.debug(f"{element} handled {click_event} with result: {handler_result!r}")
+            logger.debug("%s handled %s with result: %r", element, click_event, handler_result)
             yield click_event, element, handler_result
 
 
@@ -58,7 +58,7 @@ def click_events(file: IO[str]) -> Iterator[ClickEvent]:
         try:
             yield decoder.decode(line.strip().lstrip(","))
         except Exception:
-            logger.exception(f"exception while decoding input: {line!r}")
+            logger.exception("exception while decoding input: %r", line)
 
 
 class Decoder(JSONDecoder):

@@ -76,7 +76,7 @@ class ModuleRegistry:
             try:
                 module = import_module(f"{package}.{name}")
                 if hasattr(module, "Element") and issubclass(module.Element, BaseElement):
-                    logger.debug(f"imported module: {module!r}")
+                    logger.debug("imported module: %r", module)
                     module.Element.name = name
                     return module.Element
             except ModuleNotFoundError:
