@@ -29,7 +29,6 @@ classifiers = [
 dev = [
     "jedi>=0.19.2,<0.20.0",
     "mypy>=1.19.1,<2.0.0",
-    "pytest>=9.0.2,<10.0.0",
     "ruff>=0.15.2,<0.16.0",
 ]
 
@@ -47,9 +46,6 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 source-include = ["tests/**"]
-
-[tool.pytest]
-testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 120

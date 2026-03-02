@@ -5,7 +5,7 @@ Typical usage consists of the following:
 
     1. Create elements by subclassing `BaseElement` to produce blocks.
         - See `swaystatus.element` about creating elements.
-        - See `swaystatus.modules` about where to put element modules.
+        - See `swaystatus.module` about where to put element modules.
 
     2. Configure swaystatus to use those elements.
         - See `swaystatus.config` about enabling and configuring elements.
@@ -19,7 +19,8 @@ See swaybar-protocol(7) for a full description of the status bar protocol.
 
 import locale
 
-from .dataclasses import Block, ClickEvent
+from .block import Block
+from .click_event import ClickEvent
 from .element import BaseElement
 
 locale.setlocale(locale.LC_ALL, "")

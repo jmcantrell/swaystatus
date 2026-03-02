@@ -6,15 +6,21 @@ blocks at the configured interval. Once every element has replied, all of the
 collected blocks are encoded and sent to the bar via stdout.
 """
 
+from functools import cache, cached_property
 from subprocess import Popen
 from types import MethodType
-from typing import Iterator, Self
+from typing import Callable, Iterable, Iterator, Mapping, Self, Sequence
 
-from .dataclasses import Block, ClickEvent
+from .block import Block
+from .click_event import ClickEvent
 from .env import environ_update
 from .logging import logger
 from .subprocess import ShellCommandProcess
-from .typing import ClickHandler, ClickHandlerResult, ShellCommand
+
+type UpdateHandler = Callable[[], bool]
+type ShellCommand = str | Sequence[str]
+type ClickHandlerResult = ShellCommand | Popen | UpdateHandler | bool | None
+type ClickHandler[E] = Callable[[E, ClickEvent], ClickHandlerResult]
 
 
 class BaseElement:
@@ -94,13 +100,15 @@ class BaseElement:
     """
 
     name: str
+    instance: str | None
+    env: dict[str, str]
 
     def __init__(
         self,
         *,
         instance: str | None = None,
-        env: dict[str, str] | None = None,
-        on_click: dict[int, ClickHandler[Self]] | None = None,
+        env: Mapping[str, str] | None = None,
+        on_click: Mapping[int, ShellCommand | ClickHandler[Self]] | None = None,
     ) -> None:
         """
         Intialize a new status bar content producer, i.e. an element.
@@ -154,7 +162,7 @@ class BaseElement:
             TZ = 'Asia/Tokyo'
         """
         self.instance = instance
-        self.env = env or {}
+        self.env = dict(env or {})
         if on_click:
             for button, handler in on_click.items():
                 self.set_click_handler(button, handler)
@@ -232,11 +240,12 @@ class BaseElement:
         of `Block`'s available fields which can be passed as keyword arguments
         to this method.
         """
-        if self.instance is not None:
+        kwargs["name"] = self.name
+        if "instance" not in kwargs:
             kwargs["instance"] = self.instance
-        return Block(name=self.name, full_text=full_text, **kwargs)
+        return Block(full_text=full_text, **kwargs)
 
-    def set_click_handler(self, button: int, handler: ClickHandler[Self]) -> None:
+    def set_click_handler(self, button: int, handler: ShellCommand | ClickHandler[Self]) -> None:
         """
         Add a method to this instance that calls `handler` when blocks from
         this element are clicked with the pointer `button`.
@@ -268,45 +277,91 @@ class BaseElement:
 
                   - A `bool`. If `True`, the status bar will be updated.
 
-                  - `None` and the status bar is not updated.
+                  - Nothing or `None`. The status bar will not be updated.
         """
-        method_name = f"on_click_{button}"
-        handler_kind = "function" if callable(handler) else "shell command"
-        handler_desc = f"{self} {method_name} {handler_kind} handler"
 
-        def handle_shell_command(command: ShellCommand) -> Popen:
-            logger.debug("executing shell command=%r", command)
-            return ShellCommandProcess(command)
-
-        if callable(handler):
+        if not callable(handler):
 
             def handler_wrapped(element: Self, click_event: ClickEvent) -> ClickHandlerResult:
-                result = handler(element, click_event)
-                return handle_shell_command(result) if isinstance(result, (str, list)) else result
+                return handler
 
-        else:
+            self.set_click_handler(button, handler_wrapped)
+            return
 
-            def handler_wrapped(element: Self, click_event: ClickEvent) -> ClickHandlerResult:
-                return handle_shell_command(handler)
+        logger.debug("setting %s handler: %r", self, handler)
+        setattr(self, f"on_click_{button}", MethodType(handler, self))
 
-        def method_wrapped(self: Self, click_event: ClickEvent) -> ClickHandlerResult:
-            logger.debug("executing %s => %s", handler_desc, handler)
-            with environ_update(**self.env | click_event.as_dict()):
-                try:
-                    return handler_wrapped(self, click_event)
-                except Exception:
-                    logger.exception("unhandled exception in %s", handler_desc)
-            return None
-
-        logger.debug("setting %s => %s", handler_desc, handler)
-        setattr(self, method_name, MethodType(method_wrapped, self))
-
-    def on_click(self, click_event: ClickEvent) -> ClickHandlerResult:
+    def on_click(self, click_event: ClickEvent) -> UpdateHandler | bool:
         """Delegate a click event to the handler corresponding to its button."""
         try:
-            return getattr(self, f"on_click_{click_event.button}")(click_event)
+            click_handler = getattr(self, f"on_click_{click_event.button}")
         except AttributeError:
-            return None
+            return False
+
+        logger.debug("executing click handler: %r", click_handler)
+
+        with environ_update(**self.env | click_event.as_dict()):
+            try:
+                result = click_handler(click_event)
+            except Exception:
+                logger.exception("unhandled exception in click handler: %r", click_handler)
+                return False
+
+            if result is None:
+                return False
+
+            if isinstance(result, bool):
+                return result
+
+            if isinstance(result, str | list):
+                logger.debug("executing shell command=%r", result)
+                result = ShellCommandProcess(result)
+
+            if isinstance(result, Popen):
+
+                def update_handler() -> bool:
+                    result.communicate()
+                    return result.returncode == 0
+
+                return update_handler
+
+            def update_handler() -> bool:
+                try:
+                    return result()
+                except Exception:
+                    logger.exception("unhandled exception in update handler: %r", result)
+                return False
+
+            return update_handler
 
 
-__all__ = [BaseElement.__name__]
+class ElementRegistry:
+    """Locate an element instance in order of specificity."""
+
+    def __init__(self, elements: Iterable[BaseElement]) -> None:
+        self.elements = elements
+
+    @cached_property
+    def elements_by_key(self) -> Mapping[tuple[str, str | None], BaseElement]:
+        return {(e.name, e.instance): e for e in self.elements}
+
+    @cache
+    def get(self, name: str, instance: str | None = None) -> BaseElement:
+        """
+        Return the element identified by a name and optional instance.
+
+        If a matching element is not found, look for one with the same name.
+        Otherwise, raise `KeyError`.
+        """
+        if instance:
+            try:
+                return self.elements_by_key[(name, instance)]
+            except KeyError:
+                pass
+        return self.elements_by_key[(name, None)]
+
+
+__all__ = [
+    BaseElement.__name__,
+    ElementRegistry.__name__,
+]

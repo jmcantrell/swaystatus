@@ -70,7 +70,7 @@ class ModuleRegistry:
         return result
 
     @cache
-    def element_class(self, name: str) -> type[BaseElement]:
+    def get(self, name: str) -> type[BaseElement]:
         """Return the first matching element constructor in any visible packages."""
         for package in self.packages:
             try:

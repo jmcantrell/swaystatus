@@ -1,3 +1,22 @@
+"""
+Application lifecycle management for swaystatus.
+
+After startup, the process responds to the following signals:
+
+SIGINT, SIGTERM
+    Shut down gracefully.
+
+SIGSTOP
+    Suspend status output (sent by swaybar when hidden).
+
+SIGCONT
+    Resume status output and immediately refresh the status line (sent by
+    swaybar when unhidden).
+
+SIGUSR1
+    Immediately refresh the status line.
+"""
+
 from signal import SIGCONT, SIGINT, SIGTERM, SIGUSR1, Signals, signal
 from types import FrameType
 
@@ -9,7 +28,7 @@ SIGNALS_SHUTDOWN = [SIGINT, SIGTERM]
 
 
 class App:
-    """Manager for the daemon's lifecycle."""
+    """Manager for the daemon's life cycle."""
 
     def __init__(self, daemon: Daemon) -> None:
         self.daemon = daemon

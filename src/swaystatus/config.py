@@ -1,5 +1,5 @@
 """
-Configuring swaystatus to do your bidding.
+Runtime configuration for swaystatus.
 
 Configuration is defined in a toml file located in one of the following places
 (in order of preference):
@@ -19,8 +19,9 @@ The following keys are recognized in the configuration file:
         element to be used multiple times with different settings for each
         "instance".
 
-    `interval` (type: `float`, default: `5.0`)
-        How often (in seconds) to update the status bar.
+    `interval` (type: `float|None`, default: `None`)
+        How often (in seconds) to update the status bar. If set to `None`, the
+        status bar will only update on initialization or when signaled.
 
     `click_events` (type: `bool`, default: `false`)
         Whether or not to listen for status bar clicks.
@@ -49,6 +50,7 @@ A typical configuration file might look like the following:
         'clock:home'
     ]
 
+    interval = 5.0
     click_events = true
 
     [env]
@@ -73,13 +75,11 @@ import tomllib
 from dataclasses import dataclass, field
 from functools import cache, cached_property
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Iterable, Self
 
-from .element import BaseElement
+from .element import BaseElement, ShellCommand
 from .logging import logger
-from .modules import ModuleRegistry
-
-default_interval = 5.0
+from .module import ModuleRegistry
 
 
 @dataclass(kw_only=True, eq=False)
@@ -87,11 +87,11 @@ class Config:
     """Data class representing runtime configuration."""
 
     order: list[str] = field(default_factory=list)
-    interval: float = default_interval
+    interval: float | None = None
     click_events: bool = False
     settings: dict[str, Any] = field(default_factory=dict)
     include: list[str | Path] = field(default_factory=list)
-    on_click: dict[int, str | list[str]] = field(default_factory=dict)
+    on_click: dict[int, ShellCommand] = field(default_factory=dict)
     env: dict[str, str] = field(default_factory=dict)
 
     @cached_property
@@ -103,7 +103,7 @@ class Config:
         """Return an element instance for a configuration key."""
         logger.info("loading element %r", key)
         name, instance = decode_element_key(key)
-        Element = self.module_registry.element_class(name)
+        Element = self.module_registry.get(name)
         kwargs = self.settings.get(name, {})
         if instance:
             kwargs = deep_merge_dicts(kwargs, self.settings.get(key, {}))
@@ -113,23 +113,24 @@ class Config:
         return Element(**kwargs)
 
     @cached_property
-    def elements(self) -> list[BaseElement]:
+    def elements(self) -> Iterable[BaseElement]:
         """Return all status bar content producers in order."""
         return list(map(self.element, self.order))
 
     @classmethod
-    def from_file(cls, file: Path) -> Self:
+    def from_file(cls, path: Path) -> Self:
         """Instantiate a configuration object from a toml file."""
-        return cls(**tomllib.load(file.open("rb")))
+        with path.open("rb") as file:
+            return cls(**tomllib.load(file))
 
 
 def decode_element_key(key: str) -> tuple[str, str | None]:
     """Parse an element name and instance from a string like "name" or "name:instance"."""
-    try:
-        name, instance = key.split(":", maxsplit=1)
-    except ValueError:
-        name, instance = key, None
-    assert name
+    name, sep, instance = key.partition(":")
+    if not name:
+        raise ValueError("Missing element name")
+    if not sep:
+        return name, None
     return name, instance
 
 

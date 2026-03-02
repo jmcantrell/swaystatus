@@ -3,7 +3,6 @@ from threading import Thread
 from typing import Callable, Iterator
 
 from .logging import logger
-from .typing import ShellCommand
 
 
 class ProxyThread[T](Thread):
@@ -25,8 +24,8 @@ class ProxyThread[T](Thread):
 class ShellCommandProcess(Popen):
     """Run a shell command, logging stdout and stderr."""
 
-    def __init__(self, command: ShellCommand) -> None:
-        super().__init__(command, stdout=PIPE, stderr=PIPE, shell=True, text=True)
+    def __init__(self, args) -> None:
+        super().__init__(args, stdout=PIPE, stderr=PIPE, shell=True, text=True)
         assert self.stdout and self.stderr
         ProxyThread(self.stdout, logger.debug).start()
         ProxyThread(self.stderr, logger.error).start()

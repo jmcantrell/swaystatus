@@ -2,7 +2,7 @@ import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator, Mapping
 
 self_name = os.path.basename(sys.argv[0])
 
@@ -19,19 +19,24 @@ def environ_paths(name: str) -> list[Path]:
     return [Path(p).expanduser() for p in os.environ[name].split(":")] if name in os.environ else []
 
 
+def environ_alter(updates: Mapping[str, Any]) -> None:
+    """Alter the environment by unsetting the `None` values and setting others."""
+    for name, value in updates.items():
+        if value is None:
+            try:
+                del os.environ[name]
+            except KeyError:
+                pass
+        else:
+            os.environ[name] = str(value)
+
+
 @contextmanager
-def environ_update(**kwargs) -> Iterator:
+def environ_update(**kwargs: str | None) -> Iterator:
     """Alter the environment during execution of a block."""
     environ_save = {k: os.environ.get(k) for k in kwargs.keys()}
-    os.environ.update({k: str(v) for k, v in kwargs.items()})
+    environ_alter(kwargs)
     try:
         yield
     finally:
-        for key, value in environ_save.items():
-            if value is None:
-                try:
-                    del os.environ[key]
-                except KeyError:
-                    pass
-            else:
-                os.environ[key] = value
+        environ_alter(environ_save)

@@ -1,13 +1,15 @@
 import json
 from io import StringIO
-from operator import itemgetter
+from itertools import repeat
 from random import shuffle
-from subprocess import Popen
-from typing import IO, Callable, Iterable
+from types import MethodType
+from typing import IO, Iterable, Self
+from unittest import TestCase, main
 
-from swaystatus.dataclasses import ClickEvent
+from swaystatus.click_event import ClickEvent
 from swaystatus.element import BaseElement
-from swaystatus.input import InputProcessor
+from swaystatus.input import InputProcessor, click_events
+from tests.fake import fake_click_event
 
 
 def create_input_file(click_events: Iterable[ClickEvent]) -> IO[str]:
@@ -19,105 +21,96 @@ def create_input_file(click_events: Iterable[ClickEvent]) -> IO[str]:
     return input_file
 
 
-def test_input_process_click_handler_delegation(fake_click_event) -> None:
-    """Ensure that clicks are sent to the correct handler."""
-    actual_clicks = []
-
-    def handler_func() -> bool:
-        return True
-
-    handler_process = Popen("true")
-
-    class Element(BaseElement):
-        name = "test"
-
-        def register_click(self, click_event: ClickEvent) -> None:
-            nonlocal actual_clicks
-            actual_clicks.append(click_event)
-
-        def on_click_1(self, click_event: ClickEvent) -> None:
-            self.register_click(click_event)
-
-        def on_click_2(self, click_event: ClickEvent) -> bool:
-            self.register_click(click_event)
-            return True
-
-        def on_click_3(self, click_event: ClickEvent) -> Callable[[], bool]:
-            self.register_click(click_event)
-            return handler_func
-
-        def on_click_4(self, click_event: ClickEvent) -> Popen:
-            self.register_click(click_event)
-            return handler_process
-
-    element = Element()
-    expected_processed = [
-        (
-            fake_click_event(
-                name="test",
-                button=button,
-            ),
-            element,
-            handler_result,
-        )
-        for button, handler_result in enumerate(
-            [
-                None,
-                True,
-                handler_func,
-                handler_process,
-            ],
-            start=1,
-        )
-    ]
-    shuffle(expected_processed)
-    expected_clicks = list(map(itemgetter(0), expected_processed))
-    input_file = create_input_file(expected_clicks)
-    input_processor = InputProcessor([element])
-    actual_processed = list(input_processor.process(input_file))
-    assert actual_clicks == expected_clicks
-    assert actual_processed == expected_processed
+class TestClickEvents(TestCase):
+    def test_parse(self) -> None:
+        """Test that click events can be parsed from an IO stream."""
+        expected = [fake_click_event(name=name) for name in "abc"]
+        self.assertListEqual(list(click_events(create_input_file(expected))), expected)
 
 
-def test_input_process_element_delegation(fake_click_event) -> None:
-    """Ensure that clicks are sent to the correct element."""
-    actual_clicks = []
+class TestInputProcessor(TestCase):
+    def test_process_element_delegation(self) -> None:
+        """Test that click events are sent to the correct element."""
 
-    class Element(BaseElement):
-        def on_click_1(self, click_event: ClickEvent) -> None:
-            nonlocal actual_clicks
-            actual_clicks.append(click_event)
+        actual_click_events = []
 
-    class Element1(Element):
-        name = "test1"
+        class Element(BaseElement):
+            def on_click_1(element: Self, click_event: ClickEvent) -> None:
+                nonlocal actual_click_events
+                actual_click_events.append(click_event)
+                self.assertEqual(click_event.button, 1)
+                self.assertEqual(click_event.name, element.name)
+                self.assertEqual(click_event.instance, element.instance)
 
-    class Element2(Element):
-        name = "test2"
+        class Element1(Element):
+            name = "test1"
 
-    elements = [
-        Element1(),
-        Element1(instance="a"),
-        Element1(instance="b"),
-        Element2(),
-        Element2(instance="a"),
-        Element2(instance="b"),
-    ]
-    expected_processed = [
-        (
+        class Element2(Element):
+            name = "test2"
+
+        elements = [
+            Element1(),
+            Element1(instance="a"),
+            Element1(instance="b"),
+            Element2(),
+            Element2(instance="a"),
+            Element2(instance="b"),
+        ]
+        expected_click_events = [
             fake_click_event(
                 name=element.name,
                 instance=element.instance,
                 button=1,
-            ),
-            element,
-            None,
+            )
+            for element in elements
+        ]
+        shuffle(expected_click_events)
+        input_file = create_input_file(expected_click_events)
+        self.assertListEqual(
+            list(InputProcessor(elements).process(input_file)),
+            list(repeat(False, len(expected_click_events))),
         )
-        for element in elements
-    ]
-    shuffle(expected_processed)
-    expected_clicks = list(map(itemgetter(0), expected_processed))
-    input_file = create_input_file(expected_clicks)
-    input_processor = InputProcessor(elements)
-    actual_processed = list(input_processor.process(input_file))
-    assert actual_clicks == expected_clicks
-    assert actual_processed == expected_processed
+        self.assertListEqual(actual_click_events, expected_click_events)
+
+    def test_process_handler_delegation(self) -> None:
+        """Test that click events are sent to the correct element handler."""
+
+        class Element(BaseElement):
+            name = "test"
+
+        element = Element()
+        buttons = list(range(1, 4))
+        actual_click_events = []
+
+        def set_click_handler(button: int) -> None:
+
+            def click_handler(element: Element, click_event: ClickEvent) -> None:
+                nonlocal actual_click_events
+                actual_click_events.append(click_event)
+                self.assertEqual(click_event.button, button)
+                self.assertEqual(click_event.name, element.name)
+                self.assertEqual(click_event.instance, element.instance)
+
+            setattr(element, f"on_click_{button}", MethodType(click_handler, element))
+
+        for button in buttons:
+            set_click_handler(button)
+
+        expected_click_events = [
+            fake_click_event(
+                name="test",
+                button=button,
+            )
+            for button in buttons
+        ]
+        shuffle(expected_click_events)
+        input_file = create_input_file(expected_click_events)
+        self.assertListEqual(
+            list(InputProcessor([element]).process(input_file)),
+            list(repeat(False, len(expected_click_events))),
+        )
+        self.assertListEqual(actual_click_events, expected_click_events)
+
+
+if __name__ == "__main__":
+    main()

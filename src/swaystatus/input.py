@@ -1,53 +1,33 @@
-from functools import cache, cached_property
 from json import JSONDecoder
 from typing import IO, Iterable, Iterator
 
-from .dataclasses import ClickEvent
-from .element import BaseElement
+from .click_event import ClickEvent
+from .element import BaseElement, ElementRegistry, UpdateHandler
 from .logging import logger
-from .typing import ClickHandlerResult
 
 
 class InputProcessor:
     """Handle click events, sending them to the appropriate element's handler."""
 
     def __init__(self, elements: Iterable[BaseElement]) -> None:
-        self.elements = list(elements)
+        self.elements = ElementRegistry(elements)
 
-    @cached_property
-    def elements_by_key(self) -> dict[tuple[str | None, str | None], BaseElement]:
-        """Provide fast lookup of elements by name and instance."""
-        return {(e.name, e.instance): e for e in self.elements}
-
-    @cache
-    def element(self, name: str | None, instance: str | None) -> BaseElement:
-        """
-        Return the handler for element identifiers.
-
-        Try to find an element matching the given name and instance.
-        If a matching element is not found, look for one with the same name.
-        Otherwise, raise `KeyError`.
-        """
-        for instance in (instance, None):
-            try:
-                return self.elements_by_key[(name, instance)]
-            except KeyError:
-                pass
-        raise KeyError((name, instance))
-
-    def process(self, file: IO[str]) -> Iterator[tuple[ClickEvent, BaseElement, ClickHandlerResult]]:
+    def process(self, file: IO[str]) -> Iterator[UpdateHandler | bool]:
         """Yield click events and their corresponding element handler results."""
         for click_event in click_events(file):
             logger.debug("received click event: %r", click_event)
+            if not click_event.name:
+                logger.info("ignoring unidentified %s", click_event)
+                continue
             try:
-                element = self.element(click_event.name, click_event.instance)
+                element = self.elements.get(click_event.name, click_event.instance)
             except KeyError:
                 logger.warn("no element to handle %s", click_event)
                 continue
             logger.info("sending %s to %s", click_event, element)
-            handler_result = element.on_click(click_event)
-            logger.debug("%s handled %s with result: %r", element, click_event, handler_result)
-            yield click_event, element, handler_result
+            update = element.on_click(click_event)
+            logger.debug("%s handled %s with updater: %r", element, click_event, update)
+            yield update
 
 
 def click_events(file: IO[str]) -> Iterator[ClickEvent]:
@@ -55,10 +35,7 @@ def click_events(file: IO[str]) -> Iterator[ClickEvent]:
     decoder = Decoder()
     assert file.readline().strip() == "["
     for line in file:
-        try:
-            yield decoder.decode(line.strip().lstrip(","))
-        except Exception:
-            logger.exception("exception while decoding input: %r", line)
+        yield decoder.decode(line.strip().lstrip(","))
 
 
 class Decoder(JSONDecoder):

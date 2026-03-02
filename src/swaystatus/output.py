@@ -1,11 +1,11 @@
-from functools import cache, cached_property
+from functools import cached_property
+from itertools import chain
 from json import JSONEncoder
 from signal import SIGCONT, SIGSTOP
 from typing import IO, Any, Iterable, Iterator
 
-from .dataclasses import Block
+from .block import Block
 from .element import BaseElement
-from .logging import logger
 
 
 class OutputProcessor:
@@ -24,16 +24,6 @@ class OutputProcessor:
             click_events=self.click_events,
         )
 
-    def blocks(self) -> Iterator[Block]:
-        """Yield blocks from every element."""
-        element_blocks.cache_clear()
-        for element in self.elements:
-            yield from element_blocks(element)
-
-    def lines(self) -> Iterator[list[Block]]:
-        while True:
-            yield list(self.blocks())
-
     def process(self, file: IO[str]) -> Iterator[list[Block]]:
         """Send status lines to output and yield the originating blocks."""
 
@@ -43,23 +33,21 @@ class OutputProcessor:
         encoder = Encoder()
         send(encoder.encode(self.header))
         send("[[]")
-        for line in self.lines():
-            send(",{}".format(encoder.encode(line)))
-            yield line
+        while True:
+            blocks = list(status_line(self.elements))
+            send(",{}".format(encoder.encode(blocks)))
+            yield blocks
 
 
-@cache
-def element_blocks(element: BaseElement) -> list[Block]:
-    try:
-        return list(element.blocks())
-    except Exception:
-        logger.exception("exception while getting blocks for %s", element)
-        return []
+def status_line(elements: Iterable[BaseElement]) -> Iterator[Block]:
+    return chain.from_iterable(element.blocks() for element in elements)
 
 
 class Encoder(JSONEncoder):
-    def default(self, block: Block):
-        return block.as_dict()
+    def default(self, obj):
+        if isinstance(obj, Block):
+            return obj.as_dict()
+        return super().default(obj)
 
 
 __all__ = [OutputProcessor.__name__]

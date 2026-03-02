@@ -3,130 +3,102 @@ import random
 from io import StringIO
 from signal import SIGCONT, SIGSTOP
 from typing import Iterator
+from unittest import TestCase, main
 
-from swaystatus.dataclasses import Block
+from swaystatus.block import Block
 from swaystatus.element import BaseElement
-from swaystatus.output import OutputProcessor
+from swaystatus.output import OutputProcessor, status_line
 
 
-def test_output_blocks_multiple_elements() -> None:
-    """Ensure that multiple elements output their blocks in the correct order."""
+class TestStatusLine(TestCase):
+    def test_blocks_multiple_elements(self) -> None:
+        """Test that multiple elements output their blocks in the correct order."""
 
-    class Element1(BaseElement):
-        name = "test1"
+        class Element1(BaseElement):
+            name = "test1"
 
-        def blocks(self) -> Iterator[Block]:
-            yield self.block("foo")
+            def blocks(self) -> Iterator[Block]:
+                yield self.block("foo")
 
-    class Element2(BaseElement):
-        name = "test2"
+        class Element2(BaseElement):
+            name = "test2"
 
-        def blocks(self) -> Iterator[Block]:
-            yield self.block("bar")
+            def blocks(self) -> Iterator[Block]:
+                yield self.block("bar")
 
-    output_processor = OutputProcessor([Element1(), Element2()])
-    actual_blocks = list(output_processor.blocks())
-    expected_blocks = [
-        Block(name="test1", full_text="foo"),
-        Block(name="test2", full_text="bar"),
-    ]
-    assert actual_blocks == expected_blocks
+        actual_blocks = list(status_line([Element1(), Element2()]))
+        expected_blocks = [
+            Block(name="test1", full_text="foo"),
+            Block(name="test2", full_text="bar"),
+        ]
+        self.assertListEqual(actual_blocks, expected_blocks)
 
+    def test_blocks_multiple_blocks_per_element(self) -> None:
+        """Test that a single element is able to output multiple blocks."""
+        texts = ["foo", "bar", "baz"]
 
-def test_output_blocks_multiple_blocks_per_element() -> None:
-    """Ensure that a single element is able to output multiple blocks."""
-    texts = ["foo", "bar", "baz"]
+        class Element(BaseElement):
+            name = "test"
 
-    class Element(BaseElement):
-        name = "test"
+            def blocks(self) -> Iterator[Block]:
+                yield from map(self.block, texts)
 
-        def blocks(self) -> Iterator[Block]:
-            for text in texts:
-                yield self.block(text)
-
-    output_processor = OutputProcessor([Element()])
-    actual_blocks = list(output_processor.blocks())
-    expected_blocks = [Block(name="test", full_text=text) for text in texts]
-    assert actual_blocks == expected_blocks
+        actual_blocks = list(status_line([Element()]))
+        expected_blocks = [Block(name="test", full_text=text) for text in texts]
+        self.assertListEqual(actual_blocks, expected_blocks)
 
 
-def test_output_blocks_identical_elements_cached() -> None:
-    """Ensure that identical elements are only polled once per iteration."""
+class TestOutputProcessor(TestCase):
+    def test_header_click_events(self) -> None:
+        """Test that the click events setting is reflected in the output header."""
+        for click_events in [None, False, True]:
+            with self.subTest(click_events=click_events):
+                output_processor = OutputProcessor([], click_events=click_events)
+                assert output_processor.header["click_events"] == bool(click_events)
 
-    class Element(BaseElement):
-        name = "test"
-        count = 0
+    def test_process_encoded(self) -> None:
+        """Test that output is written in the expected format."""
 
-        def blocks(self) -> Iterator[Block]:
-            self.count += 1
-            yield self.block(str(self.count))
+        class Element(BaseElement):
+            name = "test"
+            count = 0
 
-    element = Element()
+            def blocks(self) -> Iterator[Block]:
+                self.count += 1
+                yield self.block(f"iteration {self.count}")
 
-    # Show that separate polls produce different blocks.
-    assert list(element.blocks()) != list(element.blocks())
+        output_file = StringIO()
+        output_processor = OutputProcessor([Element()])
+        status_lines = output_processor.process(output_file)
 
-    output_processor = OutputProcessor([element, element])
+        def next_iteration() -> tuple[list[Block], list[str]]:
+            pos = output_file.tell()
+            status_line = next(status_lines)
+            output_file.seek(pos)
+            output_lines = output_file.readlines()
+            return status_line, output_lines
 
-    # Show that the blocks produced by the element are reused.
-    blocks_first = list(output_processor.blocks())
-    assert blocks_first[0] == blocks_first[1]
+        def block(i: int) -> Block:
+            return Block(full_text=f"iteration {i}", name="test")
 
-    # Show that the blocks produced by the last call are not reused.
-    blocks_second = list(output_processor.blocks())
-    assert blocks_first != blocks_second
+        def body_line(i: int) -> str:
+            return f",[{json.dumps(dict(full_text=f'iteration {i}', name='test'))}]\n"
+
+        status_line, output_lines = next_iteration()
+        assert len(output_lines) == 3
+        assert status_line == [block(1)]
+        header = json.loads(output_lines[0])
+        assert header["version"] == 1
+        assert header["stop_signal"] == SIGSTOP
+        assert header["cont_signal"] == SIGCONT
+        assert not header["click_events"]
+        assert output_lines[1] == "[[]\n"  # start of infinite body array
+        assert output_lines[2] == body_line(1)
+        for i in range(2, random.randint(5, 10)):
+            status_line, output_lines = next_iteration()
+            assert status_line == [block(i)]
+            assert output_lines == [body_line(i)]
 
 
-def test_output_header_click_events() -> None:
-    """Ensure that the click events setting is reflected in output header."""
-
-    for click_events in [None, False, True]:
-        kwargs = {}
-        if click_events is not None:
-            kwargs["click_events"] = click_events
-        output_processor = OutputProcessor([], click_events=click_events)
-        assert output_processor.header["click_events"] == bool(click_events)
-
-
-def test_output_process_encoded() -> None:
-    """Ensure that output is written in the expected format."""
-
-    class Element(BaseElement):
-        name = "test"
-        count = 0
-
-        def blocks(self) -> Iterator[Block]:
-            self.count += 1
-            yield self.block(f"iteration {self.count}")
-
-    output_file = StringIO()
-    output_processor = OutputProcessor([Element()])
-    status = output_processor.process(output_file)
-
-    def next_iteration() -> tuple[list[Block], list[str]]:
-        pos = output_file.tell()
-        blocks = next(status)
-        output_file.seek(pos)
-        lines = output_file.readlines()
-        return blocks, lines
-
-    def block(i: int) -> Block:
-        return Block(full_text=f"iteration {i}", name="test")
-
-    def body_line(i: int) -> str:
-        return f",[{json.dumps(dict(full_text=f'iteration {i}', name='test'))}]\n"
-
-    blocks, lines = next_iteration()
-    assert len(lines) == 3
-    assert blocks == [block(1)]
-    header = json.loads(lines[0])
-    assert header["version"] == 1
-    assert header["stop_signal"] == SIGSTOP
-    assert header["cont_signal"] == SIGCONT
-    assert not header["click_events"]
-    assert lines[1] == "[[]\n"  # start of infinite body array
-    assert lines[2] == body_line(1)
-    for i in range(2, random.randint(5, 10)):
-        blocks, lines = next_iteration()
-        assert blocks == [block(i)]
-        assert lines == [body_line(i)]
+if __name__ == "__main__":
+    main()
