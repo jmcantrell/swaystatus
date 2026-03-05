@@ -5,7 +5,7 @@ Typical usage consists of the following:
 
     1. Create elements by subclassing `BaseElement` to produce blocks.
         - See `swaystatus.element` about creating elements.
-        - See `swaystatus.module` about where to put element modules.
+        - See `swaystatus.modules` about where to put element modules.
 
     2. Configure swaystatus to use those elements.
         - See `swaystatus.config` about enabling and configuring elements.

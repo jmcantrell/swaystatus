@@ -1,19 +1,16 @@
-from typing import Any, Mapping
-from unittest import TestCase, main
+import random
+from dataclasses import asdict
 
 from swaystatus.block import Block
-from tests.fake import fake_block_kwargs
 
 
-class TestBlock(TestCase):
-    def test_as_dict(self) -> None:
-        """Test that only set attributes are included when exporting as a dictionary."""
-        kwarg_pairs = list(fake_block_kwargs.items())
-        for n in range(len(kwarg_pairs)):
-            with self.subTest(n=n):
-                kwargs: Mapping[str, Any] = dict(kwarg_pairs[:n])
-                assert Block(**kwargs).as_dict() == kwargs
-
-
-if __name__ == "__main__":
-    main()
+def test_block_as_dict(dummy_block) -> None:
+    """Test that only set attributes are included when exporting as a dictionary."""
+    dummy_block_kwargs = list(asdict(dummy_block).items())
+    kwargs = dict(
+        random.sample(
+            dummy_block_kwargs,
+            k=random.randint(1, len(dummy_block_kwargs)),
+        )
+    )
+    assert Block(**kwargs).as_dict() == kwargs

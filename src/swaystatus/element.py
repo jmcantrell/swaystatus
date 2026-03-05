@@ -188,7 +188,7 @@ class BaseElement:
         """
         raise NotImplementedError
 
-    def block(self, full_text: str, **kwargs) -> Block:
+    def block(self, full_text, instance: str | None = None) -> Block:
         """
         Create a block of content associated with this element.
 
@@ -235,15 +235,10 @@ class BaseElement:
         name and instance set correctly. If the block's instance is set
         dynamically and the element's instance was declared in the
         configuration, an exception will be raised.
-
-        See the documentation for `swaystatus.block` for a full specification
-        of `Block`'s available fields which can be passed as keyword arguments
-        to this method.
         """
-        kwargs["name"] = self.name
-        if "instance" not in kwargs:
-            kwargs["instance"] = self.instance
-        return Block(full_text=full_text, **kwargs)
+        if instance and self.instance:
+            raise ValueError("block instance is not allowed when element instance is already set")
+        return Block(name=self.name, instance=instance or self.instance, full_text=full_text)
 
     def set_click_handler(self, button: int, handler: ShellCommand | ClickHandler[Self]) -> None:
         """
@@ -301,11 +296,7 @@ class BaseElement:
         logger.debug("executing click handler: %r", click_handler)
 
         with environ_update(**self.env | click_event.as_dict()):
-            try:
-                result = click_handler(click_event)
-            except Exception:
-                logger.exception("unhandled exception in click handler: %r", click_handler)
-                return False
+            result = click_handler(click_event)
 
             if result is None:
                 return False
@@ -325,14 +316,7 @@ class BaseElement:
 
                 return update_handler
 
-            def update_handler() -> bool:
-                try:
-                    return result()
-                except Exception:
-                    logger.exception("unhandled exception in update handler: %r", result)
-                return False
-
-            return update_handler
+            return result
 
 
 class ElementRegistry:

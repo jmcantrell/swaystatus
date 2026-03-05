@@ -73,13 +73,13 @@ A typical configuration file might look like the following:
 
 import tomllib
 from dataclasses import dataclass, field
-from functools import cache, cached_property
+from functools import cached_property
 from pathlib import Path
-from typing import Any, Iterable, Self
+from typing import Any, Iterator, Self
 
-from .element import BaseElement, ShellCommand
-from .logging import logger
-from .module import ModuleRegistry
+from .element import ShellCommand
+
+type Settings = dict[str, Any]
 
 
 @dataclass(kw_only=True, eq=False)
@@ -95,27 +95,16 @@ class Config:
     env: dict[str, str] = field(default_factory=dict)
 
     @cached_property
-    def module_registry(self) -> ModuleRegistry:
-        return ModuleRegistry(self.include)
-
-    @cache
-    def element(self, key: str) -> BaseElement:
-        """Return an element instance for a configuration key."""
-        logger.info("loading element %r", key)
-        name, instance = decode_element_key(key)
-        Element = self.module_registry.get(name)
-        kwargs = self.settings.get(name, {})
-        if instance:
-            kwargs = deep_merge_dicts(kwargs, self.settings.get(key, {}))
-        kwargs["env"] = self.env | kwargs.get("env", {})
-        kwargs["instance"] = instance
-        logger.debug("initializing element %r: %r", name, kwargs)
-        return Element(**kwargs)
-
-    @cached_property
-    def elements(self) -> Iterable[BaseElement]:
-        """Return all status bar content producers in order."""
-        return list(map(self.element, self.order))
+    def elements(self) -> Iterator[tuple[str, Settings]]:
+        """Return the name and settings for each configured element in order."""
+        for key in self.order:
+            name, instance = decode_element_key(key)
+            settings = self.settings.get(name, {})
+            if instance:
+                settings = deep_merge_dicts(settings, self.settings.get(key, {}))
+            settings["env"] = self.env | settings.get("env", {})
+            settings["instance"] = instance
+            yield name, settings
 
     @classmethod
     def from_file(cls, path: Path) -> Self:
@@ -125,13 +114,13 @@ class Config:
 
 
 def decode_element_key(key: str) -> tuple[str, str | None]:
-    """Parse an element name and instance from a string like "name" or "name:instance"."""
+    """Parse a name and instance from a string like "name" or "name:instance"."""
     name, sep, instance = key.partition(":")
     if not name:
         raise ValueError("Missing element name")
     if not sep:
         return name, None
-    return name, instance
+    return name, instance or None
 
 
 def deep_merge_dicts(first: dict, second: dict) -> dict:

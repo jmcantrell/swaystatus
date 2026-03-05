@@ -2,13 +2,16 @@
 
 import argparse
 from pathlib import Path
+from typing import Iterator
 
 from . import __version__
 from .app import App
 from .config import Config
 from .daemon import Daemon
+from .element import BaseElement
 from .env import environ_path, environ_paths, self_name
 from .logging import configure_logging, logger
+from .modules import PackageRegistry
 from .xdg import config_home, data_home
 
 
@@ -100,12 +103,20 @@ def load_config(args: argparse.Namespace) -> Config:
     return config
 
 
+def load_elements(config: Config) -> Iterator[BaseElement]:
+    package_registry = PackageRegistry(config.include)
+    for name, settings in config.elements:
+        logger.debug("loading element %r: %r", name, settings)
+        yield package_registry.module(name)(**settings)
+
+
 def main() -> None:
     args = parse_args()
     config = load_config(args)
     configure_logging(args.log_level)
+    elements = list(load_elements(config))
     daemon = Daemon(
-        config.elements,
+        elements,
         config.interval,
         config.click_events,
     )

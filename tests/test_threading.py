@@ -1,247 +1,230 @@
-import json
+import logging
 from io import StringIO
+from itertools import chain, repeat
 from random import randint
-from threading import Event
-from typing import Iterator
-from unittest import TestCase, main
-from unittest.mock import DEFAULT, Mock, patch
+from threading import Barrier
+from typing import IO, Iterator
+from unittest.mock import Mock, call
 
-from swaystatus.block import Block
-from swaystatus.element import BaseElement
-from swaystatus.threading import InputReader, OutputWriter, Ticker, UpdateRunner
+from pytest import FixtureRequest, fixture, mark
+from pytest_mock import MockerFixture
+
+from swaystatus.threading import InputReader, OutputWriter, Ticker
 
 
-class TestTicker(TestCase):
-    def test_stop(self) -> None:
-        """Test that a ticker can be stopped."""
-        ticker = Ticker()
-        with patch.object(ticker._stopper, "is_set", return_value=True):
-            ticker.start(lambda: None)
-            assert ticker._thread
-            self.addCleanup(ticker._thread.join)
-            with patch.object(ticker._thread, "join", autospec=True, wraps=ticker._thread.join) as join_mock:
-                ticker.stop()
-                join_mock.assert_called_once()
+class TickerHarness:
+    ticker: Ticker
+    tick_called: Barrier
+    wait_called: Barrier
+    wait_mock: Mock
+    stopper_is_set_mock: Mock
 
-    def test_tick(self) -> None:
-        """Test that a ticker can be advanced manually."""
-        tick = Event()
-
-        def on_tick() -> None:
-            tick.set()
-
-        ticker = Ticker()
-        ticker.start(on_tick)
-        self.addCleanup(ticker.stop)
-        if not tick.wait(timeout=1.0):
-            self.fail("initial tick never happened")
-        tick.clear()
-        ticker.tick()
-        if not tick.wait(timeout=1.0):
-            self.fail("manual tick never happened")
-        ticker.stop()
-
-    def test_interval(self) -> None:
-        """Test that a ticker will wait for the given interval before the next tick."""
-        wait_called = Event()
+    def __init__(self, mocker: MockerFixture, ticker: Ticker) -> None:
+        self.ticker = ticker
+        self.wait_called = Barrier(2, timeout=1.0)
 
         def wait_side_effect(*args, **kwargs):
-            wait_called.set()
-            return DEFAULT
+            self.wait_called.wait()
+            return mocker.DEFAULT
 
-        for interval in [None, 5.0]:
-            with self.subTest(interval=interval):
-                wait_called.clear()
-                ticker = Ticker(interval=interval)
-                with patch.object(ticker._waiter, "wait", autospec=True, wraps=ticker._waiter.wait) as wait_mock:
-                    wait_mock.side_effect = wait_side_effect
-                    ticker.start(lambda: None)
-                    self.addCleanup(ticker.stop)
-                    if not wait_called.wait(timeout=1.0):
-                        self.fail("wait was never called")
-                    ticker.stop()
-                    wait_mock.assert_called_once_with(timeout=interval)
+        self.wait_mock = mocker.patch.object(
+            self.ticker._waiter,
+            "wait",
+            side_effect=wait_side_effect,
+        )
+        self.stopper_is_set_mock = mocker.patch.object(
+            self.ticker._stopper,
+            "is_set",
+            return_value=False,
+        )
+        self.tick_called = Barrier(2, timeout=1.0)
 
-    def test_first_tick_immediate(self) -> None:
-        """Test that a ticker will tick immediately on start."""
+    def start(self) -> None:
+        self.ticker.start(self.tick_called.wait)
 
-        first_tick = Event()
-        wait_called = Event()
-
-        def on_tick() -> None:
-            first_tick.set()
-
-        ticker = Ticker()
-
-        def wait_side_effect(*args, **kwargs):
-            wait_called.set()
-            return DEFAULT
-
-        with patch.object(ticker._waiter, "wait", autospec=True, wraps=ticker._waiter.wait) as wait_mock:
-            wait_mock.side_effect = wait_side_effect
-            ticker.start(on_tick)
-            if not first_tick.wait(timeout=1.0):
-                self.fail("first tick never happened")
-            ticker.stop()
-            if not wait_called.wait(timeout=1.0):
-                self.fail("wait was never called")
-            wait_mock.assert_called_once()
+    def shutdown(self) -> None:
+        self.ticker.stop()
+        self.ticker.join(timeout=1.0)
+        assert not self.ticker.is_alive(), "thread never died"
+        assert self.wait_mock.mock_calls == [call(timeout=self.ticker.interval)] * self.wait_mock.call_count
 
 
-class TestOutputWriter(TestCase):
-    def test_output(self) -> None:
-        """Test that the output processor steadily writes status lines to the target file."""
+class TestTicker:
+    def test_sync(self, harness: TickerHarness) -> None:
+        """Test that ticking happens after waiting."""
+        harness.start()
+        for stopping in chain(repeat(False, randint(1, 10)), [True]):
+            harness.wait_called.wait()
+            harness.stopper_is_set_mock.return_value = stopping
+            harness.tick_called.wait()
 
-        class Element(BaseElement):
-            name = "test"
+    @fixture(params=[None, 5.0])
+    def harness(self, request: FixtureRequest, mocker: MockerFixture) -> Iterator[TickerHarness]:
+        harness = TickerHarness(mocker, Ticker(interval=request.param))
+        yield harness
+        harness.shutdown()
 
-            def blocks(self) -> Iterator[Block]:
-                yield self.block("foo")
 
-        output_file = StringIO()
-        output_writer = OutputWriter(output_file, [Element()])
-        num_lines = randint(5, 10)
-        process_yielded = Event()
-        process_orig = output_writer._output_processor.process
+class OutputWriterHarness:
+    output_writer: OutputWriter
+    process_mock: Mock
+    process_yielded: Barrier
+    process_yield_mock: Mock
+
+    def __init__(self, mocker: MockerFixture, output_writer: OutputWriter) -> None:
+        self.output_writer = output_writer
+        self.process_yielded = Barrier(2, timeout=1.0)
+
+        def process_yield_side_effect(*args, **kwargs):
+            self.process_yielded.wait()
+            return mocker.DEFAULT
+
+        self.process_yield_mock = mocker.Mock(side_effect=process_yield_side_effect)
 
         def process_side_effect(*args, **kwargs):
-            for status_line in process_orig(*args, **kwargs):
-                process_yielded.set()
-                yield status_line
-                process_yielded.clear()
-
-        with patch.object(
-            output_writer._output_processor,
-            "process",
-            autospec=True,
-            wraps=output_writer._output_processor.process,
-        ) as process_mock:
-            process_mock.side_effect = process_side_effect
-            output_writer.start()
-            self.addCleanup(output_writer.stop)
-            i = 0
             while True:
-                if not process_yielded.wait(timeout=1.0):
-                    self.fail(f"process never yielded item number {i + 1}")
-                i += 1
-                if i == num_lines:
-                    break
-                process_yielded.clear()
-                output_writer.update()
+                yield self.process_yield_mock()
 
-        output_file.seek(0)
-        self.assertIsInstance(json.loads(output_file.readline().strip()), dict)  # header
-        self.assertEqual(output_file.readline(), "[[]\n")  # body start
-        self.assertEqual(len(output_file.readlines()), num_lines)  # status lines
+        self.process_mock = mocker.patch.object(
+            self.output_writer._output_processor,
+            "process",
+            side_effect=process_side_effect,
+        )
+
+    @property
+    def output_file(self) -> IO[str]:
+        return self.output_writer._output_file
+
+    def start(self) -> None:
+        self.output_writer.start()
+
+    def shutdown(self) -> None:
+        self.output_writer.stop()
+        self.output_writer.join(timeout=1.0)
+        assert not self.output_writer.is_alive(), "thread never died"
 
 
-class TestInputReader(TestCase):
-    def setUp(self) -> None:
-        self.output_file = StringIO()
-        self.output_writer = OutputWriter(self.output_file, [])
-        self.input_file = StringIO()
-        self.input_reader = InputReader(self.input_file, [], self.output_writer)
-        self.process_mock = self.enterContext(patch("swaystatus.input.InputProcessor.process", autospec=True))
+class TestOutputWriter:
+    def test_generator_start(self, harness: OutputWriterHarness) -> None:
+        """Test that the output processor begins iteration."""
+        harness.output_writer.start()
+        harness.output_writer.stop()
+        harness.process_yielded.wait()
+        harness.process_mock.assert_called_once_with(harness.output_file)
+
+    def test_sync(self, harness: OutputWriterHarness) -> None:
+        """Test that the output processor yields are handled repeatedly."""
+        harness.output_writer.start()
+        for stopping in chain(repeat(False, randint(1, 10)), [True]):
+            harness.process_yielded.wait()
+            if stopping:
+                harness.output_writer.stop()
+            else:
+                harness.output_writer.update()
+
+    def test_yield_raises(self, harness: OutputWriterHarness, assert_log_record) -> None:
+        harness.process_yield_mock.side_effect = Exception("BOOM!")
+        harness.output_writer.start()
+        harness.output_writer.stop()
+        harness.output_writer.join(timeout=1.0)
+        assert_log_record(logging.ERROR, "unhandled exception in output processor")
+
+    @fixture
+    def harness(self, mocker: MockerFixture) -> Iterator[OutputWriterHarness]:
+        harness = OutputWriterHarness(mocker, OutputWriter(StringIO(), []))
+        yield harness
+        harness.shutdown()
+
+
+class InputReaderHarness:
+    input_reader: InputReader
+    process_mock: Mock
+    process_yielded: Barrier
+    process_yield_mock: Mock
+    update_handler_mock: Mock
+    update_mock: Mock
+
+    def __init__(self, mocker: MockerFixture, input_reader: InputReader) -> None:
+        self.input_reader = input_reader
+        self.process_yielded = Barrier(2, timeout=1.0)
+
+        def process_yield_side_effect(*args, **kwargs):
+            self.process_yielded.wait()
+            return mocker.DEFAULT
+
+        self.process_yield_mock = mocker.Mock(side_effect=process_yield_side_effect)
+
+        def process_side_effect(*args, **kwargs):
+            while True:
+                yield self.process_yield_mock()
+
+        self.process_mock = mocker.patch.object(
+            input_reader._input_processor,
+            "process",
+            side_effect=process_side_effect,
+        )
         self.update_handler_mock = Mock()
-        self.update_handler_called = Event()
-        self.update_mock = self.enterContext(patch("swaystatus.threading.OutputWriter.update", autospec=True))
-        self.update_called = Event()
+        self.update_mock = mocker.patch.object(input_reader._output_writer, "update")
 
-        def handler_side_effect(*args, **kwargs):
-            self.update_handler_called.set()
-            return DEFAULT
+    @property
+    def input_file(self) -> IO[str]:
+        return self.input_reader._input_file
 
-        self.update_handler_mock.side_effect = handler_side_effect
-
-        def update_side_effect(*args, **kwargs):
-            self.update_called.set()
-
-        self.update_mock.side_effect = update_side_effect
-
-    def test_update_false(self) -> None:
-        """Test that no update is run if not requested."""
-        self.process_mock.return_value = [False]
+    def start(self) -> None:
         self.input_reader.start()
-        assert self.input_reader._thread
-        self.input_reader._thread.join()
-        self.update_mock.assert_not_called()
 
-    def test_update_true(self) -> None:
+    def shutdown(self) -> None:
+        self.input_reader.stop()
+        self.input_reader.join(timeout=1.0)
+        assert not self.input_reader.is_alive(), "thread never died"
+
+
+class TestInputReader:
+    def test_generator_start(self, harness: InputReaderHarness) -> None:
+        """Test that the input processor begins iteration."""
+        harness.input_reader.start()
+        harness.input_reader.stop()
+        harness.process_yielded.wait()
+        harness.process_mock.assert_called_once_with(harness.input_file)
+
+    def test_sync(self, harness: InputReaderHarness) -> None:
+        """Test that the input processor yields are handled repeatedly."""
+        harness.input_reader.start()
+        for stopping in chain(repeat(False, randint(1, 10)), [True]):
+            harness.process_yielded.wait()
+            if stopping:
+                harness.input_reader.stop()
+
+    def test_yield_raises(self, harness: InputReaderHarness, assert_log_record) -> None:
+        harness.process_yield_mock.side_effect = Exception("BOOM!")
+        harness.input_reader.start()
+        harness.input_reader.stop()
+        harness.input_reader.join(timeout=1.0)
+        assert_log_record(logging.ERROR, "unhandled exception in input processor")
+
+    @mark.parametrize("update", [False, True])
+    def test_update(self, update: bool, harness: InputReaderHarness) -> None:
         """Test that an update is run if requested."""
-        self.process_mock.return_value = [True]
-        self.input_reader.start()
-        if not self.update_called.wait(timeout=1.0):
-            self.fail("update never called")
-        assert self.input_reader._thread
-        self.input_reader._thread.join()
+        harness.process_yield_mock.return_value = update
+        harness.input_reader.start()
+        harness.input_reader.stop()
+        harness.process_yielded.wait()
+        harness.input_reader.join()
+        assert harness.update_mock.call_count == int(update)
 
-    def test_update_handler_false(self) -> None:
-        """Test that an update is not run if the handler fails."""
-        self.update_handler_mock.return_value = False
-        self.process_mock.return_value = [self.update_handler_mock]
-        self.input_reader.start()
-        if not self.update_handler_called.wait(timeout=1.0):
-            self.fail("handler never called")
-        assert self.input_reader._thread
-        self.input_reader._thread.join()
-        self.update_mock.assert_not_called()
+    @mark.parametrize("update", [False, True])
+    def test_update_handler(self, update: bool, harness: InputReaderHarness) -> None:
+        """Test that an update handler can request an update."""
+        harness.update_handler_mock.return_value = update
+        harness.process_yield_mock.return_value = harness.update_handler_mock
+        harness.input_reader.start()
+        harness.input_reader.stop()
+        harness.process_yielded.wait()
+        harness.input_reader.join()
+        assert harness.update_mock.call_count == int(update)
 
-    def test_update_handler_true(self) -> None:
-        """Test that an update is run if the handler succeeds."""
-        self.update_handler_mock.return_value = True
-        self.process_mock.return_value = [self.update_handler_mock]
-        self.input_reader.start()
-        if not self.update_handler_called.wait(timeout=1.0):
-            self.fail("handler never called")
-        if not self.update_called.wait(timeout=1.0):
-            self.fail("update never called")
-        assert self.input_reader._thread
-        self.input_reader._thread.join()
-
-
-class TestUpdateRunner(TestCase):
-    def setUp(self) -> None:
-        self.output_file = StringIO()
-        self.output_writer = OutputWriter(self.output_file, [])
-        self.handler_mock = Mock()
-        self.update_mock = self.enterContext(patch("swaystatus.threading.OutputWriter.update", autospec=True))
-        self.handler_called = Event()
-        self.update_called = Event()
-
-        def handler_side_effect(*args, **kwargs):
-            self.handler_called.set()
-            return DEFAULT
-
-        self.handler_mock.side_effect = handler_side_effect
-
-        def update_side_effect(*args, **kwargs):
-            self.update_called.set()
-
-        self.update_mock.side_effect = update_side_effect
-
-    def test_handler_false(self) -> None:
-        """Test that an update is not run if the handler fails."""
-        self.handler_mock.return_value = False
-        update_runner = UpdateRunner(self.output_writer, self.handler_mock)
-        update_runner.start()
-        assert update_runner._thread
-        if not self.handler_called.wait(timeout=1.0):
-            self.fail("handler never called")
-        update_runner._thread.join(timeout=5.0)
-        self.update_mock.assert_not_called()
-
-    def test_handler_true(self) -> None:
-        """Test that an update is run if the handler succeeds."""
-        self.handler_mock.return_value = True
-        update_runner = UpdateRunner(self.output_writer, self.handler_mock)
-        update_runner.start()
-        assert update_runner._thread
-        if not self.handler_called.wait(timeout=1.0):
-            self.fail("handler never called")
-        if not self.update_called.wait(timeout=1.0):
-            self.fail("update never called")
-        update_runner._thread.join(timeout=5.0)
-
-
-if __name__ == "__main__":
-    main()
+    @fixture
+    def harness(self, mocker: MockerFixture) -> Iterator[InputReaderHarness]:
+        harness = InputReaderHarness(mocker, InputReader(StringIO(), [], OutputWriter(StringIO(), [])))
+        yield harness
+        harness.shutdown()

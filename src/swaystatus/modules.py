@@ -46,7 +46,7 @@ from .element import BaseElement
 from .logging import logger
 
 
-class ModuleRegistry:
+class PackageRegistry:
     """Track, locate, and import status bar elements."""
 
     def __init__(self, include: Iterable[str | Path]) -> None:
@@ -70,7 +70,7 @@ class ModuleRegistry:
         return result
 
     @cache
-    def get(self, name: str) -> type[BaseElement]:
+    def module(self, name: str) -> type[BaseElement]:
         """Return the first matching element constructor in any visible packages."""
         for package in self.packages:
             try:
@@ -85,4 +85,4 @@ class ModuleRegistry:
             raise ModuleNotFoundError(f"Module not found in any package: {name}")
 
 
-__all__ = [ModuleRegistry.__name__]
+__all__ = [PackageRegistry.__name__]

@@ -27,8 +27,10 @@ classifiers = [
 
 [dependency-groups]
 dev = [
-    "jedi>=0.19.2,<0.20.0",
+    "coverage>=7.13.4,<8.0.0",
     "mypy>=1.19.1,<2.0.0",
+    "pytest>=9.0.2,<10.0.0",
+    "pytest-mock>=3.15.1,<4.0.0",
     "ruff>=0.15.2,<0.16.0",
 ]
 
@@ -41,11 +43,17 @@ dev = [
 swaystatus = "swaystatus.cli:main"
 
 [build-system]
-requires = ["uv_build"]
+requires = ["uv_build>=0.10.8,<0.11.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
 source-include = ["tests/**"]
+
+[tool.pytest]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = ["tests/*"]
 
 [tool.ruff]
 line-length = 120

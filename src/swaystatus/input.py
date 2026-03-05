@@ -14,7 +14,7 @@ class InputProcessor:
 
     def process(self, file: IO[str]) -> Iterator[UpdateHandler | bool]:
         """Yield click events and their corresponding element handler results."""
-        for click_event in click_events(file):
+        for click_event in parse_click_events(file):
             logger.debug("received click event: %r", click_event)
             if not click_event.name:
                 logger.info("ignoring unidentified %s", click_event)
@@ -26,12 +26,12 @@ class InputProcessor:
                 continue
             logger.info("sending %s to %s", click_event, element)
             update = element.on_click(click_event)
-            logger.debug("%s handled %s with updater: %r", element, click_event, update)
+            logger.debug("%s handled %s: %r", element, click_event, update)
             yield update
 
 
-def click_events(file: IO[str]) -> Iterator[ClickEvent]:
-    """Yield decoded click events from a file."""
+def parse_click_events(file: IO[str]) -> Iterator[ClickEvent]:
+    """Yield parsed click events from a file."""
     decoder = Decoder()
     assert file.readline().strip() == "["
     for line in file:

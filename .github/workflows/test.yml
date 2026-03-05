@@ -31,4 +31,4 @@ jobs:
 
       - name: Execute test runner
         run: |
-          uv run --frozen python -m unittest discover -s ./tests
+          uv run --frozen pytest
