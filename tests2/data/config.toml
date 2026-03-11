@@ -1,0 +1,13 @@
+interval = 5.0
+click_events = true
+
+[env]
+LC_COLLATE = 'C'
+
+[settings.clock]
+on_click.1 = 'foot -H cal'
+env = { TZ = "America/Chicago" }
+params = { full_text = "%r" }
+
+[[modules]]
+name = "clock"
