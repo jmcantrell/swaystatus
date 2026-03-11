@@ -1,4 +1,5 @@
 import argparse
+import logging
 from pathlib import Path
 
 from . import __version__
@@ -58,7 +59,8 @@ arg_parser.add_argument(
 arg_parser.add_argument(
     "--log-level",
     metavar="LEVEL",
-    default="warning",
-    choices=["debug", "info", "warning", "error", "critical"],
+    type=str.upper,
+    default=logging.getLevelName(logging.root.level),
+    choices=list(logging.getLevelNamesMapping().keys()),
     help="override default minimum logging level (default: %(default)s)",
 )

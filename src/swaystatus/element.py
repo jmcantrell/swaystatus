@@ -1,41 +1,21 @@
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from subprocess import PIPE, Popen
 from threading import Thread
 from types import MethodType
-from typing import Callable, Iterable, Iterator, Mapping, Self, Sequence
+from typing import Self
 
 from .block import Block
 from .click_event import ClickEvent
 from .env import environ_update
 from .logging import logger
-from .typing import ShellCommand
 
+type EnvMapping = dict[str, str | None]
+type ShellCommand = str | Sequence[str]
 type UpdateHandler = Callable[[], bool]
 type UpdateRequest = UpdateHandler | bool
 type ClickHandlerResult = ShellCommand | Popen | UpdateRequest | None
 type ClickHandler[E] = Callable[[E, ClickEvent], ClickHandlerResult]
-
-
-class MapDriver[T](Thread):
-    """Eagerly drive items from an iterable into a function."""
-
-    def __init__(self, iterable: Iterable[T], handler: Callable[[T], None]) -> None:
-        super().__init__()
-        self._iterator = iter(iterable)
-        self._handler = handler
-
-    def run(self) -> None:
-        for item in self._iterator:
-            self._handler(item)
-
-
-class LoggedProcess(Popen):
-    """Run a shell command, logging stdout and stderr."""
-
-    def __init__(self, args: ShellCommand) -> None:
-        super().__init__(args, stdout=PIPE, stderr=PIPE, shell=True, text=True)
-        assert self.stdout and self.stderr
-        MapDriver(self.stdout, logger.debug).start()
-        MapDriver(self.stderr, logger.error).start()
+type ClickHandlerMapping[E] = Mapping[int, ShellCommand | ClickHandler[E] | None]
 
 
 class BaseElement:
@@ -70,8 +50,8 @@ class BaseElement:
         instance: str | None = None,
         /,
         *,
-        env: Mapping[str, str] | None = None,
-        on_click: Mapping[int, ShellCommand | ClickHandler[Self] | None] | None = None,
+        env: EnvMapping | None = None,
+        on_click: ClickHandlerMapping[Self] | None = None,
     ) -> None:
         """
         Intialize a new status bar content producer, i.e. an element.
@@ -201,45 +181,52 @@ class BaseElement:
         configuration with the `instance` "home" will mean that click events
         will be lost, or worse, sent to the wrong element.
         """
-        return Block(name=self.name, instance=self.instance, full_text=full_text)
+        return Block(
+            name=self.name,
+            instance=self.instance,
+            full_text=full_text,
+        )
 
-    def set_click_handler(self, button: int, click_handler: ShellCommand | ClickHandler[Self] | None) -> None:
+    def set_click_handler(
+        self,
+        button: int,
+        click_handler: ClickHandler[Self] | ShellCommand | None,
+    ) -> None:
         """
         Specify how clicks events sent to this element for `button` should be
         handled.
 
         The `click_handler` can be one of the following:
 
-            - None. Clicks events will not be handled for `button`. This will
-              override any methods defined in the element subclass.
-
-            - A shell command compatible with Popen, i.e. a str | list[str].
-              The stdout and stderr streams will be logged at the DEBUG and
-              ERROR levels, respectively. If the exit status is zero, the
-              status bar will be updated.
-
             - A function that accepts two positional arguments (this element
               instance and a ClickEvent) and returns one of the following:
 
-                  - A shell command. It will be handled the same way as
-                    described earlier.
+                - A shell command compatible with Popen, i.e. a str|list[str].
+                  The stdout and stderr streams will be logged at the DEBUG and
+                  ERROR levels, respectively. If the exit status is zero, the
+                  status bar will be updated.
 
-                  - A Popen object. If the exit status is zero, the status bar
-                    will be updated.
+                - A Popen object. If the exit status is zero, the status bar
+                  will be updated.
 
-                  - A function that returns a bool. If it returns True, the
-                    status bar will be updated.
+                - A function that returns a bool. If it returns True, the
+                  status bar will be updated.
 
-                  - A bool. If True, the status bar will be updated.
+                - A bool. If True, the status bar will be updated.
 
-                  - Nothing or None. The status bar will not be updated.
+                - Nothing or None. The status bar will not be updated.
+
+            - A shell command. It will be handled as described above.
+
+            - None. Clicks events will not be handled for `button`. This will
+              override any methods defined in the element subclass.
         """
 
         method_attr = f"on_click_{button}"
 
         if click_handler is None:
 
-            def handler_disabled(element: Self, click_event: ClickEvent) -> ClickHandlerResult:
+            def handler_disabled(*args, **kwargs) -> None:
                 pass
 
             self.set_click_handler(button, handler_disabled)
@@ -247,13 +234,13 @@ class BaseElement:
 
         if not callable(click_handler):
 
-            def handler_wrapped(element: Self, click_event: ClickEvent) -> ClickHandlerResult:
+            def handler_wrapped(*args, **kwargs) -> ShellCommand:
                 return click_handler
 
             self.set_click_handler(button, handler_wrapped)
             return
 
-        logger.debug("setting button %s click handler for %s: %r", button, self, click_handler)
+        logger.debug("setting %s click handler for button=%s: %r", self, button)
         setattr(self, method_attr, MethodType(click_handler, self))
 
     def on_click(self, click_event: ClickEvent) -> bool:
@@ -263,7 +250,7 @@ class BaseElement:
         except AttributeError:
             return False
 
-        logger.debug("executing button %s click handler for %s: %r", click_event.button, self, click_handler)
+        logger.debug("executing %s click handler for %s", self, click_event)
 
         with environ_update(**self.env | click_event.as_dict()):
             result: ClickHandlerResult = click_handler(click_event)
@@ -278,11 +265,58 @@ class BaseElement:
                 return result()
 
             if isinstance(result, str | Sequence):
-                logger.debug("executing shell command=%r", result)
+                logger.debug("executing shell command: %s", result)
                 result = LoggedProcess(result)
 
-            if isinstance(result, Popen):
-                result.communicate()
-                return result.returncode == 0
+            result.wait()
+            return result.returncode == 0
 
-            return False
+
+class MapDriver[T](Thread):
+    """Eagerly drive items from an iterable into a function."""
+
+    def __init__(
+        self,
+        iterable: Iterable[T],
+        handler: Callable[[T], None],
+        name: str | None = None,
+    ) -> None:
+        super().__init__(name=name, daemon=True)
+        self._iterator = iter(iterable)
+        self._handler = handler
+
+    def run(self) -> None:
+        for item in self._iterator:
+            self._handler(item)
+
+
+class LoggedProcess(Popen):
+    """Run a shell command, logging stdout and stderr."""
+
+    def __init__(self, args: ShellCommand) -> None:
+        super().__init__(args, stdout=PIPE, stderr=PIPE, shell=True, text=True)
+        assert self.stdout and self.stderr
+
+        def without_newline(func: Callable[[str], None]) -> Callable[[str], None]:
+            def wrapped(line: str) -> None:
+                func(line.rstrip("\n"))
+
+            return wrapped
+
+        self._stdout_thread = MapDriver(self.stdout, without_newline(logger.debug), name="stdout")
+        self._stdout_thread.start()
+
+        self._stderr_thread = MapDriver(self.stderr, without_newline(logger.error), name="stderr")
+        self._stderr_thread.start()
+
+    def wait(self, timeout: float | int | None = None):
+        result = super().wait(timeout=timeout)
+        self._stdout_thread.join(timeout=timeout)
+        self._stderr_thread.join(timeout=timeout)
+        assert self.stdout and self.stderr
+        self.stdout.close()
+        self.stderr.close()
+        return result
+
+
+__all__ = [BaseElement.__name__]

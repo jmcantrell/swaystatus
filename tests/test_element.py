@@ -1,139 +1,177 @@
+import logging
 import random
 from pathlib import Path
 from string import ascii_letters
 from subprocess import Popen
+from tempfile import TemporaryDirectory
 from typing import Iterator
-
-from pytest import fail, mark, raises
-from pytest_mock import MockerFixture
+from unittest import TestCase, main
+from unittest.mock import Mock, patch
 
 from swaystatus.block import Block
 from swaystatus.click_event import ClickEvent
 from swaystatus.element import BaseElement, ShellCommand, UpdateHandler
+from swaystatus.logging import logger
+
+dummy_click_event = ClickEvent(
+    name="clock",
+    instance="home",
+    x=1900,
+    y=10,
+    button=1,
+    event=274,
+    relative_x=100,
+    relative_y=8,
+    width=120,
+    height=18,
+    scale=0.0,
+)
 
 
-class TestElement:
+class TestElement(TestCase):
     def test_blocks_must_be_implemented(self) -> None:
-        """The blocks method must be implemented."""
-        with raises(NotImplementedError):
+        with self.assertRaises(NotImplementedError):
             BaseElement("clock").blocks()
 
         class Element(BaseElement):
             def blocks(self) -> Iterator[Block]:
                 yield self.block("foo")
 
-        assert next(Element("clock").blocks()) == Block(name="clock", full_text="foo")
+        self.assertEqual(next(Element("clock").blocks()), Block(name="clock", full_text="foo"))
 
     def test_block_spawn(self) -> None:
-        """The block method returns a block tied to its element."""
-        assert BaseElement("clock").block("foo") == Block(full_text="foo", name="clock")
-        assert BaseElement("clock", "a").block("bar") == Block(full_text="bar", name="clock", instance="a")
+        self.assertEqual(BaseElement("clock").block("foo"), Block(full_text="foo", name="clock"))
+        self.assertEqual(BaseElement("clock", "a").block("bar"), Block(full_text="bar", name="clock", instance="a"))
 
-    def test_click_handler_missing(self, dummy_click_event) -> None:
-        """A click event with no handler is ignored."""
-        assert BaseElement("clock").on_click(dummy_click_event) is False
+    def test_click_handler_missing(self) -> None:
+        self.assertFalse(BaseElement("clock").on_click(dummy_click_event))
 
-    def test_click_handler_method(self, mocker: MockerFixture, dummy_click_event) -> None:
-        """A click handler can be defined as a method."""
+    def test_click_handler_method(self) -> None:
 
         class Element(BaseElement):
             def on_click_1(self, click_event: ClickEvent) -> None:
                 pass
 
         element = Element("clock")
-        spy = mocker.spy(element, "on_click_1")
-        assert element.on_click(dummy_click_event) is False
-        spy.assert_called_once_with(dummy_click_event)
+        with patch.object(element, "on_click_1", wraps=element.on_click_1) as mock:
+            self.assertFalse(element.on_click(dummy_click_event))
+            mock.assert_called_once_with(dummy_click_event)
 
-    def test_click_handler_init_none(self, dummy_click_event) -> None:
-        """A click handler can be disabled at initialization."""
+    def test_click_handler_init_none(self) -> None:
 
         class Element(BaseElement):
             def on_click_1(self, click_event: ClickEvent) -> None:
-                fail("expected click handler to not be called")
+                raise AssertionError("expected click handler to not be called")
 
         element = Element("clock", on_click={dummy_click_event.button: None})
-        assert element.on_click(dummy_click_event) is False
+        self.assertFalse(element.on_click(dummy_click_event))
 
-    def test_click_handler_init_function(self, mocker: MockerFixture, dummy_click_event) -> None:
-        """A click handler function can be set at initialization."""
-        click_handler = mocker.Mock(return_value=None)
+    def test_click_handler_init_function(self) -> None:
+        click_handler = Mock(return_value=None)
         element = BaseElement("clock", on_click={dummy_click_event.button: click_handler})
-        assert element.on_click(dummy_click_event) is False
+        self.assertFalse(element.on_click(dummy_click_event))
         click_handler.assert_called_once_with(element, dummy_click_event)
 
-    def test_click_handler_init_command(self, tmp_path, dummy_click_event) -> None:
-        """A click handler shell command can be set at initialization."""
-        marker_file = tmp_path / "test"
-        command = f"touch {marker_file}"
-        element = BaseElement("clock", on_click={dummy_click_event.button: command})
-        assert element.on_click(dummy_click_event) is True
-        assert marker_file.is_file(), f"expected file to exist: {marker_file}"
+    def test_click_handler_init_command(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            marker_file = Path(temp_dir) / "test"
+            command = f"touch {marker_file}"
+            element = BaseElement("clock", on_click={dummy_click_event.button: command})
+            self.assertTrue(element.on_click(dummy_click_event))
+            self.assertTrue(marker_file.is_file(), f"expected file to exist: {marker_file}")
 
-    def test_click_handler_init_command_env(self, tmp_path, dummy_string, dummy_click_event) -> None:
-        """A click handler shell command can use environment variables."""
+    def test_click_handler_init_command_env(self) -> None:
         text = "".join(random.choices(ascii_letters, k=random.randint(10, 30)))
-        env = {"foo": text}
-        output_file = tmp_path / "output"
-        command = f"echo ~ $foo $button >{output_file}"
-        expected_output = f"{Path.home()} {text} {dummy_click_event.button}"
-        element = BaseElement("clock", on_click={dummy_click_event.button: command}, env=env)
-        assert element.on_click(dummy_click_event) is True
-        assert output_file.read_text().strip() == expected_output, "unexpected shell command output"
+        with TemporaryDirectory() as temp_dir:
+            output_file = Path(temp_dir) / "output"
+            command = f"echo ~ $foo $button >{output_file}"
+            expected_output = f"{Path.home()} {text} {dummy_click_event.button}"
+            element = BaseElement("clock", on_click={dummy_click_event.button: command}, env={"foo": text})
+            self.assertTrue(element.on_click(dummy_click_event))
+            self.assertEqual(output_file.read_text().strip(), expected_output, "unexpected shell command output")
 
-    @mark.parametrize("update", map(bool, range(2)))
-    def test_click_handler_result_update(self, update, dummy_click_event) -> None:
-        """A click handler can request a status update."""
+    def test_click_handler_result_update(self) -> None:
+        for update in [False, True]:
+            with self.subTest(update=update):
 
-        class Element(BaseElement):
-            def on_click_1(self, *args) -> bool:
-                return update
+                class Element(BaseElement):
+                    def on_click_1(self, *args) -> bool:
+                        return update
 
-        assert Element("clock").on_click(dummy_click_event) is update
+                self.assertIs(Element("clock").on_click(dummy_click_event), update)
 
-    @mark.parametrize("update", map(bool, range(2)))
-    def test_click_handler_result_update_handler(self, update, dummy_click_event) -> None:
-        """A click handler can request a deferred status update."""
+    def test_click_handler_result_update_handler(self) -> None:
+        for update in [False, True]:
+            with self.subTest(update=update):
 
-        def update_handler_inner() -> bool:
-            return update
+                def update_handler_inner() -> bool:
+                    return update
 
-        class Element(BaseElement):
-            def on_click_1(self, *args) -> UpdateHandler:
-                return update_handler_inner
+                class Element(BaseElement):
+                    def on_click_1(self, *args) -> UpdateHandler:
+                        return update_handler_inner
 
-        assert Element("clock").on_click(dummy_click_event) is update
+                self.assertIs(Element("clock").on_click(dummy_click_event), update)
 
-    @mark.parametrize(
-        ["command", "update"],
-        [
+    def test_click_handler_result_process(self) -> None:
+        cases = [
             ("true", True),
             ("false", False),
-        ],
-    )
-    def test_click_handler_result_process(self, command: ShellCommand, update: bool, dummy_click_event) -> None:
-        """A successful process will trigger a status update."""
+        ]
 
-        class Element(BaseElement):
-            def on_click_1(self, *args) -> Popen:
-                return Popen(command)
+        for command, update in cases:
+            with self.subTest(command=command, update=update):
 
-        assert Element("clock").on_click(dummy_click_event) is update
+                class Element(BaseElement):
+                    def on_click_1(self, *args) -> Popen:
+                        return Popen(command)
 
-    @mark.parametrize(
-        ("command", "update"),
-        [
+                self.assertIs(Element("clock").on_click(dummy_click_event), update)
+
+    def test_click_handler_result_command(self) -> None:
+        cases = [
             ("true", True),
             (["true"], True),
             ("false", False),
             (["false"], False),
-        ],
-    )
-    def test_click_handler_result_command(self, command: ShellCommand, update: bool, dummy_click_event) -> None:
-        """A shell command can trigger a status update."""
+        ]
+
+        for command, update in cases:
+            with self.subTest(command=command, update=update):
+
+                class Element(BaseElement):
+                    def on_click_1(self, *args) -> ShellCommand:
+                        return command
+
+                self.assertIs(Element("clock").on_click(dummy_click_event), update)
+
+    def test_click_handler_result_command_logged(self) -> None:
+        command = "echo line1; echo BOOM >&2; echo line2; echo BANG >&2"
 
         class Element(BaseElement):
             def on_click_1(self, *args) -> ShellCommand:
                 return command
 
-        assert Element("clock").on_click(dummy_click_event) is update
+        element = Element("clock")
+
+        with self.assertLogs(logger, logging.DEBUG) as logged:
+            element.on_click(dummy_click_event)
+
+        debug = [r.message for r in logged.records if r.levelno == logging.DEBUG]
+        error = [r.message for r in logged.records if r.levelno == logging.ERROR]
+
+        self.assertEqual(
+            debug,
+            [
+                f"executing {element} click handler for {dummy_click_event}",
+                f"executing shell command: {command}",
+                "line1",
+                "line2",
+            ],
+        )
+
+        self.assertEqual(error, ["BOOM", "BANG"])
+
+
+if __name__ == "__main__":
+    main()

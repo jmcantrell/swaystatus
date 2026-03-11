@@ -1,5 +1,6 @@
 interval = 5.0
 click_events = true
+include = ['~/expand/user', '/path/to/modules']
 
 [env]
 LC_COLLATE = 'C'
@@ -11,3 +12,7 @@ params = { full_text = "%r" }
 
 [[modules]]
 name = "clock"
+
+[[modules]]
+name = "clock"
+instance = "home"

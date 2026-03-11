@@ -1,8 +1,6 @@
 from threading import Event, Thread
 from typing import Any, Callable
 
-from .typing import Seconds
-
 
 class Ticker(Thread):
     """Run a function at a regular interval or manually."""
@@ -12,7 +10,7 @@ class Ticker(Thread):
         tick: Callable[..., Any] | None = None,
         /,
         *,
-        interval: Seconds = None,
+        interval: float | int | None = None,
         name: str | None = None,
         daemon: bool | None = None,
     ) -> None:

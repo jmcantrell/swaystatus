@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from .dataclasses import min_dict, min_repr
+from .dataclasses import min_dict
 
 
 @dataclass(slots=True, kw_only=True)
@@ -36,8 +36,8 @@ class Block:
     def __str__(self) -> str:
         return f"block full_text={self.full_text!r}"
 
-    def __repr__(self) -> str:
-        return min_repr(self)
-
     def as_dict(self) -> dict[str, Any]:
         return min_dict(self)
+
+
+__all__ = [Block.__name__]

@@ -1,22 +1,21 @@
 import os
-import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, Mapping
-
-self_name = os.path.basename(sys.argv[0])
 
 
 def environ_path(name: str) -> Path | None:
     """Return a path from an environment variable (if set)."""
     if value := os.environ.get(name):
-        return Path(value).expanduser()
+        return Path(value)
     return None
 
 
 def environ_paths(name: str) -> list[Path]:
     """Return a list of paths from and environment variable."""
-    return [Path(p).expanduser() for p in os.environ[name].split(":")] if name in os.environ else []
+    if value := os.environ.get(name):
+        return list(map(Path, value.split(":")))
+    return []
 
 
 def environ_alter(updates: Mapping[str, str | None]) -> None:

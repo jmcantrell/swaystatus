@@ -38,13 +38,12 @@ from uuid import uuid4
 
 from .element import BaseElement
 from .logging import logger
-from .typing import PathLike
 
 
 class PackageRegistry:
     """Track, locate, and import status bar elements."""
 
-    def __init__(self, include: Iterable[PathLike]) -> None:
+    def __init__(self, include: Iterable[str | Path]) -> None:
         self.include = [Path(p).expanduser() for p in include]
 
     @cached_property
@@ -78,3 +77,6 @@ class PackageRegistry:
                 pass
         else:
             raise ModuleNotFoundError(f"module not found in any package: {name}")
+
+
+__all__ = [PackageRegistry.__name__]

@@ -42,3 +42,6 @@ class StatusLine:
             except KeyError:
                 pass
         return self._element_lookup[(name, None)]
+
+
+__all__ = [StatusLine.__name__]

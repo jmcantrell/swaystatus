@@ -1,10 +1,32 @@
-def test_click_event_as_dict(dummy_click_event) -> None:
-    """Certain unset keys are not included when exporting as a dictionary."""
-    exported = dummy_click_event.as_dict()
-    assert "name" in exported
-    assert "instance" in exported
-    dummy_click_event.name = None
-    dummy_click_event.instance = None
-    exported = dummy_click_event.as_dict()
-    assert "name" not in exported
-    assert "instance" not in exported
+from dataclasses import replace
+from unittest import TestCase, main
+
+from swaystatus.click_event import ClickEvent
+
+dummy_click_event = ClickEvent(
+    name="clock",
+    instance="home",
+    x=1900,
+    y=10,
+    button=1,
+    event=274,
+    relative_x=100,
+    relative_y=8,
+    width=120,
+    height=18,
+    scale=0.0,
+)
+
+
+class TestClickEvent(TestCase):
+    def test_str(self) -> None:
+        self.assertEqual(str(dummy_click_event), "click event button=1")
+
+    def test_as_dict(self) -> None:
+        exported = replace(dummy_click_event, name=None, instance=None).as_dict()
+        self.assertNotIn("name", exported)
+        self.assertNotIn("instance", exported)
+
+
+if __name__ == "__main__":
+    main()

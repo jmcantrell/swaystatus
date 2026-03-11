@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 from typing import Iterator
 
 from .app import App
@@ -6,46 +7,58 @@ from .args import arg_parser
 from .config import Config
 from .daemon import Daemon
 from .element import BaseElement
-from .env import environ_path, environ_paths, self_name
-from .logging import configure_logging, logger
+from .env import environ_path, environ_paths
+from .logging import logger
 from .modules import PackageRegistry
 from .status_line import StatusLine
-from .xdg import config_home, data_home
 
-env_config_dir = environ_path("SWAYSTATUS_CONFIG_DIR")
-env_config_file = environ_path("SWAYSTATUS_CONFIG_FILE")
-env_data_dir = environ_path("SWAYSTATUS_DATA_DIR")
-env_package_path = environ_paths("SWAYSTATUS_PACKAGE_PATH")
+self_name = "swaystatus"
+
+
+def parse_args() -> argparse.Namespace:
+    args = arg_parser.parse_args()
+    logger.setLevel(args.log_level)
+    return args
 
 
 def load_config(args: argparse.Namespace) -> Config:
-    config_dir = env_config_dir or args.config_dir or (config_home / self_name)
-    config_file = env_config_file or args.config_file or (config_dir / "config.toml")
-    modules_dir = (env_data_dir or args.data_dir or (data_home / self_name)) / "modules"
-    config = Config.from_file(config_file) if config_file.is_file() else Config()
-    config.include = args.include + config.include + env_package_path + [modules_dir]
-    if args.interval:
-        config.interval = args.interval
-    if args.click_events:
-        config.click_events = True
-    return config
+    xdg_config_home = environ_path("XDG_CONFIG_HOME")
+    default_config_dir = (xdg_config_home or (Path.home() / ".config")) / self_name
+    self_config_dir = environ_path("SWAYSTATUS_CONFIG_DIR")
+    config_dir = args.config_dir or self_config_dir or default_config_dir
+    self_config_file = environ_path("SWAYSTATUS_CONFIG_FILE")
+    default_config_file = config_dir / "config.toml"
+    config_file = args.config_file or self_config_file or default_config_file
+    if config_file.is_file():
+        logger.debug("loading configuration from file: %r", str(config_file))
+        return Config.from_file(config_file)
+    return Config()
 
 
-def load_elements(config: Config) -> Iterator[BaseElement]:
-    package_registry = PackageRegistry(config.include)
+def build_elements(args: argparse.Namespace, config: Config) -> Iterator[BaseElement]:
+    xdg_data_home = environ_path("XDG_DATA_HOME")
+    default_data_dir = (xdg_data_home or Path.home() / ".local/share") / self_name
+    self_data_dir = environ_path("SWAYSTATUS_DATA_DIR")
+    self_package_path = environ_paths("SWAYSTATUS_PACKAGE_PATH")
+    data_dir = args.data_dir or self_data_dir or default_data_dir
+    include = [*args.include, *config.include, *self_package_path, data_dir / "modules"]
+    package_registry = PackageRegistry(include)
     for name, instance in config.module_keys():
         kwargs = config.module(name, instance)
-        logger.debug("loading element name=%r instance=%r: %r", name, instance, kwargs)
+        logger.debug("building element name=%r instance=%r: %r", name, instance, kwargs)
         yield package_registry.module(name)(name, instance, **kwargs)
 
 
-def main() -> None:
-    args = arg_parser.parse_args()
+def create_app() -> App:
+    args = parse_args()
     config = load_config(args)
-    configure_logging(args.log_level)
-    status_line = StatusLine(list(load_elements(config)))
-    daemon = Daemon(status_line, config.interval, config.click_events)
+    status_line = StatusLine(list(build_elements(args, config)))
+    return App(Daemon(status_line, config.interval, config.click_events))
+
+
+def main() -> None:
     try:
-        App(daemon).run()
+        create_app().start()
     except Exception:
-        logger.exception("unhandled exception in app")
+        logger.exception("unhandled exception in main")
+        raise SystemExit(1)

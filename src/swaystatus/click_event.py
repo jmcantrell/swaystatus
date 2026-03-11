@@ -3,10 +3,10 @@
 from dataclasses import dataclass
 from typing import Any
 
-from .dataclasses import min_dict, min_repr
+from .dataclasses import min_dict
 
 
-@dataclass(slots=True, kw_only=True)
+@dataclass(slots=True, kw_only=True, frozen=True)
 class ClickEvent:
     """
     Data class representing an event generated when clicking on a status bar block.
@@ -30,8 +30,8 @@ class ClickEvent:
     def __str__(self) -> str:
         return f"click event button={self.button}"
 
-    def __repr__(self) -> str:
-        return min_repr(self)
-
     def as_dict(self) -> dict[str, Any]:
         return min_dict(self)
+
+
+__all__ = [ClickEvent.__name__]

@@ -3,27 +3,24 @@ import json
 import random
 from io import StringIO
 from signal import SIGCONT, SIGSTOP
+from threading import Barrier
 from typing import Iterator, Sequence
-
-from pytest import mark
+from unittest import TestCase, main
 
 from swaystatus.block import Block
 from swaystatus.element import BaseElement
-from swaystatus.output import OutputProcessor
+from swaystatus.output import OutputDriver, OutputProcessor
 from swaystatus.status_line import StatusLine
 
 
-class TestOutputProcessor:
-    @mark.parametrize("click_events", [None, False, True])
-    def test_header_click_events(self, click_events) -> None:
-        """The click events setting is reflected in the output header."""
-        stats_line = StatusLine([])
-        output_processor = OutputProcessor(StringIO(), stats_line, click_events)
-        assert output_processor.header["click_events"] == bool(click_events)
+class TestOutputProcessor(TestCase):
+    def test_header_click_events(self) -> None:
+        for click_events in [False, True]:
+            with self.subTest(click_events=click_events):
+                output_processor = OutputProcessor(StringIO(), StatusLine([]), click_events)
+                self.assertEqual(output_processor.header["click_events"], bool(click_events))
 
     def test_iter_encoded(self) -> None:
-        """Output is written in the expected format."""
-
         iteration = itertools.count(1)
 
         class Element(BaseElement):
@@ -48,16 +45,43 @@ class TestOutputProcessor:
             return f",[{json.dumps(dict(full_text=f'iteration {i}', name='test'))}]\n"
 
         blocks, output_lines = next_iteration()
-        assert len(output_lines) == 3
-        assert blocks == [block(1)]
-        header = json.loads(output_lines[0])
-        assert header["version"] == 1
-        assert header["stop_signal"] == SIGSTOP
-        assert header["cont_signal"] == SIGCONT
-        assert not header["click_events"]
-        assert output_lines[1] == "[[]\n"  # start of infinite body array
-        assert output_lines[2] == body_line(1)
+        self.assertEqual(len(output_lines), 3)
+        self.assertEqual(blocks, [block(1)])
+        self.assertEqual(
+            json.loads(output_lines[0]),
+            dict(
+                version=1,
+                stop_signal=SIGSTOP,
+                cont_signal=SIGCONT,
+                click_events=False,
+            ),
+        )
+        self.assertEqual(output_lines[1], "[[]\n")
+        self.assertEqual(output_lines[2], body_line(1))
         for i in range(2, random.randint(5, 10)):
             blocks, output_lines = next_iteration()
-            assert blocks == [block(i)]
-            assert output_lines == [body_line(i)]
+            self.assertEqual(blocks, [block(i)])
+            self.assertEqual(output_lines, [body_line(i)])
+
+
+class TestOutputDriver(TestCase):
+    def test_iterate_on_tick(self) -> None:
+        yield_acquire = Barrier(2, timeout=1.0)
+
+        def fake_status_lines() -> Iterator[Sequence[Block]]:
+            while True:
+                yield_acquire.wait()
+                yield []
+
+        output_driver = OutputDriver(fake_status_lines(), None)
+        output_driver.start()
+        for _ in range(random.randint(2, 10)):
+            output_driver.next()
+            yield_acquire.wait()
+        output_driver.stop()
+        output_driver.join(timeout=1.0)
+        self.assertFalse(output_driver.is_alive(), "output driver never died")
+
+
+if __name__ == "__main__":
+    main()

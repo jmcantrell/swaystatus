@@ -2,4 +2,7 @@
 
 set -euo pipefail
 
-uv run coverage report --show-missing
+if ! find . -type f -newer ./.coverage -exec false {} +; then
+    uv run coverage run -m unittest discover -q -s ./tests
+fi
+uv run coverage report "$@"

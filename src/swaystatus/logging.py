@@ -1,10 +1,11 @@
 import threading
-from logging import Formatter, StreamHandler, basicConfig, getLogger
+from logging import WARNING, Formatter, StreamHandler, basicConfig, getLogger
 
-from .env import self_name
+handler = StreamHandler()
+handler.setFormatter(Formatter("%(name)s: %(threadName)s: %(levelname)s: %(message)s"))
+basicConfig(level=WARNING, handlers=[handler])
 
-logger = getLogger(self_name)
-log_format = "%(name)s: %(threadName)s: %(levelname)s: %(message)s"
+logger = getLogger(__package__)
 
 
 def excepthook(args):
@@ -16,9 +17,3 @@ def excepthook(args):
 
 
 threading.excepthook = excepthook
-
-
-def configure_logging(level_name: str) -> None:
-    handler = StreamHandler()
-    handler.setFormatter(Formatter(log_format))
-    basicConfig(level=level_name.upper(), handlers=[handler])
