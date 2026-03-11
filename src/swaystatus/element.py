@@ -1,13 +1,5 @@
-"""
-An element produces blocks of content to display in the status bar.
-
-When the status bar is running, every configured element will be prompted for
-blocks at the configured interval. Once every element has replied, all of the
-collected blocks are encoded and sent to the bar via stdout.
-"""
-
-from functools import cache, cached_property
-from subprocess import Popen
+from subprocess import PIPE, Popen
+from threading import Thread
 from types import MethodType
 from typing import Callable, Iterable, Iterator, Mapping, Self, Sequence
 
@@ -15,12 +7,35 @@ from .block import Block
 from .click_event import ClickEvent
 from .env import environ_update
 from .logging import logger
-from .subprocess import ShellCommandProcess
+from .typing import ShellCommand
 
 type UpdateHandler = Callable[[], bool]
-type ShellCommand = str | Sequence[str]
-type ClickHandlerResult = ShellCommand | Popen | UpdateHandler | bool | None
+type UpdateRequest = UpdateHandler | bool
+type ClickHandlerResult = ShellCommand | Popen | UpdateRequest | None
 type ClickHandler[E] = Callable[[E, ClickEvent], ClickHandlerResult]
+
+
+class MapDriver[T](Thread):
+    """Eagerly drive items from an iterable into a function."""
+
+    def __init__(self, iterable: Iterable[T], handler: Callable[[T], None]) -> None:
+        super().__init__()
+        self._iterator = iter(iterable)
+        self._handler = handler
+
+    def run(self) -> None:
+        for item in self._iterator:
+            self._handler(item)
+
+
+class LoggedProcess(Popen):
+    """Run a shell command, logging stdout and stderr."""
+
+    def __init__(self, args: ShellCommand) -> None:
+        super().__init__(args, stdout=PIPE, stderr=PIPE, shell=True, text=True)
+        assert self.stdout and self.stderr
+        MapDriver(self.stdout, logger.debug).start()
+        MapDriver(self.stderr, logger.error).start()
 
 
 class BaseElement:
@@ -29,16 +44,17 @@ class BaseElement:
 
     The subclass must be named `Element` and be contained in a module file
     whose name will be used by swaystatus to identify it. For example, if there
-    is a module file named `clock.py`, the class will have an attribute `name`
-    set to "clock".
+    is a module file named `clock.py`, the instantiated element will have an
+    attribute `name` set to "clock".
 
-    The `blocks` method is called to generate output at every interval and must
-    be overridden. There is no requirement regarding the number of blocks that
-    are yielded, however if no blocks are yielded, nothing will be visible in
-    the status bar for that element. This may be desirable if, for example, the
-    element yields a block for every mounted disk and there are none mounted.
+    The `blocks` method is required on all subclasses. It is called to generate
+    output every time the status line updates. There is no requirement
+    regarding the number of blocks that are yielded, however if no blocks are
+    yielded, nothing will be visible in the status bar for that element. This
+    may be desirable if, for example, the element yields a block for every
+    mounted disk and there are none mounted.
 
-    A hypothetical clock module file might contain the following:
+    A minimal clock module file might contain the following:
 
         >>> from time import strftime
         >>> from typing import Iterator
@@ -46,121 +62,70 @@ class BaseElement:
         >>> class Element(BaseElement):
         >>>     def blocks(self) -> Iterator[Block]:
         >>>         yield self.block(strftime("%c"))
-
-    Enable the element by adding it to the configuration file:
-
-        order = ["clock"]
-
-    Let's make the clock respond to a left mouse button click by running a
-    shell command. Enable click events and add a click handler to the settings
-    for that element:
-
-        order = ["clock"]
-
-        click_events = true
-
-        [settings.clock]
-        on_click.1 = "foot --hold cal"
-
-    Maybe there needs to be an additional clock that always shows a specific
-    timezone:
-
-        order = ["clock", "clock:home"]
-
-        click_events = true
-
-        [settings.clock]
-        on_click.1 = "foot --hold cal"
-
-        [settings."clock:home".env]
-        TZ = 'Asia/Tokyo'
-
-    The "name:instance" form in `order` allows multiple instances of the same
-    element, each having their own settings.
-
-    Because the module is named `clock.py`, swaystatus will set the class
-    attribute `name` to "clock" for the first element ("clock" in `order`) as
-    if it had been declared like:
-
-        >>> from swaystatus import BaseElement
-        >>> class Element(BaseElement):
-        >>>     name = "clock"
-
-    Because the second element ("clock:home") is using the "name:instance"
-    form, it will also have the instance attribute `instance` set to "home" as
-    if it had been declared like:
-
-        >>> from swaystatus import BaseElement
-        >>> class Element(BaseElement):
-        >>>     name = "clock"
-        >>> element = Element(instance="home")
-
-    You should not set these attributes yourself, as it will confuse and sadden
-    swaystatus, and it will propably not respond to your clicks.
     """
-
-    name: str
-    instance: str | None
-    env: dict[str, str]
 
     def __init__(
         self,
-        *,
+        name: str,
         instance: str | None = None,
+        /,
+        *,
         env: Mapping[str, str] | None = None,
-        on_click: Mapping[int, ShellCommand | ClickHandler[Self]] | None = None,
+        on_click: Mapping[int, ShellCommand | ClickHandler[Self] | None] | None = None,
     ) -> None:
         """
         Intialize a new status bar content producer, i.e. an element.
 
-        The `instance` argument will be provided by swaystatus when the element
-        is created. This should not be provided by the subclass.
+        All arguments required by the base class will be provided by swaystatus
+        when the element is created.
 
-        The dictionary `env` will be added to the execution environment of any
-        click handler. Upon instantiation, the value is a combination of the
-        values in configuration for `env`, `settings.<name>.env`, and
-        `settings."<name>:<instance>".env`, merged together in that order, with
-        later values overriding earlier ones. Additionally, the attributes
-        `name` and `instance` (if set) are added.
+        The `name` parameter will be the name (minus extension) of the module
+        file that the subclass is loaded from.
 
-        The dictionary `on_click` maps pointer button numbers to click handlers
+        The optional `instance` parameter will be provided if the corresponding
+        module declaration in the configuration sets it.
+
+        The mapping `env` will be merged into the execution environment of
+        any click handler during its execution.
+
+        The mapping `on_click` maps pointer button numbers to click handlers
         (i.e. functions or shell commands) which take precedence over any
         already defined on the class.
 
-        When subclassing, there could be more keyword arguments passed,
-        depending on its settings in the configuration file.
+        Any extra parameters from the `params` mapping in the configuration
+        will be passed as keyword arguments to the element subclass and should
+        be handled there.
+
+        Upon instantiation, the parameters `env`, `on_click`, and the keyword
+        arguments taken from `params` represent a combination of the
+        corresponding tables in the configuration, merged together in order of
+        specificity with more specific tables overriding less specific ones.
 
         To illustrate, let's change the clock example from earlier to allow
-        configuration of how the element displays the time. Add an initializer
-        that accepts a keyword argument, and change the `blocks` method to use
-        the setting:
+        configuring how the element displays the time. Add an initializer that
+        accepts and forwards all arguments, handle a new parameter `full_text`
+        that will provide a format string, and change the `blocks` method to
+        use the setting:
 
             >>> from time import strftime
             >>> from typing import Iterator
             >>> from swaystatus import BaseElement, Block
             >>> class Element(BaseElement):
-            >>>     def __init__(self, full_text="%c", **kwargs) -> None:
-            >>>         super().__init__(**kwargs)
+            >>>     def __init__(self, *args, full_text="%c", **kwargs) -> None:
+            >>>         super().__init__(*args, **kwargs)
             >>>         self.full_text = full_text
             >>>     def blocks(self) -> Iterator[Block]:
             >>>         yield self.block(strftime(self.full_text))
 
         Without any further changes, it will behave as it did originally, but
-        now it can be configured by adding something like the following to the
-        configuration file:
+        now it can be configured for by adding it to a "clock" module's
+        `params` table in the configuration file:
 
-            [settings.clock]
-            full_text = "The time here is: %r"
-
-        If there are other instances of the element, they will inherit the
-        settings, but they can be overridden:
-
-            [settings."clock:home"]
-            full_text = "The time at home is: %r"
-
-            [settings."clock:home".env]
-            TZ = 'Asia/Tokyo'
+            [[modules]]
+            name = "clock"
+            params = { full_text = "epoch seconds %s" }
         """
+        self.name = name
         self.instance = instance
         self.env = dict(env or {})
         if on_click:
@@ -174,9 +139,8 @@ class BaseElement:
         """
         Yield blocks of content to display on the status bar.
 
-        To create a block, it's recommended to use the `block` method so that
-        the block has the proper name and instance set and that there is some
-        text:
+        To create a block, it's recommended to use the `block` method to ensure
+        that the block yielded is associated with the originating element.
 
             >>> from typing import Iterator
             >>> from swaystatus import BaseElement, Block
@@ -188,21 +152,23 @@ class BaseElement:
         """
         raise NotImplementedError
 
-    def block(self, full_text, instance: str | None = None) -> Block:
+    def block(self, full_text) -> Block:
         """
         Create a block of content associated with this element.
 
-        This method ensures that the `Block` it creates is linked to the
-        element yielding it, i.e. the name and instance attributes are set
-        correctly, which allows click events to be sent to this element.
+        This method ensures that the block it returns is associated with the
+        element creating it, i.e. the block has the `name`, `instance`, and
+        `full_text` attributes set properly, ensuring visibility and response
+        to click events.
 
-        One potential issue happens when an element instance has been declared
-        in the configuration `order` with the "name:instance" form and the
-        element class is also yielding blocks with dynamic instance attributes.
+        One potential issue happens when an module has been declared in the
+        configuration with an `instance` set and the corresponding element is
+        also yielding blocks with dynamic instance attributes.
+
         When swaybar sends click events from these blocks, swaystatus is unable
-        to match it with any of the elements it knows about and falls back to
-        sending it to the "name" element, which may or may not exist, and is
-        definitely not the sender.
+        to match it with any of the elements it is aware of and falls back to
+        sending it to an element with the same `name`, which may or may not
+        exist, and is definitely not the sender.
 
         To illustrate the problem, consider an element that yields blocks that
         could be different at every update. For example, there could be an
@@ -214,89 +180,93 @@ class BaseElement:
             >>> class Element(BaseElement):
             >>>     def blocks(self) -> Iterator[Block]:
             >>>         for dev in Path('/sys/class/net').iterdir():
-            >>>             yield self.block(dev.name, instance=dev.name)
+            >>>             block = self.block(dev.name)
+            >>>             block.instance = dev.name
+            >>>             yield block
 
         The difference between this and the clock example is that the clock
-        instances are not dynamic. Swaystatus knows there will always be two
-        instances and knows how to reach them.
+        instances are not dynamic. Swaystatus knows there is exactly one
+        instance and how to reach them.
 
         The blocks coming from this new example have potentially different
         instances at every update, so swaystatus can only reach this element by
         the module name.
 
-        The consequence is that an element's instances can either be declared
-        statically in the configuration or the blocks created with instances at
-        runtime, but not both. Trying to yield a block from the element "foo"
-        with its instance set to "a" when the element was already declared in
-        the configuration `order` as "foo:b" will mean that click events will
-        be lost, or worse, sent to the wrong element.
+        The consequence is that a module `instance` can either be declared
+        statically in the configuration or dynamically by the module's element
+        at runtime, but not both.
 
-        Using the `block` method will ensure that the returned `Block` has the
-        name and instance set correctly. If the block's instance is set
-        dynamically and the element's instance was declared in the
-        configuration, an exception will be raised.
+        For example, trying to yield a block with an `instance` of "work" from
+        the element named "clock" when the module was already declared in the
+        configuration with the `instance` "home" will mean that click events
+        will be lost, or worse, sent to the wrong element.
         """
-        if instance and self.instance:
-            raise ValueError("block instance is not allowed when element instance is already set")
-        return Block(name=self.name, instance=instance or self.instance, full_text=full_text)
+        return Block(name=self.name, instance=self.instance, full_text=full_text)
 
-    def set_click_handler(self, button: int, handler: ShellCommand | ClickHandler[Self]) -> None:
+    def set_click_handler(self, button: int, click_handler: ShellCommand | ClickHandler[Self] | None) -> None:
         """
-        Add a method to this instance that calls `handler` when blocks from
-        this element are clicked with the pointer `button`.
+        Specify how clicks events sent to this element for `button` should be
+        handled.
 
-        During execution of the handler, additions from any `env` configuration
-        and all attributes of the event will be added to the execution
-        environment.
+        The `click_handler` can be one of the following:
 
-        The `handler` can be one of the following:
+            - None. Clicks events will not be handled for `button`. This will
+              override any methods defined in the element subclass.
 
-            - A shell command compatible with `Popen`, i.e. a string or list of
-              strings. The stdout and stderr streams will be logged at the
-              `DEBUG` and `ERROR` levels, respectively. It will be allowed to
-              finish in a separate thread, and if the return code is zero, the
+            - A shell command compatible with Popen, i.e. a str | list[str].
+              The stdout and stderr streams will be logged at the DEBUG and
+              ERROR levels, respectively. If the exit status is zero, the
               status bar will be updated.
 
             - A function that accepts two positional arguments (this element
-              instance and a `ClickEvent`) and returns one of the following:
+              instance and a ClickEvent) and returns one of the following:
 
-                  - A shell command. It will be handled like the first item.
+                  - A shell command. It will be handled the same way as
+                    described earlier.
 
-                  - A `Popen` object. It will be allowed to finish in a
-                    separate thread, and if the return code is zero, the status
-                    bar will be updated.
-
-                  - A function that returns a `bool`. It will be run in a
-                    separate thread, and if it returns `True`, the status bar
+                  - A Popen object. If the exit status is zero, the status bar
                     will be updated.
 
-                  - A `bool`. If `True`, the status bar will be updated.
+                  - A function that returns a bool. If it returns True, the
+                    status bar will be updated.
 
-                  - Nothing or `None`. The status bar will not be updated.
+                  - A bool. If True, the status bar will be updated.
+
+                  - Nothing or None. The status bar will not be updated.
         """
 
-        if not callable(handler):
+        method_attr = f"on_click_{button}"
+
+        if click_handler is None:
+
+            def handler_disabled(element: Self, click_event: ClickEvent) -> ClickHandlerResult:
+                pass
+
+            self.set_click_handler(button, handler_disabled)
+            return
+
+        if not callable(click_handler):
 
             def handler_wrapped(element: Self, click_event: ClickEvent) -> ClickHandlerResult:
-                return handler
+                return click_handler
 
             self.set_click_handler(button, handler_wrapped)
             return
 
-        logger.debug("setting %s handler: %r", self, handler)
-        setattr(self, f"on_click_{button}", MethodType(handler, self))
+        logger.debug("setting button %s click handler for %s: %r", button, self, click_handler)
+        setattr(self, method_attr, MethodType(click_handler, self))
 
-    def on_click(self, click_event: ClickEvent) -> UpdateHandler | bool:
+    def on_click(self, click_event: ClickEvent) -> bool:
         """Delegate a click event to the handler corresponding to its button."""
         try:
             click_handler = getattr(self, f"on_click_{click_event.button}")
         except AttributeError:
             return False
 
-        logger.debug("executing click handler: %r", click_handler)
+        logger.debug("executing button %s click handler for %s: %r", click_event.button, self, click_handler)
 
         with environ_update(**self.env | click_event.as_dict()):
-            result = click_handler(click_event)
+            result: ClickHandlerResult = click_handler(click_event)
 
             if result is None:
                 return False
@@ -304,48 +274,15 @@ class BaseElement:
             if isinstance(result, bool):
                 return result
 
-            if isinstance(result, str | list):
+            if callable(result):
+                return result()
+
+            if isinstance(result, str | Sequence):
                 logger.debug("executing shell command=%r", result)
-                result = ShellCommandProcess(result)
+                result = LoggedProcess(result)
 
             if isinstance(result, Popen):
+                result.communicate()
+                return result.returncode == 0
 
-                def update_handler() -> bool:
-                    result.communicate()
-                    return result.returncode == 0
-
-                return update_handler
-
-            return result
-
-
-class ElementRegistry:
-    """Locate an element instance in order of specificity."""
-
-    def __init__(self, elements: Iterable[BaseElement]) -> None:
-        self.elements = elements
-
-    @cached_property
-    def elements_by_key(self) -> Mapping[tuple[str, str | None], BaseElement]:
-        return {(e.name, e.instance): e for e in self.elements}
-
-    @cache
-    def get(self, name: str, instance: str | None = None) -> BaseElement:
-        """
-        Return the element identified by a name and optional instance.
-
-        If a matching element is not found, look for one with the same name.
-        Otherwise, raise `KeyError`.
-        """
-        if instance:
-            try:
-                return self.elements_by_key[(name, instance)]
-            except KeyError:
-                pass
-        return self.elements_by_key[(name, None)]
-
-
-__all__ = [
-    BaseElement.__name__,
-    ElementRegistry.__name__,
-]
+            return False

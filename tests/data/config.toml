@@ -1,27 +1,13 @@
-order = [
-    'hostname',
-    'path_exists:/mnt/foo',
-    'memory',
-    'clock',
-    'clock:home'
-]
-
 interval = 5.0
 click_events = true
 
 [env]
-terminal = 'foot'
-
-[settings.hostname]
-full_text = "host: {}"
-on_click.1 = '$terminal --hold hostnamectl'
-
-[settings.path_exists]
-on_click.1 = ['$terminal', '--working-directory=$instance']
-on_click.2 = ['$terminal', '--hold', 'df', '$instance']
+LC_COLLATE = 'C'
 
 [settings.clock]
-on_click.1 = '$terminal --hold cal'
+on_click.1 = 'foot -H cal'
+env = { TZ = "America/Chicago" }
+params = { full_text = "%r" }
 
-[settings."clock:home".env]
-TZ = 'Asia/Tokyo'
+[[modules]]
+name = "clock"

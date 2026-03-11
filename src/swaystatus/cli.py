@@ -1,101 +1,29 @@
-"""Generate a status line for swaybar."""
-
 import argparse
-from pathlib import Path
 from typing import Iterator
 
-from . import __version__
 from .app import App
+from .args import arg_parser
 from .config import Config
 from .daemon import Daemon
 from .element import BaseElement
 from .env import environ_path, environ_paths, self_name
 from .logging import configure_logging, logger
 from .modules import PackageRegistry
+from .status_line import StatusLine
 from .xdg import config_home, data_home
 
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(
-            prog, indent_increment=4, max_help_position=45
-        ),
-        epilog="See `pydoc swaystatus` for full documentation.",
-    )
-    parser.add_argument(
-        "-v",
-        "--version",
-        action="version",
-        version=__version__,
-    )
-    parser.add_argument(
-        "-c",
-        "--config-file",
-        metavar="FILE",
-        type=Path,
-        help="override configuration file",
-    )
-    parser.add_argument(
-        "-C",
-        "--config-dir",
-        metavar="DIRECTORY",
-        type=Path,
-        help="override configuration directory",
-    )
-    parser.add_argument(
-        "-D",
-        "--data-dir",
-        metavar="DIRECTORY",
-        type=Path,
-        help="override data directory",
-    )
-    parser.add_argument(
-        "-I",
-        "--include",
-        metavar="DIRECTORY",
-        type=Path,
-        action="append",
-        default=[],
-        help="include an additional element package",
-    )
-    parser.add_argument(
-        "-i",
-        "--interval",
-        metavar="SECONDS",
-        type=float,
-        help="override default update interval",
-    )
-    parser.add_argument(
-        "--click-events",
-        action="store_true",
-        help="enable click events",
-    )
-    parser.add_argument(
-        "--log-level",
-        metavar="LEVEL",
-        default="warning",
-        choices=["debug", "info", "warning", "error", "critical"],
-        help="override default minimum logging level (default: %(default)s)",
-    )
-    parser.add_argument(
-        "order",
-        metavar="NAME[:INSTANCE]",
-        nargs="*",
-        help="override configured element order",
-    )
-    return parser.parse_args()
+env_config_dir = environ_path("SWAYSTATUS_CONFIG_DIR")
+env_config_file = environ_path("SWAYSTATUS_CONFIG_FILE")
+env_data_dir = environ_path("SWAYSTATUS_DATA_DIR")
+env_package_path = environ_paths("SWAYSTATUS_PACKAGE_PATH")
 
 
 def load_config(args: argparse.Namespace) -> Config:
-    config_dir = environ_path("SWAYSTATUS_CONFIG_DIR") or args.config_dir or (config_home / self_name)
-    config_file = environ_path("SWAYSTATUS_CONFIG_FILE") or args.config_file or (config_dir / "config.toml")
+    config_dir = env_config_dir or args.config_dir or (config_home / self_name)
+    config_file = env_config_file or args.config_file or (config_dir / "config.toml")
+    modules_dir = (env_data_dir or args.data_dir or (data_home / self_name)) / "modules"
     config = Config.from_file(config_file) if config_file.is_file() else Config()
-    data_dir = environ_path("SWAYSTATUS_DATA_DIR") or (data_home / self_name)
-    package_path = environ_paths("SWAYSTATUS_PACKAGE_PATH") + [data_dir / "modules"]
-    config.include = args.include + config.include + package_path
-    if args.order:
-        config.order = args.order
+    config.include = args.include + config.include + env_package_path + [modules_dir]
     if args.interval:
         config.interval = args.interval
     if args.click_events:
@@ -105,25 +33,19 @@ def load_config(args: argparse.Namespace) -> Config:
 
 def load_elements(config: Config) -> Iterator[BaseElement]:
     package_registry = PackageRegistry(config.include)
-    for name, settings in config.elements:
-        logger.debug("loading element %r: %r", name, settings)
-        yield package_registry.module(name)(**settings)
+    for name, instance in config.module_keys():
+        kwargs = config.module(name, instance)
+        logger.debug("loading element name=%r instance=%r: %r", name, instance, kwargs)
+        yield package_registry.module(name)(name, instance, **kwargs)
 
 
 def main() -> None:
-    args = parse_args()
+    args = arg_parser.parse_args()
     config = load_config(args)
     configure_logging(args.log_level)
-    elements = list(load_elements(config))
-    daemon = Daemon(
-        elements,
-        config.interval,
-        config.click_events,
-    )
+    status_line = StatusLine(list(load_elements(config)))
+    daemon = Daemon(status_line, config.interval, config.click_events)
     try:
         App(daemon).run()
     except Exception:
         logger.exception("unhandled exception in app")
-
-
-__all__ = [main.__name__]

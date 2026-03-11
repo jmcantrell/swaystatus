@@ -21,7 +21,7 @@ import locale
 
 from .block import Block
 from .click_event import ClickEvent
-from .element import BaseElement
+from .modules import BaseElement
 
 locale.setlocale(locale.LC_ALL, "")
 

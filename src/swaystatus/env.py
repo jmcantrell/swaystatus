@@ -2,7 +2,7 @@ import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator, Mapping
+from typing import Iterator, Mapping
 
 self_name = os.path.basename(sys.argv[0])
 
@@ -19,7 +19,7 @@ def environ_paths(name: str) -> list[Path]:
     return [Path(p).expanduser() for p in os.environ[name].split(":")] if name in os.environ else []
 
 
-def environ_alter(updates: Mapping[str, Any]) -> None:
+def environ_alter(updates: Mapping[str, str | None]) -> None:
     """Alter the environment by unsetting the `None` values and setting others."""
     for name, value in updates.items():
         if value is None:

@@ -23,9 +23,6 @@ from typing import Any, Callable
 from .daemon import Daemon
 from .logging import logger
 
-SIGNALS_UPDATE = [SIGUSR1, SIGCONT]
-SIGNALS_SHUTDOWN = [SIGINT, SIGTERM]
-
 
 def register_signal(signum: int, callback: Callable[..., Any]) -> None:
     def func(sig: int, frame: FrameType | None) -> None:
@@ -47,17 +44,14 @@ class App:
 
     def shutdown(self) -> None:
         self.daemon.stop()
+        self.daemon.join(timeout=5.0)
 
     def register_signals(self) -> None:
-        logger.debug("HERE")
-        for signum in SIGNALS_UPDATE:
-            register_signal(signum, self.update)
-        for signum in SIGNALS_SHUTDOWN:
-            register_signal(signum, self.shutdown)
+        register_signal(SIGUSR1, self.update)
+        register_signal(SIGCONT, self.update)
+        register_signal(SIGINT, self.shutdown)
+        register_signal(SIGTERM, self.shutdown)
 
     def run(self) -> None:
         self.register_signals()
         self.daemon.start()
-
-
-__all__ = [App.__name__]

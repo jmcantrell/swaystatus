@@ -41,6 +41,3 @@ class Block:
 
     def as_dict(self) -> dict[str, Any]:
         return min_dict(self)
-
-
-__all__ = [Block.__name__]

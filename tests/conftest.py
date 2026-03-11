@@ -23,8 +23,8 @@ def dummy_block() -> Block:
         border_right=4,
         min_width=100,
         align="center",
-        name="foo",
-        instance="bar",
+        name="clock",
+        instance="home",
         urgent=False,
         separator=False,
         separator_block_width=2,
@@ -36,7 +36,7 @@ def dummy_block() -> Block:
 def dummy_click_event() -> ClickEvent:
     return ClickEvent(
         name="clock",
-        instance="edt",
+        instance="home",
         x=1900,
         y=10,
         button=1,

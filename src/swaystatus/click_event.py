@@ -35,6 +35,3 @@ class ClickEvent:
 
     def as_dict(self) -> dict[str, Any]:
         return min_dict(self)
-
-
-__all__ = [ClickEvent.__name__]

@@ -1,137 +1,152 @@
 """
 Runtime configuration for swaystatus.
 
-Configuration is defined in a toml file located in one of the following places
-(in order of preference):
+Configuration is defined in one of the following files (in order of
+preference):
 
-    1. `--config-file=<FILE>`
-    2. `$SWAYSTATUS_CONFIG_FILE`
-    3. `<DIRECTORY>/config.toml` where `<DIRECTORY>` is from `--config-dir=<DIRECTORY>`
-    4. `$SWAYSTATUS_CONFIG_DIR/config.toml`
-    5. `$XDG_CONFIG_HOME/swaystatus/config.toml`
-    6. `$HOME/.config/swaystatus/config.toml`
+    1. --config-file=<FILE>
 
-The following keys are recognized in the configuration file:
+    2. $SWAYSTATUS_CONFIG_FILE
 
-    `order` (type: `list[str]`, default: `[]`)
-        The desired elements to display and their order. Each item can be of
-        the form "name" or "name:instance". The latter form allows the same
-        element to be used multiple times with different settings for each
-        "instance".
+    3. <DIRECTORY>/config.toml where <DIRECTORY> is from --config-dir=<DIRECTORY>
 
-    `interval` (type: `float|None`, default: `None`)
-        How often (in seconds) to update the status bar. If set to `None`, the
-        status bar will only update on initialization or when signaled.
+    4. $SWAYSTATUS_CONFIG_DIR/config.toml
 
-    `click_events` (type: `bool`, default: `false`)
-        Whether or not to listen for status bar clicks.
+    5. $XDG_CONFIG_HOME/swaystatus/config.toml
 
-    `include` (type: `list[str]`, default: `[]`)
-        Additional directories to treat as element packages.
+    6. $HOME/.config/swaystatus/config.toml
 
-    `env` (type: `dict[str, str]`, default: `{}`)
-        Additional environment variables visible to click handlers.
+The following keys are recognized at the top-level of the file:
 
-    `on_click` (type: `dict[int, str | list[str]]`, default: `{}`)
-        Maps pointer button numbers to shell commands that should be run in
-        response to a click by that button.
+    `interval` (type: float | int | None, default: None)
+        How often (in seconds) to update the status bar.
 
-    `settings` (type: `dict[str, dict[str, Any]]`, default: `{}`)
-        Maps element specifiers (as defined in `order`) to keyword arguments
-        that will be passed to the element constructor.
+    `click_events` (type: bool, default: False)
+        Whether to listen for clicks on status bar blocks.
 
-A typical configuration file might look like the following:
+    `include` (type: list[str], default: [])
+        Additional directories to treat as module packages.
 
-    order = [
-        'hostname',
-        'path_exists:/mnt/foo',
-        'memory',
-        'clock',
-        'clock:home'
-    ]
+    `env` (type: dict[str, str], default: {})
+        Environment changes for every module.
 
-    interval = 5.0
-    click_events = true
+    `settings` (type: dict[str, dict], default: {})
+        Configuration inherited by all modules of the same name.
 
-    [env]
-    terminal = 'foot'
+    `modules` (type: list[dict], default: [])
+        The modules to be displayed in the status line.
 
-    [settings.hostname]
-    full_text = "host: {}"
-    on_click.1 = '$terminal --hold hostnamectl'
+Each `settings[name]` entry recognizes the following keys:
 
-    [settings.path_exists]
-    on_click.1 = ['$terminal', '--working-directory=$instance']
-    on_click.2 = ['$terminal', '--hold', 'df', '$instance']
+    `env` (type: dict[str, str], default: {})
+        Environment changes for this module group.
 
-    [settings.clock]
-    on_click.1 = '$terminal --hold cal'
+    `on_click` (type: dict[int, str | list[str]], default: {})
+        Click handlers for this module group.
 
-    [settings."clock:home".env]
-    TZ = 'Asia/Tokyo'
+    `params` (type: dict[str, Any], default: {})
+        Instance parameters for this module group.
+
+Each item in the `modules` list recognizes the following keys:
+
+    `name` (type: str, required)
+        Specify the module to be loaded.
+
+    `instance` (type: str | None, default: None)
+        Differentiate this module from others of the same `name`.
+
+    `env` (type: dict[str, str], default: {})
+        Environment changes for this module. Merged with those in `settings`.
+
+    `on_click` (type: dict[int, str | list[str]], default: {})
+        Click handlers for this module. Merged with those in `settings`.
+
+    `params` (type: dict[str, Any], default: {})
+        Instance parameters for this module. Merged with those in `settings`.
 """
 
 import tomllib
 from dataclasses import dataclass, field
-from functools import cached_property
-from pathlib import Path
-from typing import Any, Iterator, Self
+from functools import cache, cached_property
+from typing import Any, Iterator, Mapping, NotRequired, Self, Sequence, TypedDict
 
-from .element import ShellCommand
+from .typing import PathLike, Seconds
 
-type Settings = dict[str, Any]
+type EnvDict = dict[str, str | None]
+type ModuleKey = tuple[str, str | None]
+type OnClickDict = dict[int, str | Sequence[str]]
+type ParamsDict = dict[str, Any]
+
+
+class SettingsDict(TypedDict):
+    env: NotRequired[EnvDict]
+    on_click: NotRequired[OnClickDict]
+    params: NotRequired[ParamsDict]
+
+
+class ModuleDict(SettingsDict):
+    name: str
+    instance: NotRequired[str | None]
 
 
 @dataclass(kw_only=True, eq=False)
 class Config:
     """Data class representing runtime configuration."""
 
-    order: list[str] = field(default_factory=list)
-    interval: float | None = None
+    interval: Seconds = None
     click_events: bool = False
-    settings: dict[str, Any] = field(default_factory=dict)
-    include: list[str | Path] = field(default_factory=list)
-    on_click: dict[int, ShellCommand] = field(default_factory=dict)
-    env: dict[str, str] = field(default_factory=dict)
+    env: EnvDict = field(default_factory=dict)
+    include: list[PathLike] = field(default_factory=list)
+    settings: dict[str, SettingsDict] = field(default_factory=dict)
+    modules: list[ModuleDict] = field(default_factory=list)
 
     @cached_property
-    def elements(self) -> Iterator[tuple[str, Settings]]:
-        """Return the name and settings for each configured element in order."""
-        for key in self.order:
-            name, instance = decode_element_key(key)
-            settings = self.settings.get(name, {})
-            if instance:
-                settings = deep_merge_dicts(settings, self.settings.get(key, {}))
-            settings["env"] = self.env | settings.get("env", {})
-            settings["instance"] = instance
-            yield name, settings
+    def _modules_lookup(self) -> Mapping[ModuleKey, ModuleDict]:
+        return {(m["name"], m.get("instance")): m for m in self.modules}
+
+    def module_keys(self) -> Iterator[ModuleKey]:
+        """Yield the configured module identifiers in order."""
+        for module in self.modules:
+            yield module["name"], module.get("instance")
+
+    @cache
+    def module(self, name: str, instance: str | None = None) -> ParamsDict:
+        """Return a module's merged keyword arguments suitable for an element class instantiation."""
+        module = self._modules_lookup[(name, instance)]
+        kwargs: ParamsDict = {}
+        settings = self.settings.get(name, {})
+        if params := settings.get("params"):
+            kwargs.update(params)
+        if params := module.get("params"):
+            kwargs.update(params)
+        if self.env:
+            kwargs.setdefault("env", {}).update(self.env)
+        if env := settings.get("env"):
+            kwargs.setdefault("env", {}).update(env)
+        if env := module.get("env"):
+            kwargs.setdefault("env", {}).update(env)
+        if on_click := settings.get("on_click"):
+            kwargs.setdefault("on_click", {}).update(on_click)
+        if on_click := module.get("on_click"):
+            kwargs.setdefault("on_click", {}).update(on_click)
+        for key in ["name", "instance"]:
+            try:
+                del kwargs[key]
+            except KeyError:
+                pass
+        return kwargs
 
     @classmethod
-    def from_file(cls, path: Path) -> Self:
+    def from_file(cls, path: PathLike) -> Self:
         """Instantiate a configuration object from a toml file."""
-        with path.open("rb") as file:
-            return cls(**tomllib.load(file))
-
-
-def decode_element_key(key: str) -> tuple[str, str | None]:
-    """Parse a name and instance from a string like "name" or "name:instance"."""
-    name, sep, instance = key.partition(":")
-    if not name:
-        raise ValueError("Missing element name")
-    if not sep:
-        return name, None
-    return name, instance or None
-
-
-def deep_merge_dicts(first: dict, second: dict) -> dict:
-    """Recursively merge the second dictionary into the first."""
-    result = first.copy()
-    for key, value in second.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge_dicts(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-__all__ = [Config.__name__]
+        with open(path, "rb") as file:
+            data = tomllib.load(file)
+        if settings := data.get("settings"):
+            for name, module_settings in settings.items():
+                if on_click := module_settings.get("on_click"):
+                    module_settings["on_click"] = {int(b): c for b, c in on_click.items()}
+        if modules := data.get("modules"):
+            for module in modules:
+                if on_click := module.get("on_click"):
+                    module["on_click"] = {int(b): c for b, c in on_click.items()}
+        return cls(**data)
