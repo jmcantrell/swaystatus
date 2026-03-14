@@ -336,31 +336,29 @@ class TestMain(TestCase):
         self.fake_exc = Exception("BOOM!")
 
     def test_starts(self) -> None:
-        cli_main()
+        self.assertEqual(cli_main(), 0)
         self.create_app_mock.assert_called_once()
         self.start_mock.assert_called_once()
 
     def test_create_raises(self) -> None:
         self.create_app_mock.side_effect = self.fake_exc
         with self.assert_raise_handled():
-            cli_main()
+            self.assertEqual(cli_main(), 1)
         self.create_app_mock.assert_called()
         self.start_mock.assert_not_called()
 
     def test_start_raises(self) -> None:
         self.start_mock.side_effect = self.fake_exc
         with self.assert_raise_handled():
-            cli_main()
+            self.assertEqual(cli_main(), 1)
         self.create_app_mock.assert_called()
         self.start_mock.assert_called()
 
     @contextmanager
     def assert_raise_handled(self) -> Iterator:
-        with self.assertRaises(SystemExit) as raised:
-            with self.assertLogs(logger, logging.ERROR) as logged:
-                yield
+        with self.assertLogs(logger, logging.ERROR) as logged:
+            yield
 
-        self.assertEqual(raised.exception.code, 1)
         record = logged.records[0]
         assert record.exc_info
         self.assertIs(record.exc_info[1], self.fake_exc)

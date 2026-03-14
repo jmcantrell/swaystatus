@@ -56,9 +56,10 @@ def create_app() -> App:
     return App(Daemon(status_line, config.interval, config.click_events))
 
 
-def main() -> None:
+def main() -> int:
     try:
         create_app().start()
     except Exception:
         logger.exception("unhandled exception in main")
-        raise SystemExit(1)
+        return 1
+    return 0
