@@ -6,7 +6,7 @@ from dataclasses import asdict
 from subprocess import PIPE, Popen
 from threading import Thread
 from types import MethodType
-from typing import Self
+from typing import Self, cast
 
 from .block import Block
 from .click_event import ClickEvent
@@ -19,7 +19,7 @@ type UpdateHandler = Callable[..., bool]
 type UpdateRequest = UpdateHandler | bool
 type ClickHandlerResult = ShellCommand | Popen | UpdateRequest | None
 type ClickHandler[Element] = Callable[[Element, ClickEvent], ClickHandlerResult]
-type ClickHandlerMapping[Element] = Mapping[int, ShellCommand | ClickHandler[Element] | None]
+type ClickHandlerMapping[Element] = Mapping[int, ClickHandler[Element] | ShellCommand | None]
 
 
 class BaseElement:
@@ -234,13 +234,13 @@ class BaseElement:
 
         if click_handler is None:
 
-            def method(*args, **kwargs) -> None:
+            def method(element: Self, click_event: ClickEvent) -> None:
                 pass
 
-        elif not callable(click_handler):
+        elif isinstance(click_handler, str | Sequence):
 
-            def method(*args, **kwargs) -> ShellCommand:
-                return click_handler
+            def method(element: Self, click_event: ClickEvent) -> ShellCommand:
+                return cast(ShellCommand, click_handler)
 
         else:
             method = click_handler
