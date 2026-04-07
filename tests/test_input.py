@@ -173,7 +173,7 @@ class TestInputProcessor(TestCase):
     def assert_click_context(self, log_records: Sequence[logging.LogRecord]) -> None:
         assert log_records
         first_record = log_records[0]
-        assert hasattr(first_record, "context") and first_record.context
+        assert hasattr(first_record, "context") and isinstance(first_record.context, str)
         self.assertTrue(first_record.context.startswith("click event"))
         for log_record in log_records:
             assert hasattr(log_record, "context")
