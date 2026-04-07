@@ -21,21 +21,21 @@ arg_parser.add_argument(
     "--config-file",
     metavar="FILE",
     type=path_normalized,
-    help="override configuration file",
+    help="specify configuration file",
 )
 arg_parser.add_argument(
     "-C",
     "--config-dir",
     metavar="DIRECTORY",
     type=path_normalized,
-    help="override configuration directory",
+    help="specify configuration directory",
 )
 arg_parser.add_argument(
     "-D",
     "--data-dir",
     metavar="DIRECTORY",
     type=path_normalized,
-    help="override data directory",
+    help="specify data directory",
 )
 arg_parser.add_argument(
     "-I",
@@ -44,7 +44,7 @@ arg_parser.add_argument(
     type=path_normalized,
     action="append",
     default=[],
-    help="include an additional element package",
+    help="include an additional modules package",
 )
 arg_parser.add_argument(
     "-i",
