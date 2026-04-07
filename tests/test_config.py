@@ -39,17 +39,17 @@ class TestModuleSettings(TestCase):
     def test_field_on_click_type(self) -> None:
         for on_click in [None, INVALID_TYPE]:
             with self.subTest(on_click=on_click), self.assertRaises(TypeError):
-                ModuleSettings(on_click=on_click)  # type:ignore
+                ModuleSettings(on_click=on_click)  # type: ignore
 
     def test_field_on_click_key_type(self) -> None:
         for key in [None, INVALID_TYPE]:
             with self.subTest(key=key), self.assertRaises(TypeError):
-                ModuleSettings(on_click={key: "true"})  # type:ignore
+                ModuleSettings(on_click={key: "true"})  # type: ignore
 
     def test_field_on_click_value_type(self) -> None:
         for value in [INVALID_TYPE, [INVALID_TYPE]]:
             with self.subTest(value=value), self.assertRaises(TypeError):
-                ModuleSettings(on_click={1: value})  # type:ignore
+                ModuleSettings(on_click={1: value})  # type: ignore
 
     def test_field_on_click_value_empty(self) -> None:
         for value in [EMPTY_STR, [EMPTY_STR]]:
@@ -174,7 +174,7 @@ class TestConfig(TestCase):
 
     def test_field_interval_type(self) -> None:
         with self.assertRaises(TypeError):
-            Config(interval=INVALID_TYPE)  # type:ignore
+            Config(interval=INVALID_TYPE)  # type: ignore
 
     def test_field_interval_positive(self) -> None:
         for interval in [0.0, -1.0]:
@@ -220,12 +220,12 @@ class TestConfig(TestCase):
     def test_field_include_type(self) -> None:
         for include in [None, INVALID_TYPE]:
             with self.subTest(include=include), self.assertRaises(TypeError):
-                Config(include=include)  # type:ignore
+                Config(include=include)  # type: ignore
 
     def test_field_include_item_type(self) -> None:
         for item in [None, INVALID_TYPE]:
             with self.subTest(item=item), self.assertRaises(TypeError):
-                Config(include=[item])  # type:ignore
+                Config(include=[item])  # type: ignore
 
     def test_field_include_item_absolute_path(self) -> None:
         with self.assertRaises(ValueError):
@@ -261,12 +261,12 @@ class TestConfig(TestCase):
     def test_field_modules_type(self) -> None:
         for modules in [None, INVALID_TYPE]:
             with self.subTest(modules=modules), self.assertRaises(TypeError):
-                Config(modules=modules)  # type:ignore
+                Config(modules=modules)  # type: ignore
 
     def test_field_modules_item_type(self) -> None:
         for item in [None, INVALID_TYPE]:
             with self.subTest(item=item), self.assertRaises(TypeError):
-                Config(modules=[item])  # type:ignore
+                Config(modules=[item])  # type: ignore
 
     def test_modules_merged_order(self) -> None:
         modules = [
