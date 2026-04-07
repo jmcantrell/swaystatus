@@ -189,7 +189,7 @@ class TestConfig(TestCase):
     def test_field_click_events_type(self) -> None:
         for click_events in [None, INVALID_TYPE]:
             with self.subTest(click_events=click_events), self.assertRaises(TypeError):
-                Config(click_events=click_events)  # type:ignore
+                Config(click_events=click_events)  # type: ignore
 
     def test_field_env(self) -> None:
         env = {"TZ": "America/Chicago", "DISABLED": None}
@@ -247,7 +247,7 @@ class TestConfig(TestCase):
 
     def test_field_settings_key_empty(self) -> None:
         with self.assertRaises(ValueError):
-            Config(settings={EMPTY_STR: ModuleSettings()})  # type: ignore
+            Config(settings={EMPTY_STR: ModuleSettings()})
 
     def test_field_settings_value_type(self) -> None:
         for value in [None, INVALID_TYPE]:
