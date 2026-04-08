@@ -51,7 +51,7 @@ arg_parser.add_argument(
     "--interval",
     metavar="SECONDS",
     type=float,
-    help="specify update interval (default: only when signaled)",
+    help="specify update interval",
 )
 arg_parser.add_argument(
     "-e",
@@ -65,9 +65,8 @@ arg_parser.add_argument(
     "--log-level",
     metavar="LEVEL",
     type=str.upper,
-    default=logging.getLevelName(logging.root.level),
     choices=list(logging.getLevelNamesMapping().keys()),
-    help="specify minimum logging level (default: %(default)s)",
+    help="specify minimum logging level",
 )
 arg_parser.add_argument(
     "-v",

@@ -26,7 +26,7 @@ class TestApp(TestCase):
         self.home_mock = home_patcher.start()
         self.addCleanup(home_patcher.stop)
 
-        log_level_patcher = patch("swaystatus.logger.logger.setLevel")
+        log_level_patcher = patch("swaystatus.app.logger.setLevel")
         self.log_level_mock = log_level_patcher.start()
         self.addCleanup(log_level_patcher.stop)
 
@@ -191,7 +191,7 @@ class TestApp(TestCase):
 
     def test_run_log_level_default(self) -> None:
         self.app.run()
-        self.log_level_mock.assert_called_once_with("WARNING")
+        self.log_level_mock.assert_not_called()
 
     def test_run_log_level_set(self) -> None:
         self.app.args.log_level = "DEBUG"

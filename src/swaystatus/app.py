@@ -115,7 +115,8 @@ class App:
         return Daemon(self.elements, self.interval, self.click_events)
 
     def run(self) -> None:
-        logger.setLevel(self.args.log_level)
+        if self.args.log_level is not None:
+            logger.setLevel(self.args.log_level)
         logger.info("daemon starting")
         self.daemon.start()
         self.daemon.join()
