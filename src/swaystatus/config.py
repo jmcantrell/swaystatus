@@ -67,7 +67,7 @@ from typing import Self
 
 from .paths import path_normalized
 
-type Seconds = float | int
+type Number = float | int
 type EnvMapping = Mapping[str, str | None]
 type OnClickMapping = Mapping[int, str | Sequence[str] | None]
 type ParamsMapping = Mapping[str, object]
@@ -174,7 +174,7 @@ class Module:
 class Config:
     """Data class representing runtime configuration."""
 
-    interval: Seconds | None = None
+    interval: Number | None = None
     click_events: bool = False
     env: EnvMapping = field(default_factory=dict)
     include: Sequence[Path] = field(default_factory=list)

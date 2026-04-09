@@ -13,7 +13,7 @@ from .element import BaseElement
 from .logger import logger
 from .threads import Ticker
 
-type Seconds = float | int
+type Number = float | int
 
 
 class OutputProcessor:
@@ -55,7 +55,7 @@ class OutputProcessor:
 class OutputDriver(Ticker):
     """Steadily drive status line generation."""
 
-    def __init__(self, iterable: Iterable[Sequence[Block]], interval: Seconds | None) -> None:
+    def __init__(self, iterable: Iterable[Sequence[Block]], interval: Number | None) -> None:
         super().__init__(interval=interval, name="OutputThread")
         self._iterator = iter(iterable)
 

@@ -3,16 +3,19 @@ from contextvars import Context
 from threading import Event, Thread
 from typing import Any
 
+type Number = float | int
+type Callback = Callable[..., Any]
+
 
 class Ticker(Thread):
     """Run a function at a regular interval or manually."""
 
     def __init__(
         self,
-        tick: Callable[..., Any] | None = None,
+        tick: Callback | None = None,
         /,
         *,
-        interval: float | int | None = None,
+        interval: Number | None = None,
         name: str | None = None,
         daemon: bool | None = None,
         context: Context | None = None,

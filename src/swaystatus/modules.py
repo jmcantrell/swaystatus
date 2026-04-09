@@ -86,4 +86,7 @@ class Registry:
         raise ModuleNotFound(name)
 
 
-__all__ = [Registry.__name__]
+__all__ = [
+    Registry.__name__,
+    ModuleNotFound.__name__,
+]

@@ -13,6 +13,7 @@ from .click_event import ClickEvent
 from .env import environ_update
 from .logger import logger
 
+type Number = float | int
 type EnvMapping = Mapping[str, str | None]
 type ShellCommand = str | Sequence[str]
 type UpdateHandler = Callable[..., bool]
@@ -298,7 +299,7 @@ class LoggedProcess(Popen):
         self._stderr_thread = MapDriver(self.stderr, wrap(logger.error), name=f"LoggerThread.{self.pid}.stderr")
         self._stderr_thread.start()
 
-    def wait(self, timeout: float | int | None = None) -> int:
+    def wait(self, timeout: Number | None = None) -> int:
         result = super().wait(timeout=timeout)
         self._stdout_thread.join(timeout=timeout)
         self._stderr_thread.join(timeout=timeout)

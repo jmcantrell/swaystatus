@@ -30,13 +30,14 @@ SIGNALS_UPDATE = [SIGCONT, SIGUSR1]
 SIGNALS_SHUTDOWN = [SIGINT, SIGTERM]
 
 
-type Seconds = float | int
+type Number = float | int
+type Callback = Callable[..., Any]
 
 
 class Daemon:
     """Manager of input and output streams."""
 
-    def __init__(self, elements: Sequence[BaseElement], interval: Seconds | None, click_events: bool) -> None:
+    def __init__(self, elements: Sequence[BaseElement], interval: Number | None, click_events: bool) -> None:
         self._output_driver = OutputDriver(OutputProcessor(elements, click_events), interval)
         self._input_driver = InputDriver(InputProcessor(elements, self.update)) if click_events else None
 
@@ -59,7 +60,7 @@ class Daemon:
     def stop(self) -> None:
         self._output_driver.stop()
 
-    def join(self, timeout: Seconds | None = None) -> None:
+    def join(self, timeout: Number | None = None) -> None:
         self._output_driver.join(timeout=timeout)
 
     def shutdown(self) -> None:
@@ -67,7 +68,7 @@ class Daemon:
         self.join(timeout=5.0)
 
 
-def register_signal(signum: int, callback: Callable[..., Any]) -> None:
+def register_signal(signum: int, callback: Callback) -> None:
     def handle_signal(sig: int, frame: FrameType | None) -> None:  # pragma: no cover
         logger.info("received signal %s (%d)", Signals(sig).name, sig)
         logger.debug("current stack frame %r", frame)
