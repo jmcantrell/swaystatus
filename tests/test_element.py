@@ -28,6 +28,10 @@ dummy_click_event = ClickEvent(
 )
 
 
+def random_string(min_length: int, max_length: int) -> str:
+    return "".join(random.choices(ascii_letters, k=random.randint(min_length, max_length)))
+
+
 class TestElement(TestCase):
     def test_str(self) -> None:
         self.assertEqual(
@@ -69,10 +73,12 @@ class TestElement(TestCase):
     def test_click_handler_init_none(self) -> None:
         class Element(BaseElement):
             def on_click_1(self, click_event: ClickEvent) -> None:
-                raise AssertionError("expected click handler to not be called")
+                click_mock()
 
+        click_mock = Mock()
         element = Element("clock", on_click={dummy_click_event.button: None})
         self.assertFalse(element.on_click(dummy_click_event))
+        click_mock.assert_not_called()
 
     def test_click_handler_init_function(self) -> None:
         click_handler = Mock(return_value=None)
@@ -88,19 +94,19 @@ class TestElement(TestCase):
             update_handler = element.on_click(dummy_click_event)
             assert callable(update_handler)
             self.assertTrue(update_handler())
-            self.assertTrue(marker_file.is_file(), f"expected file to exist: {marker_file}")
+            self.assertTrue(marker_file.is_file())
 
     def test_click_handler_init_command_env(self) -> None:
-        text = "".join(random.choices(ascii_letters, k=random.randint(10, 30)))
+        text = random_string(10, 30)
         with TemporaryDirectory() as temp_dir:
             output_file = Path(temp_dir) / "output"
             command = f"echo ~ $foo $button >{output_file}"
             expected_output = f"{Path.home()} {text} {dummy_click_event.button}"
-            element = BaseElement("clock", on_click={dummy_click_event.button: command}, env={"foo": text})
+            element = BaseElement("clock", env={"foo": text}, on_click={dummy_click_event.button: command})
             update_handler = element.on_click(dummy_click_event)
             assert callable(update_handler)
             self.assertTrue(update_handler())
-            self.assertEqual(output_file.read_text().strip(), expected_output, "unexpected shell command output")
+            self.assertEqual(output_file.read_text().strip(), expected_output)
 
     def test_click_handler_result_update(self) -> None:
         class Element(BaseElement):

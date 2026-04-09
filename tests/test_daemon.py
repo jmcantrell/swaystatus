@@ -18,12 +18,11 @@ from swaystatus.output import OutputDriver
 
 class TestDaemon(TestCase):
     def setUp(self) -> None:
-        signal_handlers_save = [(s, getsignal(s)) for s in (*SIGNALS_UPDATE, *SIGNALS_SHUTDOWN)]
-
         def restore_signal_handlers() -> None:
             for signum, handler in signal_handlers_save:
                 signal(signum, handler)
 
+        signal_handlers_save = [(s, getsignal(s)) for s in (*SIGNALS_UPDATE, *SIGNALS_SHUTDOWN)]
         self.addCleanup(restore_signal_handlers)
 
     def test_signals(self) -> None:
@@ -73,6 +72,7 @@ class TestDaemon(TestCase):
         tick_patcher.start()
         self.addCleanup(tick_patcher.stop)
 
+        stdout = StringIO()
         read_fd, write_fd = os.pipe()
         self.stdin_read = os.fdopen(read_fd, "r")
         self.stdin_write = os.fdopen(write_fd, "w")
@@ -109,8 +109,6 @@ class TestDaemon(TestCase):
             scale=0.0,
         )
 
-        stdout = StringIO()
-
         # start of input array
         self.stdin_write.write("[\n")
         self.stdin_write.flush()
@@ -128,6 +126,7 @@ class TestDaemon(TestCase):
             self.stdin_write.flush()
             self.tick_called.wait()
 
+            # manual update
             daemon.update()
             self.tick_called.wait()
 

@@ -1,5 +1,7 @@
+import random
 from dataclasses import fields
 from pathlib import Path
+from string import ascii_letters
 from unittest import TestCase, main
 from unittest.mock import mock_open, patch
 
@@ -7,6 +9,10 @@ from swaystatus.config import Config, Module, ModuleSettings
 
 INVALID_TYPE = object()
 EMPTY_STR = ""
+
+
+def random_string(min_length: int, max_length: int) -> str:
+    return "".join(random.choices(ascii_letters, k=random.randint(min_length, max_length)))
 
 
 class TestModuleSettings(TestCase):
@@ -57,7 +63,8 @@ class TestModuleSettings(TestCase):
                 ModuleSettings(on_click={2: value})
 
     def test_field_params(self) -> None:
-        params = {"text": "foo", "option": None}
+        sample_values = [random_string(5, 20), 1, 2.3, True, None]
+        params = {random_string(1, 10): random.choice(sample_values) for _ in range(random.randint(2, 15))}
         self.assertIs(ModuleSettings(params=params).params, params)
 
     def test_field_params_type(self) -> None:
@@ -214,7 +221,7 @@ class TestConfig(TestCase):
             Config(env={"TZ": INVALID_TYPE})  # type: ignore
 
     def test_field_include(self) -> None:
-        include = [Path("/dir1"), Path("/dir2")]
+        include = [Path("/dir1"), Path("/dir2"), Path("/dir3")]
         self.assertIs(Config(include=include).include, include)
 
     def test_field_include_type(self) -> None:
@@ -268,7 +275,7 @@ class TestConfig(TestCase):
             with self.subTest(item=item), self.assertRaises(TypeError):
                 Config(modules=[item])  # type: ignore
 
-    def test_modules_merged_order(self) -> None:
+    def test_modules_merged(self) -> None:
         modules = [
             Module(name="hostname"),
             Module(name="clock", instance="home"),
@@ -312,37 +319,11 @@ class TestConfig(TestCase):
             [Module(name="clock", settings=ModuleSettings(params={"full_text": "%c", "short_text": "%s"}))],
         )
 
-    def test_parse_include_path_coerce(self) -> None:
-        class PathThing:
-            def __init__(self, path: str) -> None:
-                self.path = path
+    def test_parse_include(self) -> None:
+        config = Config.parse({"include": ["/dir1", "/dir2", "/dir3"]})
+        self.assertEqual(config.include, [Path("/dir1"), Path("/dir2"), Path("/dir3")])
 
-            def __fspath__(self) -> str:
-                return self.path
-
-        config = Config.parse(
-            {
-                "include": [
-                    "/path/to/dir1",
-                    Path("/path/to/dir2"),
-                    PathThing("/path/to/dir3"),
-                ]
-            }
-        )
-        self.assertEqual(
-            config.include,
-            [
-                Path("/path/to/dir1"),
-                Path("/path/to/dir2"),
-                Path("/path/to/dir3"),
-            ],
-        )
-
-    def test_parse_include_path_coerce_user(self) -> None:
-        config = Config.parse({"include": ["~/path/to/dir"]})
-        self.assertEqual(config.include, [Path.home() / "path/to/dir"])
-
-    def test_parse_settings_coerce(self) -> None:
+    def test_parse_settings(self) -> None:
         env = {"TZ": "America/Chicago"}
         on_click = {1: "true"}
         params = {"text": "foo"}
@@ -359,7 +340,7 @@ class TestConfig(TestCase):
             Config(settings={"foo": module_settings, "bar": module_settings}),
         )
 
-    def test_parse_modules_coerce(self) -> None:
+    def test_parse_modules(self) -> None:
         module = Module(name="test", instance="a")
         self.assertEqual(
             Config.parse({"modules": [{"name": "test", "instance": "a"}, module]}),

@@ -44,7 +44,16 @@ class TestInputProcessor(TestCase):
         stdin_patcher.start()
         self.addCleanup(stdin_patcher.stop)
 
-    def set_input(self, click_events: Iterable[ClickEvent]) -> None:
+    def assert_click_context(self, log_records: Sequence[logging.LogRecord]) -> None:
+        assert log_records
+        first_record = log_records[0]
+        assert hasattr(first_record, "context") and isinstance(first_record.context, str)
+        self.assertTrue(first_record.context.startswith("click event"))
+        for log_record in log_records:
+            assert hasattr(log_record, "context")
+            self.assertEqual(log_record.context, first_record.context)
+
+    def push_input(self, click_events: Iterable[ClickEvent]) -> None:
         pos = self.stdin.tell()
         self.stdin.writelines(fake_input_lines(click_events))
         self.stdin.seek(pos)
@@ -59,8 +68,6 @@ class TestInputProcessor(TestCase):
         self.assertIs(input_processor.click_target("test", "b"), element)
 
     def test_element_delegation(self) -> None:
-        on_click_mock = Mock(return_value=False)
-
         class Element(BaseElement):
             def on_click_1(self, click_event: ClickEvent) -> bool:
                 return on_click_mock(self)
@@ -73,68 +80,54 @@ class TestInputProcessor(TestCase):
             Element("test2", "a"),
             Element("test2", "b"),
         ]
+        click_events = [dummy_click_event(e.name, e.instance) for e in elements]
+        random.shuffle(click_events)
 
-        expected_click_events = [dummy_click_event(e.name, e.instance) for e in elements]
-        random.shuffle(expected_click_events)
-        self.set_input(expected_click_events)
-
-        update_mock = Mock()
-        input_processor = InputProcessor(elements, update_mock)
-
+        self.push_input(click_events)
+        on_click_mock = Mock(return_value=False)
         with self.assertLogs(logger, logging.INFO) as logged:
-            actual_click_events = list(input_processor)
-
-        self.assertEqual(actual_click_events, expected_click_events)
-        update_mock.assert_not_called()
+            self.assertEqual(list(InputProcessor(elements, lambda: None)), click_events)
 
         for i, (click_event, log_records) in enumerate(
-            zip(expected_click_events, batched(logged.records, n=2, strict=True), strict=True)
+            zip(click_events, batched(logged.records, n=2, strict=True), strict=True)
         ):
             self.assert_click_context(log_records)
-            record_recv, record_send = log_records
-            self.assertEqual(record_recv.levelno, logging.INFO)
-            self.assertEqual(record_recv.message, f"received {click_event}")
-            self.assertEqual(record_send.levelno, logging.INFO)
-            self.assertEqual(record_send.message, f"sending to {on_click_mock.call_args_list[i].args[0]}")
+            self.assertEqual(log_records[0].levelno, logging.INFO)
+            self.assertEqual(log_records[0].message, f"received {click_event}")
+            self.assertEqual(log_records[1].levelno, logging.INFO)
+            self.assertEqual(log_records[1].message, f"sending to {on_click_mock.call_args_list[i].args[0]}")
 
     def test_click_event_no_name(self) -> None:
-        click_event = dummy_click_event(None, None)
-        self.set_input([click_event])
-        input_processor = InputProcessor([], lambda: None)
-
+        self.push_input([dummy_click_event(None, None)])
         with self.assertLogs(logger, logging.WARNING) as logged:
-            self.assertEqual(list(input_processor), [])
-
+            self.assertEqual(list(InputProcessor([], lambda: None)), [])
         self.assertEqual(len(logged.records), 1)
         self.assertEqual(logged.records[0].levelno, logging.WARNING)
         self.assertEqual(logged.records[0].message, "click event missing element name")
 
     def test_click_event_no_target(self) -> None:
-        click_event = dummy_click_event("clock", None)
-        self.set_input([click_event])
         input_processor = InputProcessor([], lambda: None)
-
+        self.push_input([dummy_click_event("clock", None)])
         with self.assertLogs(logger, logging.WARNING) as logged:
             self.assertEqual(list(input_processor), [])
-
         self.assertEqual(len(logged.records), 1)
         self.assertEqual(logged.records[0].levelno, logging.WARNING)
         self.assertEqual(logged.records[0].message, "target element not found")
 
     def test_update(self) -> None:
-        click_event = dummy_click_event("clock", None)
-
         class Element(BaseElement):
             def on_click_1(self, click_event: ClickEvent) -> bool:
                 return update
 
+        elements = [Element("clock")]
+        click_events = [dummy_click_event("clock", None)]
+
         for update in [True, False]:
             with self.subTest(update=update):
-                self.set_input([click_event])
                 updater_mock = Mock()
-                input_processor = InputProcessor([Element("clock")], updater_mock)
+                self.push_input(click_events)
                 with self.assertLogs(logger, level=logging.INFO) as logged:
-                    self.assertEqual(list(input_processor), [click_event])
+                    self.assertEqual(list(InputProcessor(elements, updater_mock)), click_events)
                 self.assert_click_context(logged.records)
                 if update:
                     self.assertEqual(logged.records[-1].message, "updating")
@@ -143,9 +136,6 @@ class TestInputProcessor(TestCase):
                     updater_mock.assert_not_called()
 
     def test_update_handler(self) -> None:
-        click_event = dummy_click_event("clock", None)
-        update_handler_called = Event()
-
         def update_handler_inner() -> bool:
             update_handler_called.set()
             return update
@@ -154,14 +144,15 @@ class TestInputProcessor(TestCase):
             def on_click_1(self, click_event: ClickEvent) -> UpdateHandler:
                 return update_handler_inner
 
+        click_events = [dummy_click_event("clock", None)]
+
         for update in [True, False]:
             with self.subTest(update=update):
-                self.set_input([click_event])
                 updater_mock = Mock()
-                update_handler_called.clear()
-                input_processor = InputProcessor([Element("clock")], updater_mock)
+                update_handler_called = Event()
+                self.push_input(click_events)
                 with self.assertLogs(logger, level=logging.INFO) as logged:
-                    self.assertEqual(list(input_processor), [click_event])
+                    self.assertEqual(list(InputProcessor([Element("clock")], updater_mock)), click_events)
                     update_handler_called.wait(timeout=1.0)
                 self.assert_click_context(logged.records)
                 if update:
@@ -169,15 +160,6 @@ class TestInputProcessor(TestCase):
                     updater_mock.assert_called_once()
                 else:
                     updater_mock.assert_not_called()
-
-    def assert_click_context(self, log_records: Sequence[logging.LogRecord]) -> None:
-        assert log_records
-        first_record = log_records[0]
-        assert hasattr(first_record, "context") and isinstance(first_record.context, str)
-        self.assertTrue(first_record.context.startswith("click event"))
-        for log_record in log_records:
-            assert hasattr(log_record, "context")
-            self.assertEqual(log_record.context, first_record.context)
 
 
 class TestInputDriver(TestCase):

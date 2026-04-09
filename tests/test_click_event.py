@@ -19,7 +19,10 @@ dummy_click_event = ClickEvent(
 
 class TestClickEvent(TestCase):
     def test_str(self) -> None:
-        self.assertEqual(str(dummy_click_event), "click event button=1 name='clock' instance='home'")
+        self.assertEqual(
+            str(dummy_click_event),
+            "click event button=1 name='clock' instance='home'",
+        )
 
 
 if __name__ == "__main__":

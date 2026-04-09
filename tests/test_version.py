@@ -6,7 +6,7 @@ import swaystatus
 
 
 class TestVersion(TestCase):
-    def test_matches_project(self) -> None:
+    def test_version_matches_project(self) -> None:
         metadata_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
         with metadata_path.open("rb") as file:
             project_version = tomllib.load(file)["project"]["version"]

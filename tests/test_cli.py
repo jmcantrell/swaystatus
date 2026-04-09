@@ -14,7 +14,7 @@ class TestMain(TestCase):
 
         self.fake_exc = Exception("BOOM!")
 
-    def test_run(self) -> None:
+    def test_exit(self) -> None:
         self.assertEqual(cli.main(), 0, "expected a zero status")
         self.app_mock.return_value.run.assert_called_once()
 
@@ -28,7 +28,7 @@ class TestMain(TestCase):
                 mock.side_effect = self.fake_exc
 
                 with self.assertLogs(logger, logging.ERROR) as logged:
-                    self.assertNotEqual(cli.main(), 0, "expected a non-zero status")
+                    self.assertEqual(cli.main(), 1, "expected a non-zero status")
 
                 record = logged.records[0]
                 assert record.exc_info

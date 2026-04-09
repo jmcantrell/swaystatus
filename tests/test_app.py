@@ -1,11 +1,13 @@
 import os
+import random
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from string import ascii_letters
 from unittest import TestCase, main
-from unittest.mock import Mock, call, patch
+from unittest.mock import call, patch
 
 from swaystatus.app import App
 from swaystatus.config import Config, EnvMapping, Module, ModuleSettings, OnClickMapping, ParamsMapping
+from swaystatus.element import BaseElement
 
 
 class TestApp(TestCase):
@@ -17,14 +19,6 @@ class TestApp(TestCase):
         env_patcher = patch.dict(os.environ, clear=True)
         self.env = env_patcher.start()
         self.addCleanup(env_patcher.stop)
-
-        temp_dir = TemporaryDirectory()
-        self.addCleanup(temp_dir.cleanup)
-        self.home_path_fake = Path(temp_dir.name)
-
-        home_patcher = patch("swaystatus.app.Path.home", return_value=self.home_path_fake)
-        self.home_mock = home_patcher.start()
-        self.addCleanup(home_patcher.stop)
 
         log_level_patcher = patch("swaystatus.app.logger.setLevel")
         self.log_level_mock = log_level_patcher.start()
@@ -38,7 +32,7 @@ class TestApp(TestCase):
         self.registry_mock = registry_patcher.start()
         self.addCleanup(registry_patcher.stop)
         self.registry_find_mock = self.registry_mock.return_value.find
-        self.registry_find_mock.return_value = self.element_mock = Mock()
+        self.element_mock = self.registry_find_mock.return_value
 
         self.config = Config()
         config_from_file_patcher = patch("swaystatus.app.Config.from_file", return_value=self.config)
@@ -47,107 +41,78 @@ class TestApp(TestCase):
 
         self.app = App()
 
-    def test_default_config_dir(self) -> None:
-        self.assertEqual(self.app.default_config_dir, self.home_path_fake / ".config/swaystatus")
+    def test_config_home_default(self) -> None:
+        self.assertEqual(self.app.config_home, Path.home() / ".config")
 
-    def test_default_config_dir_xdg_override(self) -> None:
+    def test_config_home_xdg_over_default(self) -> None:
         config_home = Path("/path/to/config")
         self.env["XDG_CONFIG_HOME"] = str(config_home)
-        self.assertEqual(self.app.default_config_dir, config_home / "swaystatus")
+        self.assertEqual(self.app.config_home, config_home)
 
-    def test_config_dir_default(self) -> None:
-        self.assertEqual(self.app.config_dir, self.app.default_config_dir)
+    def test_config_dir_default_based_on_config_home(self) -> None:
+        self.app.config_home = Path("/path/to/config")
+        self.assertEqual(self.app.config_dir, self.app.config_home / "swaystatus")
 
-    def test_config_dir_env_over_default(self) -> None:
+    def test_config_dir_from_env_over_default(self) -> None:
         config_dir = Path("/path/to/config/dir")
         self.env["SWAYSTATUS_CONFIG_DIR"] = str(config_dir)
         self.assertEqual(self.app.config_dir, config_dir)
 
-    def test_config_dir_arg_over_env(self) -> None:
-        config_dir = Path("/path/to/config/dir")
-        self.app.args.config_dir = config_dir
-        self.assertEqual(self.app.config_dir, config_dir)
+    def test_config_dir_from_arg_over_env(self) -> None:
+        self.app.args.config_dir = Path("/path/to/config/dir")
+        self.env["SWAYSTATUS_CONFIG_DIR"] = "/does/not/matter"
+        self.assertEqual(self.app.config_dir, self.app.args.config_dir)
 
-    def test_config_file_default(self) -> None:
-        self.assertEqual(self.app.config_file, self.app.default_config_dir / "config.toml")
+    def test_config_file_default_based_on_config_dir(self) -> None:
+        self.app.config_dir = Path("/path/to/config/dir")
+        self.assertEqual(self.app.config_file, self.app.config_dir / "config.toml")
 
-    def test_config_file_env_over_default(self) -> None:
+    def test_config_file_from_env_over_default(self) -> None:
         config_file = Path("/path/to/config/file")
         self.env["SWAYSTATUS_CONFIG_FILE"] = str(config_file)
         self.assertEqual(self.app.config_file, config_file)
 
-    def test_config_file_arg_over_env(self) -> None:
-        config_file = Path("/path/to/config/file")
-        self.app.args.config_file = config_file
-        self.assertEqual(self.app.config_file, config_file)
+    def test_config_file_from_arg_over_env(self) -> None:
+        self.app.args.config_file = Path("/path/to/config/file")
+        self.env["SWAYSTATUS_CONFIG_FILE"] = "/does/not/matter"
+        self.assertEqual(self.app.config_file, self.app.args.config_file)
 
     def test_config_from_file(self) -> None:
-        config_file = Path("/path/to/config/file")
-        self.app.config_file = config_file
+        self.app.config_file = Path("/path/to/config/file")
         self.assertIs(self.app.config, self.config)
-        self.config_from_file_mock.assert_called_once_with(config_file)
+        self.config_from_file_mock.assert_called_once_with(self.app.config_file)
 
-    def test_interval_default(self) -> None:
-        self.assertIsNone(self.app.interval)
+    def test_data_home_default(self) -> None:
+        self.assertEqual(self.app.data_home, Path.home() / ".local/share")
 
-    def test_interval_default_is_config(self) -> None:
-        self.app.config.interval = 1.0
-        self.assertEqual(self.app.interval, 1.0)
-
-    def test_interval_arg_over_config(self) -> None:
-        self.app.args.interval = 1.0
-        self.app.config.interval = 2.0
-        self.assertEqual(self.app.interval, 1.0)
-
-    def test_click_events_default(self) -> None:
-        self.assertFalse(self.app.click_events)
-
-    def test_click_events_default_is_config(self) -> None:
-        self.app.config.click_events = True
-        self.assertTrue(self.app.click_events)
-
-    def test_click_events_arg_over_config(self) -> None:
-        self.app.args.click_events = True
-
-    def test_default_data_dir(self) -> None:
-        self.assertEqual(self.app.default_data_dir, self.home_path_fake / ".local/share/swaystatus")
-
-    def test_default_data_dir_xdg_override(self) -> None:
+    def test_data_home_xdg_over_default(self) -> None:
         data_home = Path("/path/to/data")
         self.env["XDG_DATA_HOME"] = str(data_home)
-        self.assertEqual(self.app.default_data_dir, data_home / "swaystatus")
+        self.assertEqual(self.app.data_home, data_home)
 
-    def test_data_dir_default(self) -> None:
-        self.assertEqual(self.app.data_dir, self.app.default_data_dir)
+    def test_data_dir_default_based_on_data_home(self) -> None:
+        self.app.data_home = Path("/path/to/data")
+        self.assertEqual(self.app.data_dir, self.app.data_home / "swaystatus")
 
-    def test_data_dir_env_over_default(self) -> None:
+    def test_data_dir_from_env_over_default(self) -> None:
         data_dir = Path("/path/to/data/dir")
         self.env["SWAYSTATUS_DATA_DIR"] = str(data_dir)
         self.assertEqual(self.app.data_dir, data_dir)
 
-    def test_data_dir_arg_over_env(self) -> None:
-        data_dir = Path("/path/to/data/dir")
-        self.app.args.data_dir = data_dir
-        self.assertEqual(self.app.data_dir, data_dir)
+    def test_data_dir_from_arg_over_env(self) -> None:
+        self.app.args.data_dir = Path("/path/to/data/dir")
+        self.env["SWAYSTATUS_DATA_DIR"] = "/does/not/matter"
+        self.assertEqual(self.app.data_dir, self.app.args.data_dir)
 
     def test_include(self) -> None:
-        self.app.args.include = args_include = [
-            self.home_path_fake / "arg/path1",
-            self.home_path_fake / "arg/path2",
-        ]
-        self.app.config.include = config_include = [
-            self.home_path_fake / "config/path1",
-            self.home_path_fake / "config/path2",
-        ]
-        package_include = [
-            self.home_path_fake / "package/path1",
-            self.home_path_fake / "package/path2",
-        ]
+        self.app.args.include = [Path.home() / "arg/path1", Path.home() / "arg/path2"]
+        self.app.config.include = [Path.home() / "config/path1", Path.home() / "config/path2"]
+        package_include = [Path.home() / "package/path1", Path.home() / "package/path2"]
         self.env["SWAYSTATUS_PACKAGE_PATH"] = ":".join(map(str, package_include))
         self.app.data_dir = data_dir = Path("/path/to/data/dir")
         self.assertEqual(
             self.app.include,
-            args_include + config_include + package_include + [data_dir / "modules"],
+            self.app.args.include + self.app.config.include + package_include + [data_dir / "modules"],
         )
 
     def test_registry_from_include(self) -> None:
@@ -162,16 +127,27 @@ class TestApp(TestCase):
         on_click2: OnClickMapping = {2: "true"}
         params1: ParamsMapping = {"text": "first"}
         params2: ParamsMapping = {"text": "second"}
-        settings1 = ModuleSettings(env=env1, on_click=on_click1, params=params1)
-        settings2 = ModuleSettings(env=env2, on_click=on_click2, params=params2)
-        self.app.config.modules = modules = [
-            Module(name="hostname", settings=settings1),
-            Module(name="clock", instance="home", settings=settings2),
+        self.app.config.modules = [
+            Module(
+                name="hostname",
+                settings=ModuleSettings(env=env1, on_click=on_click1, params=params1),
+            ),
+            Module(
+                name="clock",
+                instance="home",
+                settings=ModuleSettings(env=env2, on_click=on_click2, params=params2),
+            ),
         ]
 
-        self.assertEqual(self.app.elements, [self.element_mock.return_value] * len(modules))
+        self.assertEqual(self.app.elements, [self.element_mock.return_value] * 2)
 
-        self.assertEqual(self.registry_find_mock.call_args_list, [call("hostname"), call("clock")])
+        self.assertEqual(
+            self.registry_find_mock.call_args_list,
+            [
+                call("hostname"),
+                call("clock"),
+            ],
+        )
         self.assertEqual(
             self.element_mock.call_args_list,
             [
@@ -181,10 +157,20 @@ class TestApp(TestCase):
         )
 
     def test_daemon(self) -> None:
-        self.assertIs(self.app.daemon, self.daemon_mock.return_value)
-        self.daemon_mock.assert_called_once_with(self.app.elements, self.app.interval, self.app.click_events)
+        self.app.elements = list(map(BaseElement, ascii_letters[: random.randint(2, 10)]))
+        random.shuffle(self.app.elements)
+        self.app.config.interval = random.randint(1, 5)
+        self.app.config.click_events = random.choice([True, False])
 
-    def test_run_daemon(self) -> None:
+        self.assertIs(self.app.daemon, self.daemon_mock.return_value)
+
+        self.daemon_mock.assert_called_once_with(
+            self.app.elements,
+            self.app.config.interval,
+            self.app.config.click_events,
+        )
+
+    def test_run_blocks_until_shutdown(self) -> None:
         self.app.run()
         self.daemon_mock.return_value.start.assert_called_once()
         self.daemon_mock.return_value.join.assert_called_once()
@@ -193,7 +179,7 @@ class TestApp(TestCase):
         self.app.run()
         self.log_level_mock.assert_not_called()
 
-    def test_run_log_level_set(self) -> None:
+    def test_run_log_level_from_arg_over_default(self) -> None:
         self.app.args.log_level = "DEBUG"
         self.app.run()
         self.log_level_mock.assert_called_once_with("DEBUG")
