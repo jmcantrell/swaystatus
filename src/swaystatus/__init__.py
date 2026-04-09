@@ -25,7 +25,7 @@ from .modules import BaseElement
 
 locale.setlocale(locale.LC_ALL, "")
 
-__version__ = "0.14.1"
+__version__ = "0.15.0"
 
 __all__ = [
     Block.__name__,
