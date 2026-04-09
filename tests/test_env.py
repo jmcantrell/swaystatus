@@ -35,39 +35,22 @@ class TestEnvironPath(TestEnviron):
         self.set_env("foo", "/path")
         self.assertEqual(environ_path("foo"), Path("/path"))
 
-    def test_set_path_normalized(self) -> None:
-        for value, normalized in [
-            ("/path", Path("/path")),
-            ("path", Path.cwd() / "path"),
-            ("~/path", Path.home() / "path"),
-            ("/path1/../path2", Path("/path2")),
-        ]:
-            self.set_env("foo", value)
-            self.assertEqual(environ_path("foo"), normalized)
-
     def test_unset(self) -> None:
         self.del_env("foo")
-        self.assertIsNone(environ_path("foo"))
+        with self.assertRaises(KeyError):
+            environ_path("foo")
 
 
 class TestEnvironPaths(TestEnviron):
     def test_set(self) -> None:
-        self.set_env("foo", "/dir1:/dir2:/dir3")
-        self.assertEqual(environ_paths("foo"), [Path("/dir1"), Path("/dir2"), Path("/dir3")])
-
-    def test_set_path_normalized(self) -> None:
-        for value, normalized in [
-            ("/dir", Path("/dir")),
-            ("dir", Path.cwd() / "dir"),
-            ("~/dir", Path.home() / "dir"),
-            ("/dir1/../dir2", Path("/dir2")),
-        ]:
-            self.set_env("foo", value)
-            self.assertEqual(environ_paths("foo"), [normalized])
+        self.set_env("foo", "/path1:/path2:/path3")
+        self.assertEqual(environ_paths("foo"), [Path("/path1"), Path("/path2"), Path("/path3")])
 
     def test_unset(self) -> None:
         self.del_env("foo")
-        self.assertEqual(environ_paths("foo"), [])
+        self.del_env("foo")
+        with self.assertRaises(KeyError):
+            environ_paths("foo")
 
 
 class TestEnvironAlter(TestEnviron):

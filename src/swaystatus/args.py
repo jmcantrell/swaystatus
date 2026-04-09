@@ -4,11 +4,14 @@ import argparse
 import logging
 
 from . import __version__
+from .logger import logger
 from .paths import path_normalized
 
 arg_parser = argparse.ArgumentParser(
     description="Generate a status line for swaybar",
     epilog="See `pydoc swaystatus` for full documentation.",
+    formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=50),
+    argument_default=argparse.SUPPRESS,  # to differentiate "not given" from explicitly unset
 )
 arg_parser.add_argument(
     "-V",
@@ -43,22 +46,7 @@ arg_parser.add_argument(
     metavar="DIRECTORY",
     type=path_normalized,
     action="append",
-    default=[],
     help="include an additional modules package",
-)
-arg_parser.add_argument(
-    "-i",
-    "--interval",
-    metavar="SECONDS",
-    type=float,
-    help="specify update interval",
-)
-arg_parser.add_argument(
-    "-e",
-    "--click-events",
-    action="store_true",
-    default=None,
-    help="enable click events",
 )
 arg_parser.add_argument(
     "-L",
@@ -66,7 +54,7 @@ arg_parser.add_argument(
     metavar="LEVEL",
     type=str.upper,
     choices=list(logging.getLevelNamesMapping().keys()),
-    help="specify minimum logging level",
+    help=f"specify minimum logging level (default: {logging.getLevelName(logger.getEffectiveLevel())})",
 )
 arg_parser.add_argument(
     "-v",

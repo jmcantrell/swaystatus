@@ -1,6 +1,7 @@
 """The application manages the daemon's life cycle."""
 
 import argparse
+from contextlib import suppress
 from functools import cached_property
 from pathlib import Path
 
@@ -13,8 +14,6 @@ from .env import environ_path, environ_paths
 from .logger import logger
 from .modules import Registry
 
-type Seconds = float | int
-
 
 class App:
     """Manager of the daemon's life cycle."""
@@ -24,28 +23,26 @@ class App:
         return arg_parser.parse_args()
 
     @cached_property
-    def default_config_dir(self) -> Path:
-        return (environ_path("XDG_CONFIG_HOME") or (Path.home() / ".config")) / "swaystatus"
-
-    @cached_property
-    def env_config_dir(self) -> Path | None:
-        return environ_path("SWAYSTATUS_CONFIG_DIR")
+    def config_home(self) -> Path:
+        with suppress(KeyError):
+            return environ_path("XDG_CONFIG_HOME")
+        return Path.home() / ".config"
 
     @cached_property
     def config_dir(self) -> Path:
-        return self.args.config_dir or self.env_config_dir or self.default_config_dir
-
-    @cached_property
-    def default_config_file(self) -> Path:
-        return self.config_dir / "config.toml"
-
-    @cached_property
-    def env_config_file(self) -> Path | None:
-        return environ_path("SWAYSTATUS_CONFIG_FILE")
+        with suppress(AttributeError):
+            return self.args.config_dir
+        with suppress(KeyError):
+            return environ_path("SWAYSTATUS_CONFIG_DIR")
+        return self.config_home / "swaystatus"
 
     @cached_property
     def config_file(self) -> Path:
-        return self.args.config_file or self.env_config_file or self.default_config_file
+        with suppress(AttributeError):
+            return self.args.config_file
+        with suppress(KeyError):
+            return environ_path("SWAYSTATUS_CONFIG_FILE")
+        return self.config_dir / "config.toml"
 
     @cached_property
     def config(self) -> Config:
@@ -56,32 +53,29 @@ class App:
         return config
 
     @cached_property
-    def interval(self) -> Seconds | None:
-        return self.args.interval if self.args.interval is not None else self.config.interval
-
-    @cached_property
-    def click_events(self) -> bool:
-        return self.args.click_events if self.args.click_events is not None else self.config.click_events
-
-    @cached_property
-    def env_package_path(self) -> list[Path]:
-        return environ_paths("SWAYSTATUS_PACKAGE_PATH")
-
-    @cached_property
-    def default_data_dir(self) -> Path:
-        return (environ_path("XDG_DATA_HOME") or (Path.home() / ".local/share")) / "swaystatus"
-
-    @cached_property
-    def env_data_dir(self) -> Path | None:
-        return environ_path("SWAYSTATUS_DATA_DIR")
+    def data_home(self) -> Path:
+        with suppress(KeyError):
+            return environ_path("XDG_DATA_HOME")
+        return Path.home() / ".local/share"
 
     @cached_property
     def data_dir(self) -> Path:
-        return self.args.data_dir or self.env_data_dir or self.default_data_dir
+        with suppress(AttributeError):
+            return self.args.data_dir
+        with suppress(KeyError):
+            return environ_path("SWAYSTATUS_DATA_DIR")
+        return self.data_home / "swaystatus"
 
     @cached_property
     def include(self) -> list[Path]:
-        return [*self.args.include, *self.config.include, *self.env_package_path, self.data_dir / "modules"]
+        paths = []
+        with suppress(AttributeError):
+            paths.extend(self.args.include)
+        paths.extend(self.config.include)
+        with suppress(KeyError):
+            paths.extend(environ_paths("SWAYSTATUS_PACKAGE_PATH"))
+        paths.append(self.data_dir / "modules")
+        return paths
 
     @cached_property
     def registry(self) -> Registry:
@@ -112,10 +106,10 @@ class App:
 
     @cached_property
     def daemon(self) -> Daemon:
-        return Daemon(self.elements, self.interval, self.click_events)
+        return Daemon(self.elements, self.config.interval, self.config.click_events)
 
     def run(self) -> None:
-        if self.args.log_level is not None:
+        with suppress(AttributeError):
             logger.setLevel(self.args.log_level)
         logger.info("daemon starting")
         self.daemon.start()
