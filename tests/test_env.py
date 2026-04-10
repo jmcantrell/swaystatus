@@ -37,8 +37,7 @@ class TestEnvironPath(TestEnviron):
 
     def test_unset(self) -> None:
         self.del_env("foo")
-        with self.assertRaises(KeyError):
-            environ_path("foo")
+        self.assertIsNone(environ_path("foo"))
 
 
 class TestEnvironPaths(TestEnviron):
@@ -48,9 +47,7 @@ class TestEnvironPaths(TestEnviron):
 
     def test_unset(self) -> None:
         self.del_env("foo")
-        self.del_env("foo")
-        with self.assertRaises(KeyError):
-            environ_paths("foo")
+        self.assertEqual(environ_paths("foo"), [])
 
 
 class TestEnvironAlter(TestEnviron):

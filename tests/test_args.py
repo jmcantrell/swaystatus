@@ -4,19 +4,19 @@ from pathlib import Path
 from typing import Any
 from unittest import TestCase, main
 
-from swaystatus.args import arg_parser
+from swaystatus.args import Args, arg_parser
 
 arg_parser.exit_on_error = False
 
 
 class TestArgs(TestCase):
-    def assert_arg(self, argv: list[str], attr: str, expected_value: Any) -> None:
-        arg = getattr(arg_parser.parse_args(argv), attr)
+    def assert_arg(self, args: list[str], attr: str, expected_value: Any) -> None:
+        arg = getattr(Args.parse(args), attr)
         self.assertEqual(arg, expected_value, "argument value mismatch")
 
-    def assert_arg_invalid(self, argv: list[str]) -> argparse.ArgumentError:
+    def assert_arg_invalid(self, args: list[str]) -> argparse.ArgumentError:
         with self.assertRaises(argparse.ArgumentError) as raised:
-            arg_parser.parse_args(argv)
+            Args.parse(args)
         return raised.exception
 
     def test_config_file(self) -> None:

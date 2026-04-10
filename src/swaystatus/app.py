@@ -1,11 +1,9 @@
 """The application manages the daemon's life cycle."""
 
-import argparse
-from contextlib import suppress
 from functools import cached_property
 from pathlib import Path
 
-from .args import arg_parser
+from .args import Args
 from .config import Config
 from .context import context
 from .daemon import Daemon
@@ -19,30 +17,20 @@ class App:
     """Manager of the daemon's life cycle."""
 
     @cached_property
-    def args(self) -> argparse.Namespace:
-        return arg_parser.parse_args()
+    def args(self) -> Args:
+        return Args.parse()
 
     @cached_property
     def config_home(self) -> Path:
-        with suppress(KeyError):
-            return environ_path("XDG_CONFIG_HOME")
-        return Path.home() / ".config"
+        return environ_path("XDG_CONFIG_HOME") or Path.home() / ".config"
 
     @cached_property
     def config_dir(self) -> Path:
-        with suppress(AttributeError):
-            return self.args.config_dir
-        with suppress(KeyError):
-            return environ_path("SWAYSTATUS_CONFIG_DIR")
-        return self.config_home / "swaystatus"
+        return self.args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR") or self.config_home / "swaystatus"
 
     @cached_property
     def config_file(self) -> Path:
-        with suppress(AttributeError):
-            return self.args.config_file
-        with suppress(KeyError):
-            return environ_path("SWAYSTATUS_CONFIG_FILE")
-        return self.config_dir / "config.toml"
+        return self.args.config_file or environ_path("SWAYSTATUS_CONFIG_FILE") or self.config_dir / "config.toml"
 
     @cached_property
     def config(self) -> Config:
@@ -54,28 +42,20 @@ class App:
 
     @cached_property
     def data_home(self) -> Path:
-        with suppress(KeyError):
-            return environ_path("XDG_DATA_HOME")
-        return Path.home() / ".local/share"
+        return environ_path("XDG_DATA_HOME") or Path.home() / ".local/share"
 
     @cached_property
     def data_dir(self) -> Path:
-        with suppress(AttributeError):
-            return self.args.data_dir
-        with suppress(KeyError):
-            return environ_path("SWAYSTATUS_DATA_DIR")
-        return self.data_home / "swaystatus"
+        return self.args.data_dir or environ_path("SWAYSTATUS_DATA_DIR") or self.data_home / "swaystatus"
 
     @cached_property
     def include(self) -> list[Path]:
-        paths = []
-        with suppress(AttributeError):
-            paths.extend(self.args.include)
-        paths.extend(self.config.include)
-        with suppress(KeyError):
-            paths.extend(environ_paths("SWAYSTATUS_PACKAGE_PATH"))
-        paths.append(self.data_dir / "modules")
-        return paths
+        return [
+            *self.args.include,
+            *self.config.include,
+            *environ_paths("SWAYSTATUS_PACKAGE_PATH"),
+            self.data_dir / "modules",
+        ]
 
     @cached_property
     def registry(self) -> Registry:
@@ -109,7 +89,7 @@ class App:
         return Daemon(self.elements, self.config.interval, self.config.click_events)
 
     def run(self) -> None:
-        with suppress(AttributeError):
+        if self.args.log_level:
             logger.setLevel(self.args.log_level)
         logger.info("daemon starting")
         self.daemon.start()

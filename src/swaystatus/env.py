@@ -6,14 +6,14 @@ from pathlib import Path
 from .paths import path_normalized
 
 
-def environ_path(name: str) -> Path:
-    """Return a path from an environment variable."""
-    return path_normalized(os.environ[name])
+def environ_path(name: str) -> Path | None:
+    """Return a path from an environment variable (if set)."""
+    return path_normalized(value) if (value := os.environ.get(name)) else None
 
 
 def environ_paths(name: str) -> list[Path]:
     """Return a list of paths from and environment variable."""
-    return list(map(path_normalized, os.environ[name].split(":")))
+    return list(map(path_normalized, value.split(":"))) if (value := os.environ.get(name)) else []
 
 
 def environ_alter(updates: Mapping[str, str | None]) -> None:

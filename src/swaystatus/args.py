@@ -2,10 +2,30 @@
 
 import argparse
 import logging
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Self
 
 from . import __version__
 from .logger import logger
 from .paths import path_normalized
+
+
+@dataclass(slots=True, kw_only=True)
+class Args:
+    """Data class representing possible command-line arguments."""
+
+    data_dir: Path | None = None
+    config_dir: Path | None = None
+    config_file: Path | None = None
+    log_level: str | None = None
+    include: list[Path] = field(default_factory=list)
+
+    @classmethod
+    def parse(cls, args: Sequence[str] | None = None) -> Self:
+        return cls(**vars(arg_parser.parse_args(args)))
+
 
 arg_parser = argparse.ArgumentParser(
     description="Generate a status line for swaybar",
@@ -72,3 +92,5 @@ arg_parser.add_argument(
     const="DEBUG",
     help="alias for --log-level=%(const)s",
 )
+
+__all__ = [Args.__name__]
