@@ -41,7 +41,7 @@ class Daemon:
         self._output_driver = OutputDriver(OutputProcessor(elements, click_events), interval)
         self._input_driver = InputDriver(InputProcessor(elements, self.update)) if click_events else None
 
-    def register_signals(self) -> None:
+    def _register_signals(self) -> None:
         for signum in SIGNALS_UPDATE:
             register_signal(signum, self.update)
         for signum in SIGNALS_SHUTDOWN:
@@ -51,7 +51,7 @@ class Daemon:
         self._output_driver.next()
 
     def start(self) -> None:
-        self.register_signals()
+        self._register_signals()
         self._output_driver.next()
         self._output_driver.start()
         if self._input_driver:
