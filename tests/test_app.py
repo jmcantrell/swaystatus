@@ -8,6 +8,7 @@ from unittest.mock import call, patch
 from swaystatus.app import App
 from swaystatus.config import Config, EnvMapping, Module, ModuleSettings, OnClickMapping, ParamsMapping
 from swaystatus.element import BaseElement
+from swaystatus.logger import logger
 
 
 class TestApp(TestCase):
@@ -180,9 +181,16 @@ class TestApp(TestCase):
         self.log_level_mock.assert_not_called()
 
     def test_run_log_level_from_arg_over_default(self) -> None:
-        self.app.args.log_level = "DEBUG"
-        self.app.run()
-        self.log_level_mock.assert_called_once_with("DEBUG")
+        default_log_level = logger.level
+
+        def new_join(*args, **kwargs) -> None:
+            self.log_level_mock.assert_called_once_with("DEBUG")
+
+        with patch.object(self.app.daemon, "join", new_join):
+            self.app.args.log_level = "DEBUG"
+            self.app.run()
+
+        self.log_level_mock.assert_called_with(default_log_level)
 
 
 if __name__ == "__main__":

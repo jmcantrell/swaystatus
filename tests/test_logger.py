@@ -2,7 +2,7 @@ import logging
 from threading import Thread
 from unittest import TestCase, main
 
-from swaystatus.logger import logger
+from swaystatus.logger import logger, logger_level_at
 
 
 class TestThreadExcepthook(TestCase):
@@ -22,6 +22,22 @@ class TestThreadExcepthook(TestCase):
         assert record.exc_info
         self.assertIs(record.exc_info[1], exception)
         self.assertEqual(record.message, "unhandled exception in thread: TestThread")
+
+
+class TestLoggerLevelAt(TestCase):
+    def test_context(self) -> None:
+        logger = logging.getLogger("test")
+        logger.setLevel(30)
+        with logger_level_at(logger, 42):
+            self.assertEqual(logger.level, 42)
+        self.assertEqual(logger.level, 30)
+
+    def test_context_noop(self) -> None:
+        logger = logging.getLogger("test")
+        logger.setLevel(30)
+        with logger_level_at(logger, None):
+            self.assertEqual(logger.level, 30)
+        self.assertEqual(logger.level, 30)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from .context import context
 from .daemon import Daemon
 from .element import BaseElement
 from .env import environ_path, environ_paths
-from .logger import logger
+from .logger import logger, logger_level_at
 from .modules import Registry
 
 
@@ -89,12 +89,11 @@ class App:
         return Daemon(self.elements, self.config.interval, self.config.click_events)
 
     def run(self) -> None:
-        if self.args.log_level:
-            logger.setLevel(self.args.log_level)
-        logger.info("daemon starting")
-        self.daemon.start()
-        self.daemon.join()
-        logger.info("daemon finished")
+        with logger_level_at(logger, self.args.log_level):
+            logger.info("daemon starting")
+            self.daemon.start()
+            self.daemon.join()
+            logger.info("daemon finished")
 
 
 __all__ = [App.__name__]
