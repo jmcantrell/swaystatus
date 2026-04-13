@@ -4,4 +4,4 @@ set -euo pipefail
 
 source ./.env
 
-uv publish "$@"
+uv publish "$@" -- ./dist/*
