@@ -32,8 +32,8 @@ class TestEnviron(TestCase):
 
 class TestEnvironPath(TestEnviron):
     def test_set(self) -> None:
-        self.set_env("foo", "/path")
-        self.assertEqual(environ_path("foo"), Path("/path"))
+        self.set_env("foo", "path")
+        self.assertEqual(environ_path("foo"), Path("path"))
 
     def test_unset(self) -> None:
         self.del_env("foo")
@@ -42,8 +42,8 @@ class TestEnvironPath(TestEnviron):
 
 class TestEnvironPaths(TestEnviron):
     def test_set(self) -> None:
-        self.set_env("foo", "/path1:/path2:/path3")
-        self.assertEqual(environ_paths("foo"), [Path("/path1"), Path("/path2"), Path("/path3")])
+        self.set_env("foo", "path1:path2:path3")
+        self.assertEqual(environ_paths("foo"), [Path("path1"), Path("path2"), Path("path3")])
 
     def test_unset(self) -> None:
         self.del_env("foo")

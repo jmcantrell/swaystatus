@@ -9,7 +9,6 @@ from typing import Self
 
 from . import __version__
 from .logger import logger
-from .paths import path_normalized
 
 
 @dataclass(slots=True, kw_only=True)
@@ -43,28 +42,28 @@ arg_parser.add_argument(
     "-c",
     "--config-file",
     metavar="FILE",
-    type=path_normalized,
+    type=Path,
     help="specify configuration file",
 )
 arg_parser.add_argument(
     "-C",
     "--config-dir",
     metavar="DIRECTORY",
-    type=path_normalized,
+    type=Path,
     help="specify configuration directory",
 )
 arg_parser.add_argument(
     "-D",
     "--data-dir",
     metavar="DIRECTORY",
-    type=path_normalized,
+    type=Path,
     help="specify data directory",
 )
 arg_parser.add_argument(
     "-I",
     "--include",
     metavar="DIRECTORY",
-    type=path_normalized,
+    type=Path,
     action="append",
     help="include an additional modules package",
 )

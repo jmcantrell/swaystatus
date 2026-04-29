@@ -65,8 +65,6 @@ from os import PathLike
 from pathlib import Path
 from typing import Self
 
-from .paths import path_normalized
-
 type Number = float | int
 type EnvMapping = Mapping[str, str | None]
 type OnClickMapping = Mapping[int, str | Sequence[str] | None]
@@ -256,7 +254,7 @@ class Config:
     def parse(cls, data: dict) -> Self:
         """Create a configuration object from a dictionary representation."""
         if (include := data.get("include")) and isinstance(include, list):
-            data["include"] = [path_normalized(d) for d in include]
+            data["include"] = [Path(d).expanduser() for d in include]
         if (settings := data.get("settings")) and isinstance(settings, dict):
             data["settings"] = {k: ModuleSettings.parse(v) if isinstance(v, dict) else v for k, v in settings.items()}
         if (modules := data.get("modules")) and isinstance(modules, list):
