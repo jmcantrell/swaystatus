@@ -22,22 +22,22 @@ class TestArgs(TestCase):
     def test_config_file(self) -> None:
         for option in ["--config-file", "-c"]:
             with self.subTest(option=option):
-                self.assert_arg([option, "/file"], "config_file", Path("/file"))
+                self.assert_arg([option, "file"], "config_file", Path("file"))
 
     def test_config_dir(self) -> None:
         for option in ["--config-dir", "-C"]:
             with self.subTest(option=option):
-                self.assert_arg([option, "/dir"], "config_dir", Path("/dir"))
+                self.assert_arg([option, "dir"], "config_dir", Path("dir"))
 
     def test_data_dir(self) -> None:
         for option in ["--data-dir", "-D"]:
             with self.subTest(option=option):
-                self.assert_arg([option, "/dir"], "data_dir", Path("/dir"))
+                self.assert_arg([option, "dir"], "data_dir", Path("dir"))
 
     def test_include(self) -> None:
         for option in ["--include", "-I"]:
             with self.subTest(option=option):
-                self.assert_arg([option, "/dir1", option, "/dir2"], "include", [Path("/dir1"), Path("/dir2")])
+                self.assert_arg([option, "dir1", option, "dir2"], "include", [Path("dir1"), Path("dir2")])
 
     def test_log_level(self) -> None:
         for option in ["--log-level", "-L"]:
