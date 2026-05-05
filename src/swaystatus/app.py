@@ -93,7 +93,7 @@ class App:
             logger.info("daemon starting")
             self.daemon.start()
             self.daemon.join()
-            logger.info("daemon finished")
+            logger.info("daemon stopped")
 
 
 __all__ = [App.__name__]
