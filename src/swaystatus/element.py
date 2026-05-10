@@ -6,7 +6,7 @@ from dataclasses import asdict
 from subprocess import PIPE, Popen
 from threading import Thread
 from types import MethodType
-from typing import Self, cast
+from typing import Self
 
 from .block import Block
 from .click_event import ClickEvent
@@ -241,7 +241,7 @@ class BaseElement:
         elif isinstance(click_handler, str | Sequence):
 
             def method(element: Self, click_event: ClickEvent) -> ShellCommand:
-                return cast(ShellCommand, click_handler)
+                return click_handler
 
         else:
             method = click_handler
