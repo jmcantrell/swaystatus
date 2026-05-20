@@ -2,4 +2,4 @@
 
 set -euo pipefail
 
-uv run mypy "$@" -- .
+uv run ty check "$@" -- .

@@ -6,7 +6,7 @@ from dataclasses import asdict
 from subprocess import PIPE, Popen
 from threading import Thread
 from types import MethodType
-from typing import Self
+from typing import Self, cast
 
 from .block import Block
 from .click_event import ClickEvent
@@ -235,13 +235,13 @@ class BaseElement:
 
         if click_handler is None:
 
-            def method(element: Self, click_event: ClickEvent) -> None:
+            def method(_element: Self, _click_event: ClickEvent) -> None:
                 pass
 
         elif isinstance(click_handler, str | Sequence):
 
-            def method(element: Self, click_event: ClickEvent) -> ShellCommand:
-                return click_handler
+            def method(_element: Self, _click_event: ClickEvent) -> ShellCommand:
+                return cast(ShellCommand, click_handler)
 
         else:
             method = click_handler
@@ -269,10 +269,10 @@ class BaseElement:
                 return False
 
             if isinstance(result, bool) or callable(result):
-                return result
+                return cast(UpdateRequest, result)
 
             if isinstance(result, str | Sequence):
-                result = LoggedProcess(result)
+                result = LoggedProcess(cast(ShellCommand, result))
 
             def update_request() -> bool:
                 result.wait()
