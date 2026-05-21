@@ -63,7 +63,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
-from typing import Self
+from typing import Self, cast
 
 type Number = float | int
 type EnvMapping = Mapping[str, str | None]
@@ -86,18 +86,18 @@ class ModuleSettings:
         if not isinstance(self.env, dict):
             raise TypeError(f"`env` must be dict, got {type(self.env).__name__}")
         for key, value in self.env.items():
-            if not isinstance(key, str):
+            if not isinstance(cast(object, key), str):
                 raise TypeError(f"`env` keys must be str, got {type(key).__name__}")
             if not key.strip():
                 raise ValueError("`env` keys must be non-empty")
-            if value is not None and not isinstance(value, str):
+            if value is not None and not isinstance(cast(object, value), str):
                 raise TypeError(f"`env[{key!r}]` must be str, got {type(value).__name__}")
 
     def _validate_on_click(self) -> None:
         if not isinstance(self.on_click, dict):
             raise TypeError(f"`on_click` must be dict, got {type(self.on_click).__name__}")
         for button, command in self.on_click.items():
-            if not isinstance(button, int):
+            if not isinstance(cast(object, button), int):
                 raise TypeError(f"`on_click` keys must be int, got {type(button).__name__}")
             if command is not None:
                 if isinstance(command, list):
@@ -116,7 +116,7 @@ class ModuleSettings:
         if not isinstance(self.params, dict):
             raise TypeError(f"must be dict, got {type(self.params).__name__}")
         for key in self.params:
-            if not isinstance(key, str):
+            if not isinstance(cast(object, key), str):
                 raise TypeError(f"`params` keys must be str, got {type(key).__name__}")
             if not key.strip():
                 raise ValueError("`params` keys must be non-empty")
@@ -144,20 +144,20 @@ class Module:
         return f"module name={self.name!r} instance={self.instance!r}"
 
     def _validate_name(self) -> None:
-        if not isinstance(self.name, str):
+        if not isinstance(cast(object, self.name), str):
             raise TypeError(f"`name` must be str, got {type(self.name).__name__}")
         if not self.name.strip():
             raise ValueError("`name` must be non-empty")
 
     def _validate_instance(self) -> None:
         if self.instance is not None:
-            if not isinstance(self.instance, str):
+            if not isinstance(cast(object, self.instance), str):
                 raise TypeError(f"`instance` must be str, got {type(self.instance).__name__}")
             if not self.instance.strip():
                 raise ValueError("`instance` must be non-empty, if set")
 
     def _validate_settings(self) -> None:
-        if not isinstance(self.settings, ModuleSettings):
+        if not isinstance(cast(object, self.settings), ModuleSettings):
             raise TypeError(f"`settings` must be Settings, got {type(self.settings).__name__}")
 
     @classmethod
@@ -195,18 +195,18 @@ class Config:
                 raise ValueError("`interval` must be greater than zero")
 
     def _validate_click_events(self) -> None:
-        if not isinstance(self.click_events, bool):
+        if not isinstance(cast(object, self.click_events), bool):
             raise TypeError(f"`click_events` must be bool, got {type(self.click_events).__name__}")
 
     def _validate_env(self) -> None:
         if not isinstance(self.env, dict):
             raise TypeError(f"`env` must be dict, got {type(self.env).__name__}")
         for key, value in self.env.items():
-            if not isinstance(key, str):
+            if not isinstance(cast(object, key), str):
                 raise TypeError(f"`env` keys must be str, got {type(key).__name__}")
             if not key.strip():
                 raise ValueError("`env` keys must be non-empty")
-            if value is not None and not isinstance(value, str):
+            if value is not None and not isinstance(cast(object, value), str):
                 raise TypeError(f"`env[{key!r}]` must be str, got {type(value).__name__}")
 
     def _validate_include(self) -> None:
@@ -222,11 +222,11 @@ class Config:
         if not isinstance(self.settings, dict):
             raise TypeError(f"`settings` must be dict, got {type(self.settings).__name__}")
         for key, module_settings in self.settings.items():
-            if not isinstance(key, str):
+            if not isinstance(cast(object, key), str):
                 raise TypeError(f"`settings` keys must be str, got {type(key).__name__}")
             if not key.strip():
                 raise ValueError("`settings` keys must be non-empty")
-            if not isinstance(module_settings, ModuleSettings):
+            if not isinstance(cast(object, module_settings), ModuleSettings):
                 raise TypeError(f"`settings[{key!r}]` must be Settings, got {type(module_settings).__name__}")
 
     def _validate_modules(self) -> None:
