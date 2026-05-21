@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+
+"""Upgrade dependencies to the lastest version."""
+
+import argparse
+import tomllib
+from subprocess import run
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "-o",
+        "--optional",
+        metavar="NAME",
+        help="upgrade dependencies for extra %(metavar)s",
+    )
+    group.add_argument(
+        "-g",
+        "--group",
+        metavar="NAME",
+        help="upgrade dependencies in group %(metavar)s",
+    )
+    group.add_argument(
+        "-d",
+        "--dev",
+        dest="group",
+        action="store_const",
+        const="dev",
+        help="upgrade development dependencies",
+    )
+    parser.add_argument(
+        "names",
+        metavar="NAME",
+        nargs="*",
+        help="only upgrade dependency %(metavar)s (default: all)",
+    )
+    return parser.parse_args()
+
+
+def parse_spec_name(spec: str) -> str:
+    for i, c in enumerate(spec):
+        if c in "<=>":
+            return spec[:i]
+    return spec
+
+
+def main() -> None:
+    args = parse_args()
+
+    with open("./pyproject.toml", "rb") as file:
+        data = tomllib.load(file)
+
+    opts = []
+    if args.group:
+        opts.append(f"--group={args.group}")
+        specs = data["dependency-groups"][args.group]
+    elif args.optional:
+        opts.append(f"--optional={args.optional}")
+        specs = data["project"]["optional-dependencies"][args.optional]
+    else:
+        specs = data["project"]["dependencies"]
+
+    names = []
+    filter_names = set(args.names)
+    for spec in specs:
+        name = parse_spec_name(spec)
+        if not filter_names or name in filter_names:
+            names.append(name)
+
+    run(["uv", "remove", *opts, *names], check=True)
+    run(["uv", "add", "--bounds=major", *opts, *names], check=True)
+
+
+if __name__ == "__main__":
+    main()
