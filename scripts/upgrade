@@ -69,8 +69,8 @@ def main() -> None:
         if not filter_names or name in filter_names:
             names.append(name)
 
-    run(["uv", "remove", *opts, *names], check=True)
-    run(["uv", "add", "--bounds=major", *opts, *names], check=True)
+    for action in ("remove", "add"):
+        run(["uv", action, *opts, *names], check=True)
 
 
 if __name__ == "__main__":

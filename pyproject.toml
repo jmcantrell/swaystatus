@@ -43,6 +43,9 @@ swaystatus = "swaystatus.cli:main"
 requires = ["uv_build>=0.10.8,<0.12"]
 build-backend = "uv_build"
 
+[tool.uv]
+add-bounds = "major"
+
 [tool.uv.build-backend]
 source-include = ["tests/**"]
 
@@ -57,8 +60,8 @@ line-length = 120
 select = [
     "E",   # pycodestyle
     "F",   # pyflakes
+    "I",   # isort
     "UP",  # pyupgrade
     "B",   # flake8-bugbear
     "SIM", # flake8-simplify
-    "I",   # isort
 ]
