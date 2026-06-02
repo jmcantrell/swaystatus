@@ -72,7 +72,7 @@ class TestElement(TestCase):
 
     def test_click_handler_init_none(self) -> None:
         class Element(BaseElement):
-            def on_click_1(self, click_event: ClickEvent) -> None:
+            def on_click_1(self, _click_event: ClickEvent) -> None:
                 click_mock()
 
         click_mock = Mock()
@@ -110,7 +110,7 @@ class TestElement(TestCase):
 
     def test_click_handler_result_update(self) -> None:
         class Element(BaseElement):
-            def on_click_1(self, *args) -> bool:
+            def on_click_1(self, *_args) -> bool:
                 return update
 
         for update in [False, True]:
@@ -122,7 +122,7 @@ class TestElement(TestCase):
             return update
 
         class Element(BaseElement):
-            def on_click_1(self, *args) -> UpdateHandler:
+            def on_click_1(self, *_args) -> UpdateHandler:
                 return update_handler_inner
 
         for update in [False, True]:
@@ -133,7 +133,7 @@ class TestElement(TestCase):
 
     def test_click_handler_result_process(self) -> None:
         class Element(BaseElement):
-            def on_click_1(self, *args) -> Popen:
+            def on_click_1(self, *_args) -> Popen:
                 return Popen(command)
 
         for command, update in [
@@ -147,7 +147,7 @@ class TestElement(TestCase):
 
     def test_click_handler_result_command(self) -> None:
         class Element(BaseElement):
-            def on_click_1(self, *args) -> ShellCommand:
+            def on_click_1(self, *_args) -> ShellCommand:
                 return command
 
         for command, update in [
@@ -163,7 +163,7 @@ class TestElement(TestCase):
 
     def test_click_handler_result_command_logged(self) -> None:
         class Element(BaseElement):
-            def on_click_1(self, *args) -> ShellCommand:
+            def on_click_1(self, *_args) -> ShellCommand:
                 return command
 
         element = Element("clock")

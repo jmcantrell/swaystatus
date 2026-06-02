@@ -13,7 +13,7 @@ class TestTicker(TestCase):
         self.tick_acquire = Barrier(2, timeout=1.0)
         self.tick_release = Event()
 
-        def tick_side_effect(*args, **kwargs):
+        def tick_side_effect(*_args, **_kwargs):
             self.tick_acquire.wait()
             self.tick_release.wait()
 
@@ -23,7 +23,7 @@ class TestTicker(TestCase):
         self.next_acquire = Barrier(2, timeout=1.0)
         self.next_release = Event()
 
-        def next_wait_side_effect(*args, **kwargs):
+        def next_wait_side_effect(*_args, **_kwargs):
             self.next_acquire.wait()
             self.next_release.wait()
 

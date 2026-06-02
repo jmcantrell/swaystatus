@@ -66,9 +66,14 @@ class TestOutputProcessor(TestCase):
         )
 
     def test_iter_encoded(self) -> None:
+        iteration = itertools.count(0)
+
         class Element(BaseElement):
             def blocks(self) -> Iterator[Block]:
                 yield self.block(f"i={next(iteration)}")
+
+        output_processor = OutputProcessor([Element("clock")], False)
+        status_lines = iter(output_processor)
 
         def next_iteration() -> tuple[Sequence[Block], list[str]]:
             pos = self.stdout.tell()
@@ -81,10 +86,6 @@ class TestOutputProcessor(TestCase):
 
         def body_line_ith(i: int) -> str:
             return f",[{json.dumps(block_ith(i).min_dict())}]\n"
-
-        iteration = itertools.count(0)
-        output_processor = OutputProcessor([Element("clock")], False)
-        status_lines = iter(output_processor)
 
         blocks, output_lines = next_iteration()
         self.assertEqual(blocks, [block_ith(0)])
@@ -104,12 +105,13 @@ class TestOutputProcessor(TestCase):
 
 class TestOutputDriver(TestCase):
     def test_iterate_on_tick(self) -> None:
+        block = Block(full_text="test")
+
         def fake_status_lines() -> Iterator[Sequence[Block]]:
             while True:
                 yield_acquire.wait()
                 yield [block]
 
-        block = Block(full_text="test")
         yield_acquire = Barrier(2, timeout=1.0)
         expected_num_calls = random.randint(2, 10)
         expected_messages = ["processed 1 output block(s)"] * expected_num_calls

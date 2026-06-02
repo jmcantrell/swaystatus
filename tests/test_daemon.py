@@ -18,11 +18,12 @@ from swaystatus.output import OutputDriver
 
 class TestDaemon(TestCase):
     def setUp(self) -> None:
+        signal_handlers_save = [(s, getsignal(s)) for s in (*SIGNALS_UPDATE, *SIGNALS_SHUTDOWN)]
+
         def restore_signal_handlers() -> None:
             for signum, handler in signal_handlers_save:
                 signal(signum, handler)
 
-        signal_handlers_save = [(s, getsignal(s)) for s in (*SIGNALS_UPDATE, *SIGNALS_SHUTDOWN)]
         self.addCleanup(restore_signal_handlers)
 
     def test_signals(self) -> None:

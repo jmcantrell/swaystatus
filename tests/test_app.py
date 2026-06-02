@@ -183,7 +183,7 @@ class TestApp(TestCase):
     def test_run_log_level_from_arg_over_default(self) -> None:
         default_log_level = logger.level
 
-        def new_join(*args, **kwargs) -> None:
+        def new_join(*_args, **_kwargs) -> None:
             self.log_level_mock.assert_called_once_with("DEBUG")
 
         with patch.object(self.app.daemon, "join", new_join):

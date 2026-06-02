@@ -69,7 +69,7 @@ class TestInputProcessor(TestCase):
 
     def test_element_delegation(self) -> None:
         class Element(BaseElement):
-            def on_click_1(self, click_event: ClickEvent) -> bool:
+            def on_click_1(self, _click_event: ClickEvent) -> bool:
                 return on_click_mock(self)
 
         elements = [
@@ -116,7 +116,7 @@ class TestInputProcessor(TestCase):
 
     def test_update(self) -> None:
         class Element(BaseElement):
-            def on_click_1(self, click_event: ClickEvent) -> bool:
+            def on_click_1(self, _click_event: ClickEvent) -> bool:
                 return update
 
         elements = [Element("clock")]
@@ -141,7 +141,7 @@ class TestInputProcessor(TestCase):
             return update
 
         class Element(BaseElement):
-            def on_click_1(self, click_event: ClickEvent) -> UpdateHandler:
+            def on_click_1(self, _click_event: ClickEvent) -> UpdateHandler:
                 return update_handler_inner
 
         click_events = [dummy_click_event("clock", None)]
