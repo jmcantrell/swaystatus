@@ -6,10 +6,10 @@ unset bump
 
 while getopts "Mmp" opt; do
     case $opt in
-    M) bump='major' ;;
-    m) bump='minor' ;;
-    p) bump='patch' ;;
-    *) exit 64 ;;
+        M) bump='major' ;;
+        m) bump='minor' ;;
+        p) bump='patch' ;;
+        *) exit 64 ;;
     esac
 done
 shift $((OPTIND - 1))
