@@ -288,16 +288,19 @@ class LoggedProcess(Popen):
         super().__init__(args, stdout=PIPE, stderr=PIPE, shell=True, text=True)
         assert self.stdout and self.stderr
 
-        def wrap(log: Callable[[str], None]) -> Callable[[str], None]:
+        def without_newline(log: Callable[[str], None]) -> Callable[[str], None]:
             def wrapped(line: str) -> None:
                 log(line.rstrip("\n"))
 
             return wrapped
 
-        self._stdout_thread = MapDriver(self.stdout, wrap(logger.debug), name=f"LoggerThread.{self.pid}.stdout")
-        self._stdout_thread.start()
-        self._stderr_thread = MapDriver(self.stderr, wrap(logger.error), name=f"LoggerThread.{self.pid}.stderr")
-        self._stderr_thread.start()
+        def start_thread(stream: Iterable[str], log: Callable[[str], None], name: str) -> MapDriver:
+            thread = MapDriver(stream, without_newline(log), name=f"LoggerThread.{self.pid}.{name}")
+            thread.start()
+            return thread
+
+        self._stdout_thread = start_thread(self.stdout, logger.debug, "stdout")
+        self._stderr_thread = start_thread(self.stderr, logger.error, "stderr")
 
     def wait(self, timeout: Number | None = None) -> int:
         result = super().wait(timeout=timeout)
