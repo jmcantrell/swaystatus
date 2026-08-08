@@ -285,7 +285,7 @@ class LoggedProcess(Popen):
     """Run a shell command, logging stdout and stderr."""
 
     def __init__(self, args: ShellCommand) -> None:
-        super().__init__(args, stdout=PIPE, stderr=PIPE, shell=True, text=True)
+        super().__init__(args, stdout=PIPE, stderr=PIPE, shell=True, text=True, start_new_session=True)
         assert self.stdout and self.stderr
 
         def without_newline(log: Callable[[str], None]) -> Callable[[str], None]:
