@@ -28,5 +28,5 @@ package_file=./src/$name/__init__.py
 sed -i "/^__version__\b/s/=.*/= \"$version\"/" "$package_file"
 
 git add "$package_file" uv.lock pyproject.toml
-git commit -m "Bump $bump version"
+git commit -e -m "chore(release): bump version to $version" -m "This is a $bump version change."
 git tag -a -m "Release version $version" v"$version"
