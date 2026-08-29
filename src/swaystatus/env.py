@@ -1,5 +1,5 @@
 import os
-from collections.abc import Iterator, Mapping
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager, suppress
 from pathlib import Path
 
@@ -25,7 +25,7 @@ def environ_alter(updates: Mapping[str, str | None]) -> None:
 
 
 @contextmanager
-def environ_update(**kwargs: str | None) -> Iterator:
+def environ_update(**kwargs: str | None) -> Generator:
     """Alter the environment during execution of a block."""
     environ_save = {k: os.environ.get(k) for k in kwargs}
     environ_alter(kwargs)

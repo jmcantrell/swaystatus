@@ -1,5 +1,5 @@
 import random
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from threading import Barrier, Event
 from unittest import TestCase, main
@@ -63,13 +63,13 @@ class TestTicker(TestCase):
         self.tick_mock.assert_not_called()
 
     @contextmanager
-    def next_called(self) -> Iterator:
+    def next_called(self) -> Generator:
         self.next_acquire.wait()
         yield
         self.next_release.set()
 
     @contextmanager
-    def tick_called(self) -> Iterator:
+    def tick_called(self) -> Generator:
         self.tick_acquire.wait()
         yield
         self.tick_release.set()

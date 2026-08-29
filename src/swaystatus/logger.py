@@ -1,5 +1,5 @@
 import threading
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from logging import WARNING, Filter, Formatter, Logger, LogRecord, StreamHandler, basicConfig, getLogger
 
@@ -32,7 +32,7 @@ threading.excepthook = excepthook
 
 
 @contextmanager
-def logger_level_at(logger: Logger, level: int | str | None) -> Iterator:
+def logger_level_at(logger: Logger, level: int | str | None) -> Generator:
     if level is None:
         yield
         return

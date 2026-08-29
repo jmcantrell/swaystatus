@@ -4,13 +4,13 @@ Generate a status line for [swaybar][swaybar-protocol].
 
 ## Installation
 
-### Python
+### Python Package Index
 
 Install as a python package:
 
     pip install swaystatus
 
-### Arch User Repository (AUR)
+### Arch User Repository
 
 There are two packages available for Arch Linux, available via the AUR:
 

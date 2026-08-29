@@ -1,6 +1,6 @@
 import shutil
 import sys
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from importlib.metadata import EntryPoint
 from pathlib import Path
@@ -78,7 +78,7 @@ class TemporaryPackage:
 
 
 @contextmanager
-def temp_package() -> Iterator[TemporaryPackage]:
+def temp_package() -> Generator[TemporaryPackage]:
     with TemporaryDirectory() as temp_dir:
         yield TemporaryPackage(Path(temp_dir))
 
