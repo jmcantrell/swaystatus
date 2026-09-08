@@ -2,4 +2,4 @@
 contrib = contrib-title-conventional-commits
 
 [contrib-title-conventional-commits]
-types = build,chore,ci,docs,feat,fix,perf,refactor,style,test
+types = build,chore,docs,feat,fix,ops,perf,refactor,style,test
