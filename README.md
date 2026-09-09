@@ -17,7 +17,7 @@ There are two packages available for Arch Linux, available via the AUR:
 - [swaystatus][pkg-aur] (stable, based on the latest tag)
 - [swaystatus-git][pkg-aur-git] (unstable, based on the latest commit)
 
-## Usage
+## Help
 
 To see documentation for the python package:
 
@@ -30,6 +30,16 @@ To see documentation for the command line interface:
 See [sway-bar(5)][sway-bar] for details on setting `status_command`.
 
 See [swaybar-protocol(7)][swaybar-protocol] for a definition of the status bar protocol.
+
+## Testing
+
+To run the included tests:
+
+    ./scripts/test
+
+For command line usage:
+
+    ./scripts/test -h
 
 [pkg-aur]: https://aur.archlinux.org/packages/swaystatus/
 [pkg-aur-git]: https://aur.archlinux.org/packages/swaystatus-git/
