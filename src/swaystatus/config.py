@@ -101,7 +101,7 @@ class ModuleSettings:
                 raise TypeError(f"`on_click` keys must be int, got {type(button).__name__}")
             if command is not None:
                 if isinstance(command, list):
-                    for i, token in enumerate(command):
+                    for i, token in enumerate(cast(list, command)):
                         if not isinstance(token, str):
                             raise TypeError(f"`on_click[{button!r}][{i}]` must be str, got {type(token).__name__}")
                         if not token.strip():
@@ -212,7 +212,7 @@ class Config:
     def _validate_include(self) -> None:
         if not isinstance(self.include, list):
             raise TypeError(f"`include` must be list, got {type(self.include).__name__}")
-        for i, path in enumerate(self.include):
+        for i, path in enumerate(cast(list, self.include)):
             if not isinstance(path, Path):
                 raise TypeError(f"`include[{i!r}]` must be Path, got {type(path).__name__}")
             if not path.is_absolute():
@@ -232,7 +232,7 @@ class Config:
     def _validate_modules(self) -> None:
         if not isinstance(self.modules, list):
             raise TypeError(f"`modules` must be list, got {type(self.modules).__name__}")
-        for i, module in enumerate(self.modules):
+        for i, module in enumerate(cast(list, self.modules)):
             if not isinstance(module, Module):
                 raise TypeError(f"`modules[{i!r}]` must be Module, got {type(module).__name__}")
 
