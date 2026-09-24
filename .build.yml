@@ -7,7 +7,7 @@ sources:
 tasks:
   - setup: |
       cd swaystatus
-      uv sync --frozen
+      uv sync --locked
   - test: |
       cd swaystatus
-      uv run --frozen python -m unittest discover -s ./tests
+      uv run python -m unittest discover -s ./tests
