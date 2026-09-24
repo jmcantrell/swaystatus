@@ -1,5 +1,0 @@
-[general]
-contrib = contrib-title-conventional-commits
-
-[contrib-title-conventional-commits]
-types = build,chore,docs,feat,fix,ops,perf,refactor,style,test
