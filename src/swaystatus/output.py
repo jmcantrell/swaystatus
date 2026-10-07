@@ -17,14 +17,22 @@ type Number = float | int
 
 
 class OutputProcessor:
-    """Iterate status lines sent to stdout."""
+    """Generate status lines and send them to stdout."""
 
     def __init__(self, elements: Sequence[BaseElement], click_events: bool) -> None:
+        """
+        Initialize a new output processor to generate successive status lines from `elements`
+        and send them to stdout.
+
+        The `click_events` boolean is only used to generate the swaybar header.
+        """
+
         self._elements = elements
         self._click_events = click_events
 
     @cached_property
     def header(self) -> dict[str, Any]:
+        """Return the header expected by swaybar."""
         return {
             "version": 1,
             "stop_signal": SIGSTOP,
@@ -33,9 +41,16 @@ class OutputProcessor:
         }
 
     def status_line(self) -> Sequence[Block]:
+        """Return the current unencoded status line."""
         return [b for e in self._elements for b in e.blocks()]
 
     def __iter__(self) -> Iterator[Sequence[Block]]:
+        """
+        Infinitely yield the current status line.
+
+        For every status line yielded, the encoded version is sent to stdout.
+        """
+
         def send(line: str) -> None:
             print(line, file=sys.stdout, flush=True)
 

@@ -1,19 +1,5 @@
 """
-Runtime configuration.
-
-Configuration is defined in one of the following TOML files (in order of preference):
-
-    1. --config-file=<FILE>
-
-    2. $SWAYSTATUS_CONFIG_FILE
-
-    3. <DIRECTORY>/config.toml where <DIRECTORY> is from --config-dir=<DIRECTORY>
-
-    4. $SWAYSTATUS_CONFIG_DIR/config.toml
-
-    5. $XDG_CONFIG_HOME/swaystatus/config.toml
-
-    6. $HOME/.config/swaystatus/config.toml
+Runtime configuration comes from a single TOML file.
 
 The following keys are recognized at the top-level of the file:
 
@@ -73,6 +59,8 @@ type ParamsMapping = Mapping[str, object]
 
 @dataclass(slots=True, kw_only=True)
 class ModuleSettings:
+    """Data class representing settings used to configure status line content producers."""
+
     env: EnvMapping = field(default_factory=dict)
     on_click: OnClickMapping = field(default_factory=dict)
     params: ParamsMapping = field(default_factory=dict)
@@ -131,6 +119,8 @@ class ModuleSettings:
 
 @dataclass(slots=True, kw_only=True)
 class Module:
+    """Data class representing a status line content producer."""
+
     name: str
     instance: str | None = None
     settings: ModuleSettings = field(default_factory=ModuleSettings)
@@ -237,6 +227,7 @@ class Config:
                 raise TypeError(f"`modules[{i!r}]` must be Module, got {type(module).__name__}")
 
     def modules_merged(self) -> Iterator[Module]:
+        """Yield modules that inherit from global settings."""
         empty_settings = ModuleSettings()
         for module in self.modules:
             settings = self.settings.get(module.name, empty_settings)

@@ -10,7 +10,7 @@ def environ_path(name: str) -> Path | None:
 
 
 def environ_paths(name: str) -> list[Path]:
-    """Return a list of paths from and environment variable."""
+    """Return a list of paths from an environment variable."""
     return list(map(Path, value.split(":"))) if (value := os.environ.get(name)) else []
 
 

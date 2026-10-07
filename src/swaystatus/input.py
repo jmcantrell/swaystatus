@@ -18,9 +18,18 @@ type ElementKey = tuple[str, str | None]
 
 
 class InputProcessor:
-    """Iterate handled click events received from stdin."""
+    """Receive click events from stdin and send them to the targeted element."""
 
     def __init__(self, elements: Sequence[BaseElement], updater: Callback) -> None:
+        """
+        Initialize a new input processor to handle click events sent over stdin
+        and send them to the target element in `elements`.
+
+        It is expected that calling `updater` will immediately update the
+        status line. It will be used by this class to refresh the status line
+        after a click event if the handling element requests it.
+        """
+
         self._elements = elements
         self._updater = updater
 
@@ -29,6 +38,13 @@ class InputProcessor:
         return {(e.name, e.instance): e for e in self._elements}
 
     def click_target(self, name: str, instance: str | None = None) -> BaseElement:
+        """
+        Return the element targeted by a click event.
+
+        Prefer an element with the same name and instance, falling back to one
+        with just the same name and no instance set.
+        """
+
         try:
             return self._element_lookup[(name, instance)]
         except KeyError:
@@ -39,6 +55,12 @@ class InputProcessor:
         self._updater()
 
     def __iter__(self) -> Iterator[ClickEvent]:
+        """
+        Yield decoded click events as they are received.
+
+        For every click event yielded, it is also sent to the target element.
+        """
+
         decoder = InputDecoder()
         lines = iter(sys.stdin)
         assert next(lines).strip() == "["

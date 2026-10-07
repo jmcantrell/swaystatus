@@ -48,7 +48,7 @@ class BaseElement:
         >>>     def blocks(self) -> Iterator[Block]:
         >>>         yield self.block(strftime("%c"))
 
-    To use this module, it needs to be added to the configuration:
+    To use this module, it needs to be added to the configuration file:
 
         [[modules]]
         name = "clock"
@@ -65,16 +65,16 @@ class BaseElement:
         on_click: ClickHandlerMapping[Self] | None = None,
     ) -> None:
         """
-        Intialize a new status bar content producer, i.e. an element.
+        Intialize a new status bar content producer.
 
         All arguments required by the base class, i.e. the arguments listed
         above, will be provided by swaystatus when the element is created.
 
-        The `name` parameter will be the name (minus extension) of the module
-        file that the subclass is loaded from.
+        The `name` parameter will be the name (without the extension) of the
+        module file that the subclass was loaded from.
 
         The optional `instance` parameter will be provided if the corresponding
-        module declaration in the configuration sets it.
+        module declaration in the configuration file defines it.
 
         The mapping `env` will be merged into the execution environment of
         any click handler during its execution.
@@ -89,8 +89,9 @@ class BaseElement:
 
         Upon instantiation, the mapping parameters `env` and `on_click`, and
         the keyword arguments taken from `params` represent a combination of
-        the corresponding tables in the configuration, merged together in order
-        of specificity with more specific tables overriding less specific ones.
+        the corresponding tables in the configuration file, merged together in
+        order of specificity with more specific tables overriding less specific
+        ones.
 
         To illustrate, let's change the clock example from earlier to allow
         configuring how the element displays the time. Add an initializer that
@@ -120,6 +121,7 @@ class BaseElement:
         See the `swaystatus.config` documentation for more details on
         configuring module parameters.
         """
+
         self.name = name
         self.instance = instance
         self.env = dict(env or {})
@@ -145,8 +147,10 @@ class BaseElement:
 
         You could, of course, create and yield a similar block without using
         the `block` method, but using it reduces boilerplate and the chance of
-        misconfiguration (see `block` documentation for a full explanation).
+        misconfiguration (see the `block` method documentation for a full
+        explanation).
         """
+
         raise NotImplementedError
 
     def block(self, full_text: str) -> Block:
@@ -159,8 +163,8 @@ class BaseElement:
         to click events.
 
         One potential issue happens when a module has been declared in the
-        configuration with an `instance` set and the corresponding element is
-        also yielding blocks with dynamic instance attributes.
+        configuration file with an `instance` set and the corresponding element
+        is also yielding blocks with dynamic instance attributes.
 
         When swaybar sends click events from these blocks, swaystatus is unable
         to match it with any of the known elements and falls back to sending
@@ -190,14 +194,15 @@ class BaseElement:
         the module name.
 
         The consequence is that, if click events are required, a module
-        `instance` can either be declared statically in the configuration or
-        dynamically by the module's element at runtime, but not both.
+        `instance` can either be declared statically in the configuration file
+        or dynamically by the module's element at runtime, but not both.
 
         For example, trying to yield a block with an `instance` of "work" from
         the element named "clock" when the module was already declared in the
-        configuration with the `instance` "home" will mean that click events
-        will be lost, or worse, sent to the wrong element for handling.
+        configuration file with the `instance` "home" will mean that click
+        events will be lost, or worse, sent to the wrong element for handling.
         """
+
         return Block(name=self.name, instance=self.instance, full_text=full_text)
 
     def set_click_handler(self, button: int, click_handler: ClickHandler[Self] | ShellCommand | None) -> None:
@@ -236,11 +241,13 @@ class BaseElement:
         if click_handler is None:
 
             def method(_element: Self, _click_event: ClickEvent) -> None:
+                """Handle click event by ignoring it."""
                 pass
 
         elif isinstance(click_handler, str | Sequence):
 
             def method(_element: Self, _click_event: ClickEvent) -> ShellCommand:
+                """Handle click event with a shell command."""
                 return cast(ShellCommand, click_handler)
 
         else:
@@ -250,6 +257,7 @@ class BaseElement:
 
     def on_click(self, click_event: ClickEvent) -> UpdateRequest:
         """Delegate a click event to the handler corresponding to its button."""
+
         method_attr = f"on_click_{click_event.button}"
 
         try:
@@ -282,27 +290,31 @@ class BaseElement:
 
 
 class LoggedProcess(Popen):
-    """Run a shell command, logging stdout and stderr."""
+    """Run a shell command, logging stdout and stderr to DEBUG and ERROR, respectively."""
 
     def __init__(self, args: ShellCommand) -> None:
         super().__init__(args, stdout=PIPE, stderr=PIPE, shell=True, text=True, start_new_session=True)
         assert self.stdout and self.stderr
 
         def without_newline(log: Callable[[str], None]) -> Callable[[str], None]:
+            """Remove trailing newlines from shell command output since the logger adds its own."""
+
             def wrapped(line: str) -> None:
                 log(line.rstrip("\n"))
 
             return wrapped
 
-        def start_thread(stream: Iterable[str], log: Callable[[str], None], name: str) -> MapDriver:
+        def start_log_thread(stream: Iterable[str], log: Callable[[str], None], name: str) -> MapDriver:
+            """Start a dedicated thread to log output from a command output stream."""
             thread = MapDriver(stream, without_newline(log), name=f"LoggerThread.{self.pid}.{name}")
             thread.start()
             return thread
 
-        self._stdout_thread = start_thread(self.stdout, logger.debug, "stdout")
-        self._stderr_thread = start_thread(self.stderr, logger.error, "stderr")
+        self._stdout_thread = start_log_thread(self.stdout, logger.debug, "stdout")
+        self._stderr_thread = start_log_thread(self.stderr, logger.error, "stderr")
 
     def wait(self, timeout: Number | None = None) -> int:
+        """Ensure the logging threads and their corresponding streams are shut down after the command finishes."""
         result = super().wait(timeout=timeout)
         self._stdout_thread.join(timeout=timeout)
         self._stderr_thread.join(timeout=timeout)

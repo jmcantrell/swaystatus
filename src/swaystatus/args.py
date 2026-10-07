@@ -1,4 +1,4 @@
-"""Command-line interface argument parsing."""
+"""Command-line argument parsing."""
 
 import argparse
 import logging
@@ -32,12 +32,14 @@ arg_parser = argparse.ArgumentParser(
     formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=50),
     argument_default=argparse.SUPPRESS,  # to differentiate "not given" from explicitly unset
 )
+
 arg_parser.add_argument(
     "-V",
     "--version",
     action="version",
     version=__version__,
 )
+
 arg_parser.add_argument(
     "-c",
     "--config-file",
@@ -45,6 +47,7 @@ arg_parser.add_argument(
     type=Path,
     help="specify configuration file",
 )
+
 arg_parser.add_argument(
     "-C",
     "--config-dir",
@@ -52,6 +55,7 @@ arg_parser.add_argument(
     type=Path,
     help="specify configuration directory",
 )
+
 arg_parser.add_argument(
     "-D",
     "--data-dir",
@@ -59,6 +63,7 @@ arg_parser.add_argument(
     type=Path,
     help="specify data directory",
 )
+
 arg_parser.add_argument(
     "-I",
     "--include",
@@ -67,6 +72,7 @@ arg_parser.add_argument(
     action="append",
     help="include an additional modules package",
 )
+
 arg_parser.add_argument(
     "-L",
     "--log-level",
@@ -75,6 +81,7 @@ arg_parser.add_argument(
     choices=list(logging.getLevelNamesMapping().keys()),
     help=f"specify minimum logging level (default: {logging.getLevelName(logger.getEffectiveLevel())})",
 )
+
 arg_parser.add_argument(
     "-v",
     "--verbose",
@@ -83,6 +90,7 @@ arg_parser.add_argument(
     const="INFO",
     help="alias for --log-level=%(const)s",
 )
+
 arg_parser.add_argument(
     "-d",
     "--debug",

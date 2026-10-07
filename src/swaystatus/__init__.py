@@ -1,5 +1,5 @@
 """
-Framework for creating an interactive status line for swaybar.
+Framework for creating an interactive swaybar status line.
 
 Typical usage consists of the following:
 

@@ -3,17 +3,17 @@ The daemon manages input and output streams.
 
 After starting, the daemon responds to the following signals:
 
-SIGINT, SIGTERM
-    Shut down gracefully.
+    SIGINT, SIGTERM
+        Shut down gracefully.
 
-SIGSTOP
-    Suspend output (sent by swaybar when hidden).
+    SIGSTOP
+        Suspend output (sent by swaybar when hidden).
 
-SIGCONT
-    Resume and immediately refresh output (sent by swaybar when unhidden).
+    SIGCONT
+        Resume and immediately refresh output (sent by swaybar when unhidden).
 
-SIGUSR1
-    Immediately refresh output.
+    SIGUSR1
+        Immediately refresh output.
 """
 
 from collections.abc import Callable, Sequence
@@ -43,9 +43,9 @@ class Daemon:
 
     def _register_signals(self) -> None:
         for signum in SIGNALS_UPDATE:
-            register_signal(signum, self.update)
+            logged_signal(signum, self.update)
         for signum in SIGNALS_SHUTDOWN:
-            register_signal(signum, self.shutdown)
+            logged_signal(signum, self.shutdown)
 
     def update(self) -> None:
         self._output_driver.next()
@@ -68,13 +68,15 @@ class Daemon:
         self.join(timeout=5.0)
 
 
-def register_signal(signum: int, callback: Callback) -> None:
-    def handle_signal(sig: int, frame: FrameType | None) -> None:  # pragma: no cover
+def logged_signal(signum: int, callback: Callback) -> None:
+    """Log when a signal is received before calling it's handler."""
+
+    def handler(sig: int, frame: FrameType | None) -> None:  # pragma: no cover
         logger.info("received signal %s (%d)", Signals(sig).name, sig)
         logger.debug("current stack frame %r", frame)
         callback()
 
-    signal(signum, handle_signal)
+    signal(signum, handler)
 
 
 __all__ = [Daemon.__name__]
