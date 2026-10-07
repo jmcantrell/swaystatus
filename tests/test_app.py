@@ -9,6 +9,7 @@ from swaystatus.app import App
 from swaystatus.config import Config, EnvMapping, Module, ModuleSettings, OnClickMapping, ParamsMapping
 from swaystatus.element import BaseElement
 from swaystatus.logger import logger
+from swaystatus.xdg import xdg_config_home, xdg_data_home
 
 
 class TestApp(TestCase):
@@ -42,65 +43,47 @@ class TestApp(TestCase):
 
         self.app = App()
 
-    def test_config_home_default(self) -> None:
-        self.assertEqual(self.app.config_home, Path.home() / ".config")
+    def test_config_dir_default_is_xdg(self) -> None:
+        self.assertEqual(self.app.config_dir, xdg_config_home() / "swaystatus")
 
-    def test_config_home_xdg_over_default(self) -> None:
-        config_home = Path("/path/to/config")
-        self.env["XDG_CONFIG_HOME"] = str(config_home)
-        self.assertEqual(self.app.config_home, config_home)
-
-    def test_config_dir_default_based_on_config_home(self) -> None:
-        self.app.config_home = Path("/path/to/config")
-        self.assertEqual(self.app.config_dir, self.app.config_home / "swaystatus")
-
-    def test_config_dir_from_env_over_default(self) -> None:
+    def test_config_dir_env_overrides_default(self) -> None:
         config_dir = Path("/path/to/config/dir")
         self.env["SWAYSTATUS_CONFIG_DIR"] = str(config_dir)
         self.assertEqual(self.app.config_dir, config_dir)
 
-    def test_config_dir_from_arg_over_env(self) -> None:
+    def test_config_dir_arg_overrides_env(self) -> None:
         self.app.args.config_dir = Path("/path/to/config/dir")
         self.env["SWAYSTATUS_CONFIG_DIR"] = "/does/not/matter"
         self.assertEqual(self.app.config_dir, self.app.args.config_dir)
 
-    def test_config_file_default_based_on_config_dir(self) -> None:
+    def test_config_file_default(self) -> None:
         self.app.config_dir = Path("/path/to/config/dir")
         self.assertEqual(self.app.config_file, self.app.config_dir / "config.toml")
 
-    def test_config_file_from_env_over_default(self) -> None:
+    def test_config_file_env_overrides_default(self) -> None:
         config_file = Path("/path/to/config/file")
         self.env["SWAYSTATUS_CONFIG_FILE"] = str(config_file)
         self.assertEqual(self.app.config_file, config_file)
 
-    def test_config_file_from_arg_over_env(self) -> None:
+    def test_config_file_arg_overrides_env(self) -> None:
         self.app.args.config_file = Path("/path/to/config/file")
         self.env["SWAYSTATUS_CONFIG_FILE"] = "/does/not/matter"
         self.assertEqual(self.app.config_file, self.app.args.config_file)
 
-    def test_config_from_file(self) -> None:
+    def test_config_comes_from_file(self) -> None:
         self.app.config_file = Path("/path/to/config/file")
         self.assertIs(self.app.config, self.config)
         self.config_from_file_mock.assert_called_once_with(self.app.config_file)
 
-    def test_data_home_default(self) -> None:
-        self.assertEqual(self.app.data_home, Path.home() / ".local/share")
+    def test_data_dir_default_is_xdg(self) -> None:
+        self.assertEqual(self.app.data_dir, xdg_data_home() / "swaystatus")
 
-    def test_data_home_xdg_over_default(self) -> None:
-        data_home = Path("/path/to/data")
-        self.env["XDG_DATA_HOME"] = str(data_home)
-        self.assertEqual(self.app.data_home, data_home)
-
-    def test_data_dir_default_based_on_data_home(self) -> None:
-        self.app.data_home = Path("/path/to/data")
-        self.assertEqual(self.app.data_dir, self.app.data_home / "swaystatus")
-
-    def test_data_dir_from_env_over_default(self) -> None:
+    def test_data_dir_env_overrides_default(self) -> None:
         data_dir = Path("/path/to/data/dir")
         self.env["SWAYSTATUS_DATA_DIR"] = str(data_dir)
         self.assertEqual(self.app.data_dir, data_dir)
 
-    def test_data_dir_from_arg_over_env(self) -> None:
+    def test_data_dir_arg_overrides_env(self) -> None:
         self.app.args.data_dir = Path("/path/to/data/dir")
         self.env["SWAYSTATUS_DATA_DIR"] = "/does/not/matter"
         self.assertEqual(self.app.data_dir, self.app.args.data_dir)
@@ -116,7 +99,7 @@ class TestApp(TestCase):
             self.app.args.include + self.app.config.include + package_include + [data_dir / "modules"],
         )
 
-    def test_registry_from_include(self) -> None:
+    def test_registry_uses_include(self) -> None:
         self.app.include = [Path("/dir1"), Path("/dir2"), Path("/dir3")]
         self.assertIs(self.app.registry, self.registry_mock.return_value)
         self.registry_mock.assert_called_once_with(self.app.include)

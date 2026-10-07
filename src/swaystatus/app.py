@@ -11,6 +11,7 @@ from .element import BaseElement
 from .env import environ_path, environ_paths
 from .logger import logger, logger_level_at
 from .modules import Registry
+from .xdg import xdg_config_home, xdg_data_home
 
 
 class App:
@@ -21,19 +22,18 @@ class App:
         return Args.parse()
 
     @cached_property
-    def config_home(self) -> Path:
-        return environ_path("XDG_CONFIG_HOME") or Path.home() / ".config"
-
-    @cached_property
     def config_dir(self) -> Path:
-        return self.args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR") or self.config_home / "swaystatus"
+        """Directory for application configuration."""
+        return self.args.config_dir or environ_path("SWAYSTATUS_CONFIG_DIR") or xdg_config_home() / "swaystatus"
 
     @cached_property
     def config_file(self) -> Path:
+        """Main configuration file for application."""
         return self.args.config_file or environ_path("SWAYSTATUS_CONFIG_FILE") or self.config_dir / "config.toml"
 
     @cached_property
     def config(self) -> Config:
+        """Parsed and validated runtime configuration."""
         with context("configuration"):
             logger.info("from file %r", str(self.config_file))
             config = Config.from_file(self.config_file)
@@ -41,12 +41,9 @@ class App:
         return config
 
     @cached_property
-    def data_home(self) -> Path:
-        return environ_path("XDG_DATA_HOME") or Path.home() / ".local/share"
-
-    @cached_property
     def data_dir(self) -> Path:
-        return self.args.data_dir or environ_path("SWAYSTATUS_DATA_DIR") or self.data_home / "swaystatus"
+        """Directory for application data."""
+        return self.args.data_dir or environ_path("SWAYSTATUS_DATA_DIR") or xdg_data_home() / "swaystatus"
 
     @cached_property
     def include(self) -> list[Path]:
@@ -86,6 +83,7 @@ class App:
 
     @cached_property
     def daemon(self) -> Daemon:
+        """Coordinator for application input and output."""
         return Daemon(self.elements, self.config.interval, self.config.click_events)
 
     def run(self) -> None:
