@@ -1,6 +1,7 @@
 import logging
 from threading import Thread
 from unittest import TestCase, main
+from unittest.mock import patch
 
 from swaystatus.logger import logger, logger_level_at
 
@@ -25,19 +26,22 @@ class TestThreadExcepthook(TestCase):
 
 
 class TestLoggerLevelAt(TestCase):
+    def setUp(self) -> None:
+        logger_patcher = patch("swaystatus.logger.logger", logging.getLogger("test"))
+        self.logger_mock = logger_patcher.start()
+        self.addCleanup(logger_patcher.stop)
+
     def test_context(self) -> None:
-        logger = logging.getLogger("test")
-        logger.setLevel(30)
-        with logger_level_at(logger, 42):
-            self.assertEqual(logger.level, 42)
-        self.assertEqual(logger.level, 30)
+        self.logger_mock.setLevel(30)
+        with logger_level_at(42):
+            self.assertEqual(self.logger_mock.level, 42)
+        self.assertEqual(self.logger_mock.level, 30)
 
     def test_context_noop(self) -> None:
-        logger = logging.getLogger("test")
-        logger.setLevel(30)
-        with logger_level_at(logger, None):
-            self.assertEqual(logger.level, 30)
-        self.assertEqual(logger.level, 30)
+        self.logger_mock.setLevel(30)
+        with logger_level_at(None):
+            self.assertEqual(self.logger_mock.level, 30)
+        self.assertEqual(self.logger_mock.level, 30)
 
 
 if __name__ == "__main__":

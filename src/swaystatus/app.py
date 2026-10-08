@@ -161,7 +161,7 @@ class App:
 
     def run(self) -> None:
         """Start the daemon and wait for it to be shut down."""
-        with logger_level_at(logger, self.args.log_level):
+        with logger_level_at(self.args.log_level):
             logger.info("daemon starting")
             self.daemon.start()
             self.daemon.join()

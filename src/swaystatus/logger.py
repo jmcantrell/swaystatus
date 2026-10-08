@@ -1,24 +1,24 @@
 """The logger is used to report activity during runtime."""
 
+import logging
 import threading
 from collections.abc import Generator
 from contextlib import contextmanager
-from logging import WARNING, Filter, Formatter, Logger, LogRecord, StreamHandler, basicConfig, getLogger
 
 from .context import context_var
 
-logger = getLogger(__package__)
+logger = logging.getLogger(__package__)
 
-handler = StreamHandler()
-handler.setFormatter(Formatter("%(name)s %(process)s %(threadName)s %(context)s %(levelname)s %(message)s"))
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter("%(name)s %(process)s %(threadName)s %(context)s %(levelname)s %(message)s"))
 
-basicConfig(level=WARNING, handlers=[handler])
+logging.basicConfig(level=logging.WARNING, handlers=[handler])
 
 
-class LogContextFilter(Filter):
+class LogContextFilter(logging.Filter):
     """Attach the runtime context to log records."""
 
-    def filter(self, record: LogRecord):
+    def filter(self, record: logging.LogRecord):
         record.context = context_var.get() or "default"
         return True
 
@@ -39,11 +39,13 @@ threading.excepthook = excepthook
 
 
 @contextmanager
-def logger_level_at(logger: Logger, level: int | str | None) -> Generator:
+def logger_level_at(level: int | str | None) -> Generator:
     """Change a logger's threshold during execution of a block."""
+
     if level is None:
         yield
         return
+
     level_save = logger.level
     logger.setLevel(level)
     try:
